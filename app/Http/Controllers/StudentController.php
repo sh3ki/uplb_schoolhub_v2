@@ -212,6 +212,12 @@ class StudentController extends Controller
             return;
         }
 
+        // If no ParentModel exists but a User already holds that email, skip creating a new user
+        // (avoids duplicate-entry SQL error when the same guardian is shared across students).
+        if (User::where('email', $student->guardian_email)->exists()) {
+            return;
+        }
+
         // Parse guardian name into first/last
         $nameParts = explode(' ', trim($student->guardian_name ?? 'Guardian'), 2);
         $firstName = $nameParts[0] ?? 'Guardian';
