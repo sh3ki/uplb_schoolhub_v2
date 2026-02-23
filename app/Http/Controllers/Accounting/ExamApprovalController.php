@@ -90,7 +90,7 @@ class ExamApprovalController extends Controller
             })
             ->with(['fees' => function ($q) {
                 $q->where('balance', '<=', 0)->where('total_amount', '>', 0)->latest();
-            }]);
+            }, 'departmentModel']);
 
         // Apply search to fully paid list if provided
         if ($search = $request->input('search')) {
@@ -114,6 +114,8 @@ class ExamApprovalController extends Controller
                     'last_name'         => $student->last_name,
                     'lrn'               => $student->lrn,
                     'gender'            => strtolower($student->gender ?? ''),
+                    'classification'    => $student->student_type ?? 'new',
+                    'department'        => $student->departmentModel?->name ?? null,
                     'program'           => $student->program,
                     'year_level'        => $student->year_level,
                     'section'           => $student->section,
