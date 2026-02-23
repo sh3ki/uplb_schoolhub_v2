@@ -40,7 +40,7 @@ import {
 import { FilterBar } from '@/components/filters/filter-bar';
 import { SearchBar } from '@/components/filters/search-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
-import { Check, MoreHorizontal, Plus, Trash2, X, CheckCircle } from 'lucide-react';
+import { Check, MoreHorizontal, Plus, Trash2, X, CheckCircle, Users } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 
 interface Student {
@@ -83,9 +83,27 @@ interface EligibleStudent {
     school_year: string;
 }
 
+interface FullyPaidStudent {
+    id: number;
+    full_name: string;
+    first_name: string;
+    last_name: string;
+    lrn: string;
+    gender: string;
+    program?: string;
+    year_level?: string;
+    section?: string;
+    student_photo_url: string | null;
+    total_amount: number;
+    total_paid: number;
+    school_year: string;
+}
+
 interface Props {
     approvals: PaginatedApprovals;
     eligibleStudents: EligibleStudent[];
+    fullyPaidMale: FullyPaidStudent[];
+    fullyPaidFemale: FullyPaidStudent[];
     examTypes: Record<string, string>;
     terms: Record<string, string>;
     schoolYears: string[];
@@ -100,6 +118,8 @@ interface Props {
 export default function ExamApprovalIndex({
     approvals,
     eligibleStudents,
+    fullyPaidMale,
+    fullyPaidFemale,
     examTypes,
     terms,
     schoolYears,
