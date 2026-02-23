@@ -20,6 +20,7 @@ class AccountCreatedNotification extends VerifyEmail
         $settings     = AppSetting::current();
         $appName      = $settings->app_name ?? config('app.name');
         $primaryColor = $settings->primary_color ?? '#1d4ed8';
+        $logoUrl      = $settings->logo_url ?? null;
 
         return (new MailMessage)
             ->subject("Welcome to {$appName} — Please Verify Your Email")
@@ -31,6 +32,7 @@ class AccountCreatedNotification extends VerifyEmail
                 'initialPassword' => $this->initialPassword,
                 'appName'         => $appName,
                 'primaryColor'    => $primaryColor,
+                'logoUrl'         => $logoUrl,
             ]);
     }
 }
