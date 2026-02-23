@@ -25,6 +25,7 @@ class AppSettingsController extends Controller
                 'favicon_url'               => $settings->favicon_url,
                 'primary_color'             => $settings->primary_color,
                 'secondary_color'           => $settings->secondary_color,
+                'school_year'               => $settings->school_year ?? '2024-2025',
                 'has_k12'                   => (bool) $settings->has_k12,
                 'has_college'               => (bool) $settings->has_college,
                 // Landing page
@@ -77,6 +78,7 @@ class AppSettingsController extends Controller
             'app_name'       => 'required|string|max:100',
             'primary_color'  => 'required|string|max:20',
             'secondary_color' => 'nullable|string|max:20',
+            'school_year'    => 'nullable|string|max:20|regex:/^\d{4}-\d{4}$/',
             'has_k12'        => 'nullable|in:0,1',
             'has_college'    => 'nullable|in:0,1',
             'logo'           => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
@@ -87,6 +89,7 @@ class AppSettingsController extends Controller
         $settings->app_name       = $validated['app_name'];
         $settings->primary_color  = $validated['primary_color'];
         $settings->secondary_color = $validated['secondary_color'] ?? $settings->secondary_color;
+        $settings->school_year    = $validated['school_year'] ?? $settings->school_year;
         $settings->has_k12        = $request->input('has_k12') === '1';
         $settings->has_college    = $request->input('has_college') === '1';
 
