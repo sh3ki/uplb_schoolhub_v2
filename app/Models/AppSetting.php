@@ -13,6 +13,7 @@ class AppSetting extends Model
         'favicon_path',
         'primary_color',
         'secondary_color',
+        'school_year',
         'has_k12',
         'has_college',
         // Landing page
@@ -57,6 +58,7 @@ class AppSetting extends Model
             'app_name'      => 'School Management System',
             'primary_color' => '#1d4ed8',
             'secondary_color' => '#64748b',
+            'school_year'   => '2024-2025',
             'has_k12'       => true,
             'has_college'   => true,
         ]);
