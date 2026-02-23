@@ -302,10 +302,11 @@ class StudentController extends Controller
         $student->update(['email' => $request->email]);
 
         if ($studentUser) {
-            $studentUser->update([
-                'email'             => $request->email,
-                'email_verified_at' => null,
-            ]);
+            // Set email and clear verification — email_verified_at is not in $fillable
+            // so we assign it directly to bypass mass-assignment protection.
+            $studentUser->email             = $request->email;
+            $studentUser->email_verified_at = null;
+            $studentUser->save();
 
             try {
                 $studentUser->sendEmailVerificationNotification();
