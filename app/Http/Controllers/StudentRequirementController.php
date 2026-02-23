@@ -46,24 +46,24 @@ class StudentRequirementController extends Controller
             $approved = $student->requirements()->where('status', 'approved')->count();
             $percentage = $total > 0 ? (int) round(($approved / $total) * 100) : 0;
 
-            $clearance = $student->enrollmentClearance;
-            if ($clearance) {
-                $clearanceUpdate = [
-                    'requirements_complete_percentage' => $percentage,
-                    'requirements_complete'            => $percentage >= 100,
-                ];
-                // Stamp completion timestamp when it first reaches 100%
-                if ($percentage >= 100 && !$clearance->requirements_complete) {
-                    $clearanceUpdate['requirements_completed_at'] = now();
-                    $clearanceUpdate['requirements_completed_by'] = auth()->id();
-                }
-                $clearance->update($clearanceUpdate);
+            // firstOrCreate ensures we always have a clearance row to update,
+            // even if the student hasn't visited their show page yet.
+            $clearance = $student->enrollmentClearance()->firstOrCreate([]);
+            $clearanceUpdate = [
+                'requirements_complete_percentage' => $percentage,
+                'requirements_complete'            => $percentage >= 100,
+            ];
+            // Stamp completion timestamp when it first reaches 100%
+            if ($percentage >= 100 && !$clearance->requirements_complete) {
+                $clearanceUpdate['requirements_completed_at'] = now();
+                $clearanceUpdate['requirements_completed_by'] = auth()->id();
+            }
+            $clearance->update($clearanceUpdate);
 
-                // Auto-enroll student if all four clearance steps are now complete
-                if ($clearance->fresh()->isFullyCleared()) {
-                    $clearance->update(['enrollment_status' => 'completed']);
-                    $student->update(['enrollment_status' => 'enrolled']);
-                }
+            // Auto-enroll student if all four clearance steps are now complete
+            if ($clearance->fresh()->isFullyCleared()) {
+                $clearance->update(['enrollment_status' => 'completed']);
+                $student->update(['enrollment_status' => 'enrolled']);
             }
         }
 
