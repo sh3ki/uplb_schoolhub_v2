@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreStudentRequest extends FormRequest
 {
@@ -27,7 +28,7 @@ class StoreStudentRequest extends FormRequest
             'middle_name' => ['nullable', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:50'],
             'lrn' => ['required', 'string', 'unique:students,lrn', 'max:255'],
-            'email' => ['required', 'email', 'unique:students,email', 'max:255'],
+            'email' => ['required', 'email', 'unique:students,email', Rule::unique('users', 'email'), 'max:255'],
             'phone' => ['required', 'string', 'max:20'],
             'date_of_birth' => ['required', 'date'],
             'gender' => ['required', 'in:male,female,other'],
