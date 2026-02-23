@@ -43,6 +43,9 @@
     <div class="wrap">
         <!-- Header -->
         <div class="header">
+            @if(!empty($logoUrl))
+                <img src="{{ $logoUrl }}" alt="{{ $appName }}" style="max-height:56px;max-width:200px;object-fit:contain;margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;" />
+            @endif
             <h1>{{ $appName }}</h1>
             <p>Office of the Registrar</p>
         </div>
