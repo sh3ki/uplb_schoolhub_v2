@@ -98,16 +98,16 @@ class ReportsController extends Controller
                     'school_year' => $fee->school_year,
                     'total_amount' => $fee->total_amount,
                     'total_paid' => $fee->total_paid,
-                    'balance' => $fee->balance,
+                    'balance' => max(0, (float) $fee->balance),
                     'payment_status' => $fee->getPaymentStatus(),
                 ];
             });
 
         // Summary Statistics
         $summaryStats = [
-            'total_collectibles' => StudentFee::sum('balance'),
+            'total_collectibles' => StudentFee::where('balance', '>', 0)->sum('balance'),
             'total_collected' => StudentPayment::sum('amount'),
-            'fully_paid_count' => StudentFee::where('balance', '<=', 0)->count(),
+            'fully_paid_count' => StudentFee::where('balance', '<=', 0)->where('total_amount', '>', 0)->count(),
             'partial_paid_count' => StudentFee::where('total_paid', '>', 0)->where('balance', '>', 0)->count(),
             'unpaid_count' => StudentFee::where('total_paid', 0)->count(),
         ];
