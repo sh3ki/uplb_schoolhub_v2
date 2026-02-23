@@ -77,7 +77,7 @@ class DashboardController extends Controller
      */
     private function getBasicPaymentInfo(Student $student): array
     {
-        $schoolYear = '2024-2025';
+        $schoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
 
         // Total fees
         $totalFees = $this->calculateTotalFees($student, $schoolYear);
