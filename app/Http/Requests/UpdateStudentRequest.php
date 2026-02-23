@@ -24,13 +24,17 @@ class UpdateStudentRequest extends FormRequest
     {
         $studentId = $this->route('student');
 
+        // Resolve the associated user ID so we can ignore it in the users table
+        $studentModel = is_object($studentId) ? $studentId : \App\Models\Student::find($studentId);
+        $userId       = $studentModel?->user?->id;
+
         return [
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'suffix' => ['nullable', 'string', 'max:50'],
             'lrn' => ['required', 'string', Rule::unique('students', 'lrn')->ignore($studentId), 'max:255'],
-            'email' => ['required', 'email', Rule::unique('students', 'email')->ignore($studentId), 'max:255'],
+            'email' => ['required', 'email', Rule::unique('students', 'email')->ignore($studentId), Rule::unique('users', 'email')->ignore($userId), 'max:255'],
             'phone' => ['required', 'string', 'max:20'],
             'date_of_birth' => ['required', 'date'],
             'gender' => ['required', 'in:male,female,other'],
