@@ -414,7 +414,7 @@ class StudentPaymentController extends Controller
         $totalPaid = $payments->sum('amount');
         
         // Calculate previous balance (from previous school years) and current fees balance
-        $currentSchoolYear = '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
         $previousBalance = $fees->where('school_year', '!=', $currentSchoolYear)->sum('balance');
         $currentFeesBalance = $fees->where('school_year', $currentSchoolYear)->sum('balance');
         
