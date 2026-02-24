@@ -40,6 +40,7 @@ Route::get('dashboard', function () {
         'owner' => redirect()->route('owner.dashboard'),
         'registrar' => redirect()->route('registrar.dashboard'),
         'accounting' => redirect()->route('accounting.dashboard'),
+        'super-accounting' => redirect()->route('super-accounting.dashboard'),
         'student' => redirect()->route('student.dashboard'),
         'teacher' => redirect()->route('teacher.dashboard'),
         'parent' => redirect()->route('parent.dashboard'),
@@ -205,6 +206,15 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     })->name('archived');
 
     Route::get('schedule', [App\Http\Controllers\Registrar\ScheduleController::class, 'index'])->name('schedule');
+
+    // Drop Request Management
+    Route::get('drop-requests', [App\Http\Controllers\Registrar\DropRequestController::class, 'index'])->name('drop-requests.index');
+    Route::post('drop-requests/{dropRequest}/approve', [App\Http\Controllers\Registrar\DropRequestController::class, 'approve'])->name('drop-requests.approve');
+    Route::post('drop-requests/{dropRequest}/reject', [App\Http\Controllers\Registrar\DropRequestController::class, 'reject'])->name('drop-requests.reject');
+    Route::post('students/{student}/reactivate', [App\Http\Controllers\Registrar\DropRequestController::class, 'reactivate'])->name('students.reactivate');
+
+    // Archive Students (bulk)
+    Route::post('students/archive', [App\Http\Controllers\StudentController::class, 'bulkArchive'])->name('students.bulk-archive');
 });
 
 // Accounting Routes
@@ -347,6 +357,11 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'verified', 'rol
     // Refund / Void Requests
     Route::get('refund-requests', [App\Http\Controllers\Student\RefundRequestController::class, 'index'])->name('refund-requests.index');
     Route::post('refund-requests', [App\Http\Controllers\Student\RefundRequestController::class, 'store'])->name('refund-requests.store');
+
+    // Drop Requests
+    Route::get('drop-request', [App\Http\Controllers\Student\DropRequestController::class, 'index'])->name('drop-request.index');
+    Route::post('drop-request', [App\Http\Controllers\Student\DropRequestController::class, 'store'])->name('drop-request.store');
+    Route::delete('drop-request/{dropRequest}', [App\Http\Controllers\Student\DropRequestController::class, 'cancel'])->name('drop-request.cancel');
     
     // Routes that require enrollment
     Route::middleware(['enrolled'])->group(function () {
@@ -451,6 +466,23 @@ Route::prefix('canteen')->name('canteen.')->middleware(['auth', 'verified', 'rol
     Route::get('dashboard', function () {
         return Inertia::render('canteen/dashboard');
     })->name('dashboard');
+});
+
+// Super Accounting Portal Routes
+Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth', 'verified', 'role:super-accounting'])->group(function () {
+    registerSettingsRoutes();
+    registerAnnouncementsRoute();
+    
+    Route::get('dashboard', [App\Http\Controllers\SuperAccounting\DashboardController::class, 'index'])->name('dashboard');
+    
+    // Refund Management
+    Route::get('refunds', [App\Http\Controllers\SuperAccounting\RefundController::class, 'index'])->name('refunds.index');
+    Route::post('refunds/{refund}/approve', [App\Http\Controllers\SuperAccounting\RefundController::class, 'approve'])->name('refunds.approve');
+    Route::post('refunds/{refund}/reject', [App\Http\Controllers\SuperAccounting\RefundController::class, 'reject'])->name('refunds.reject');
+    
+    // Reports
+    Route::get('reports', [App\Http\Controllers\SuperAccounting\ReportsController::class, 'index'])->name('reports.index');
+    Route::get('reports/export', [App\Http\Controllers\SuperAccounting\ReportsController::class, 'export'])->name('reports.export');
 });
 
 require __DIR__.'/settings.php';
