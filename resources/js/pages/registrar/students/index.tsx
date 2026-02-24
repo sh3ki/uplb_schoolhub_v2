@@ -517,7 +517,7 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, f
                         <TableBody>
                             {students.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={10} className="text-center py-8">
+                                    <TableCell colSpan={11} className="text-center py-8">
                                         <p className="text-muted-foreground">No students found. Add your first student to get started.</p>
                                     </TableCell>
                                 </TableRow>
@@ -530,9 +530,15 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, f
                                         <TableRow 
                                             key={student.id}
                                             className="cursor-pointer hover:bg-muted/50 transition-colors"
-                                            onClick={() => router.visit(showStudent.url({ student: student.id }))}
                                         >
-                                            <TableCell>
+                                            <TableCell onClick={(e) => e.stopPropagation()}>
+                                                <Checkbox
+                                                    checked={selectedStudents.includes(student.id)}
+                                                    onCheckedChange={(checked) => handleSelectStudent(student.id, !!checked)}
+                                                    aria-label={`Select ${fullName}`}
+                                                />
+                                            </TableCell>
+                                            <TableCell onClick={() => router.visit(showStudent.url({ student: student.id }))}>
                                                 <div className="flex items-center space-x-3">
                                                     <Avatar>
                                                         <AvatarImage src={student.student_photo_url || undefined} />
