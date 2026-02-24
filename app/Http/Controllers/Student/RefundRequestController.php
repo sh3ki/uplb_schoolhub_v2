@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\DropRequest;
 use App\Models\RefundRequest;
 use App\Models\StudentFee;
 use Illuminate\Http\RedirectResponse;
@@ -24,8 +25,21 @@ class RefundRequestController extends Controller
             return Inertia::render('student/refund-requests/index', [
                 'requests'    => [],
                 'studentFees' => [],
+                'canRequestRefund' => false,
+                'dropStatus' => null,
             ]);
         }
+
+        // Check if student has an approved drop request (required to request refund)
+        $approvedDropRequest = DropRequest::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->exists();
+
+        $pendingDropRequest = DropRequest::where('student_id', $student->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        $canRequestRefund = $approvedDropRequest && $student->enrollment_status === 'dropped';
 
         $requests = RefundRequest::where('student_id', $student->id)
             ->with(['studentFee', 'processedBy:id,name'])
@@ -55,9 +69,19 @@ class RefundRequestController extends Controller
                 'balance'     => max(0, (float) $f->balance),
             ]);
 
+        // Determine drop status for UI
+        $dropStatus = null;
+        if ($approvedDropRequest) {
+            $dropStatus = 'approved';
+        } elseif ($pendingDropRequest) {
+            $dropStatus = 'pending';
+        }
+
         return Inertia::render('student/refund-requests/index', [
             'requests'    => $requests,
             'studentFees' => $studentFees,
+            'canRequestRefund' => $canRequestRefund,
+            'dropStatus' => $dropStatus,
         ]);
     }
 
@@ -70,6 +94,15 @@ class RefundRequestController extends Controller
         $student = $user->student;
 
         abort_unless($student, 403, 'No student account linked.');
+
+        // Check if student has an approved drop request
+        $approvedDropRequest = DropRequest::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->exists();
+
+        if (!$approvedDropRequest || $student->enrollment_status !== 'dropped') {
+            return back()->with('error', 'You must have an approved drop request before you can request a refund.');
+        }
 
         $validated = $request->validate([
             'student_fee_id' => 'nullable|exists:student_fees,id',
@@ -99,6 +132,6 @@ class RefundRequestController extends Controller
             'status'         => 'pending',
         ]);
 
-        return back()->with('success', 'Your refund/void request has been submitted and is pending review.');
+        return back()->with('success', 'Your refund request has been submitted and is pending Super Accounting review.');
     }
 }
