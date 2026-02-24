@@ -41,6 +41,7 @@ class Student extends Model
         'year_level_id',
         'section_id',
         'enrollment_status',
+        'is_active',
         'requirements_status',
         'requirements_percentage',
         'guardian_name',
@@ -59,6 +60,7 @@ class Student extends Model
     protected $casts = [
         'date_of_birth' => 'date',
         'requirements_percentage' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     /**
@@ -277,5 +279,45 @@ class Student extends Model
     public function guidanceRecords()
     {
         return $this->hasMany(GuidanceRecord::class);
+    }
+
+    /**
+     * Get all drop requests for this student.
+     */
+    public function dropRequests()
+    {
+        return $this->hasMany(DropRequest::class);
+    }
+
+    /**
+     * Get all refund requests for this student.
+     */
+    public function refundRequests()
+    {
+        return $this->hasMany(RefundRequest::class);
+    }
+
+    /**
+     * Check if the student has a pending drop request.
+     */
+    public function hasPendingDropRequest(): bool
+    {
+        return $this->dropRequests()->pending()->exists();
+    }
+
+    /**
+     * Check if the student has an approved drop request.
+     */
+    public function hasApprovedDropRequest(): bool
+    {
+        return $this->dropRequests()->approved()->exists();
+    }
+
+    /**
+     * Check if the student can request a refund (only after drop approved).
+     */
+    public function canRequestRefund(): bool
+    {
+        return $this->enrollment_status === 'dropped' && $this->hasApprovedDropRequest();
     }
 }
