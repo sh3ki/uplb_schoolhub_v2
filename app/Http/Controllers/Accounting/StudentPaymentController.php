@@ -518,8 +518,20 @@ class StudentPaymentController extends Controller
             return null;
         }
 
-        // Calculate total from fee items
-        $totalAmount = $feeItems->sum('selling_price');
+        // Pre-fetch enrolled units for per-unit tuition calculation
+        $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+            ->where('school_year', $schoolYear)
+            ->whereIn('status', ['enrolled'])
+            ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+            ->sum('subjects.units');
+
+        // Calculate total from fee items (per-unit items use unit_price × enrolled_units)
+        $totalAmount = $feeItems->sum(function ($item) use ($enrolledUnits) {
+            if ($item->is_per_unit) {
+                return (float) $item->unit_price * (float) $enrolledUnits;
+            }
+            return (float) $item->selling_price;
+        });
 
         // Get grant discount for this school year
         $grantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
@@ -555,16 +567,22 @@ class StudentPaymentController extends Controller
         $balance = max(0, $totalAmount - $grantDiscount - $totalPaid);
 
         // Group items by category
-        $itemsByCategory = $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) {
+        $itemsByCategory = $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) use ($enrolledUnits) {
             $category = $items->first()->category;
             return [
-                'category_id' => $categoryId,
+                'category_id'   => $categoryId,
                 'category_name' => $category->name ?? 'Other',
-                'items' => $items->map(function ($item) {
+                'items'         => $items->map(function ($item) use ($enrolledUnits) {
+                    $amount = $item->is_per_unit
+                        ? (float) $item->unit_price * (float) $enrolledUnits
+                        : (float) $item->selling_price;
                     return [
-                        'id' => $item->id,
-                        'name' => $item->name,
-                        'amount' => (float) $item->selling_price,
+                        'id'           => $item->id,
+                        'name'         => $item->name,
+                        'amount'       => $amount,
+                        'is_per_unit'  => (bool) $item->is_per_unit,
+                        'unit_price'   => (float) $item->unit_price,
+                        'enrolled_units'=> (float) $enrolledUnits,
                     ];
                 })->values()->toArray(),
             ];
