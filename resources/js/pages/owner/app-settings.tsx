@@ -438,10 +438,10 @@ export default function AppSettings({ settings }: Props) {
 
                     {/* ══ LANDING PAGE ═════════════════════════════════════ */}
                     <TabsContent value="landing" className="space-y-6">
-                        {/* Two-column: editor left, live preview right */}
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
-                        {/* ── LEFT: editor ─────────────────────────────── */}
-                        <div className="space-y-6">
+                        {/* Two-column: 25% editor left, 75% live preview right */}
+                        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+                        {/* ── LEFT: editor (25%) ───────────────────────── */}
+                        <div className="xl:col-span-1 space-y-6">
                         {/* Hero */}
                         <Card>
                             <CardHeader>
@@ -660,8 +660,8 @@ export default function AppSettings({ settings }: Props) {
                         </div>
                         </div>{/* end left editor column */}
 
-                        {/* ── RIGHT: live preview ───────────────────────── */}
-                        <div className="xl:sticky xl:top-6 space-y-2">
+                        {/* ── RIGHT: live preview (75%) ─────────────────── */}
+                        <div className="xl:col-span-3 xl:sticky xl:top-6 space-y-2">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                                     <Layout className="h-4 w-4" />
