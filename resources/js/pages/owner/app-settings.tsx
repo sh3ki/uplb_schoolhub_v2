@@ -438,10 +438,33 @@ export default function AppSettings({ settings }: Props) {
 
                     {/* ══ LANDING PAGE ═════════════════════════════════════ */}
                     <TabsContent value="landing" className="space-y-6">
-                        {/* Two-column: 25% editor left, 75% live preview right */}
-                        <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
-                        {/* ── LEFT: editor (25%) ───────────────────────── */}
-                        <div className="xl:col-span-1 space-y-6">
+
+                        {/* ── TOP: Live Preview at full width ───────────── */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <Layout className="h-4 w-4" />
+                                    Live Preview
+                                </p>
+                                <a href="/" target="_blank" rel="noreferrer"
+                                    className="text-xs text-primary hover:underline">
+                                    Open full page ↗
+                                </a>
+                            </div>
+                            {/* Outer container clips to a viewport-height window with its own scrollbar */}
+                            <div className="rounded-lg border overflow-hidden bg-white shadow-sm" style={{ height: '85vh' }}>
+                                <iframe
+                                    src="/"
+                                    title="Landing Page Preview"
+                                    className="w-full"
+                                    style={{ border: 'none', width: '100%', height: '100%', display: 'block' }}
+                                />
+                            </div>
+                        </div>
+
+                        {/* ── BELOW: Editor forms ───────────────────────── */}
+                        <div className="space-y-6">
+
                         {/* Hero */}
                         <Card>
                             <CardHeader>
@@ -658,31 +681,8 @@ export default function AppSettings({ settings }: Props) {
                                 {landingSaving ? 'Saving…' : 'Save Landing Page'}
                             </Button>
                         </div>
-                        </div>{/* end left editor column */}
+                        </div>{/* end editor forms */}
 
-                        {/* ── RIGHT: live preview (75%) ─────────────────── */}
-                        <div className="xl:col-span-3 xl:sticky xl:top-6 space-y-2">
-                            <div className="flex items-center justify-between">
-                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                                    <Layout className="h-4 w-4" />
-                                    Live Preview
-                                </p>
-                                <a href="/" target="_blank" rel="noreferrer"
-                                    className="text-xs text-primary hover:underline">
-                                    Open full page ↗
-                                </a>
-                            </div>
-                            <div className="rounded-lg border overflow-hidden bg-white shadow-sm" style={{ height: '80vh' }}>
-                                <iframe
-                                    src="/"
-                                    title="Landing Page Preview"
-                                    className="w-full h-full"
-                                    style={{ border: 'none' }}
-                                />
-                            </div>
-                        </div>
-
-                        </div>{/* end two-column grid */}
                     </TabsContent>
 
                     {/* ══ ALUMNI ═══════════════════════════════════════════ */}
