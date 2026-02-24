@@ -14,6 +14,7 @@ import {
     CreditCard,
     Lock,
     RotateCcw,
+    UserMinus,
 } from 'lucide-react';
 import {
     Sidebar,
@@ -98,6 +99,11 @@ export function StudentSidebar() {
             title: 'Promissory Notes',
             href: '/student/promissory-notes',
             icon: FileSignature,
+        },
+        {
+            title: 'Drop Request',
+            href: '/student/drop-request',
+            icon: UserMinus,
         },
         {
             title: 'Refund Requests',
