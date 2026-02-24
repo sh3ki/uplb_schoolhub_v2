@@ -26,6 +26,8 @@ class StudentFee extends Model
         'due_date',
         'grant_discount',
         'payment_status',
+        'carried_forward_balance',
+        'carried_forward_from',
     ];
 
     protected $casts = [
@@ -40,6 +42,7 @@ class StudentFee extends Model
         'is_overdue' => 'boolean',
         'due_date' => 'date',
         'grant_discount' => 'decimal:2',
+        'carried_forward_balance' => 'decimal:2',
     ];
 
     /**
