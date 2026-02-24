@@ -438,8 +438,10 @@ export default function AppSettings({ settings }: Props) {
 
                     {/* ══ LANDING PAGE ═════════════════════════════════════ */}
                     <TabsContent value="landing" className="space-y-6">
-                        {/* Hero */}
-                        <Card>
+                        {/* Two-column: editor left, live preview right */}
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                        {/* ── LEFT: editor ─────────────────────────────── */}
+                        <div className="space-y-6">
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2"><Layout className="h-5 w-5" /> Hero Section</CardTitle>
                                 <CardDescription>The first thing visitors see on the landing page</CardDescription>
@@ -654,6 +656,31 @@ export default function AppSettings({ settings }: Props) {
                                 {landingSaving ? 'Saving…' : 'Save Landing Page'}
                             </Button>
                         </div>
+                        </div>{/* end left editor column */}
+
+                        {/* ── RIGHT: live preview ───────────────────────── */}
+                        <div className="xl:sticky xl:top-6 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                                    <Layout className="h-4 w-4" />
+                                    Live Preview
+                                </p>
+                                <a href="/" target="_blank" rel="noreferrer"
+                                    className="text-xs text-primary hover:underline">
+                                    Open full page ↗
+                                </a>
+                            </div>
+                            <div className="rounded-lg border overflow-hidden bg-white shadow-sm" style={{ height: '80vh' }}>
+                                <iframe
+                                    src="/"
+                                    title="Landing Page Preview"
+                                    className="w-full h-full"
+                                    style={{ border: 'none' }}
+                                />
+                            </div>
+                        </div>
+
+                        </div>{/* end two-column grid */}
                     </TabsContent>
 
                     {/* ══ ALUMNI ═══════════════════════════════════════════ */}
