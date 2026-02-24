@@ -202,7 +202,7 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, f
         
         if (confirm(`Are you sure you want to archive ${selectedStudents.length} student(s)? This will set their status to "dropped" and deactivate their accounts.`)) {
             setIsArchiving(true);
-            router.post('/registrar/students/bulk-archive', { student_ids: selectedStudents }, {
+            router.post('/registrar/students/archive', { student_ids: selectedStudents }, {
                 preserveScroll: true,
                 onSuccess: () => {
                     showSuccess(`Successfully archived ${selectedStudents.length} student(s).`);
