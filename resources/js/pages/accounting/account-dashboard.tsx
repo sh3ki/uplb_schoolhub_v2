@@ -273,7 +273,20 @@ export default function AccountDashboard({
                     </Card>
 
                     {/* Row 2: Amounts */}
+                  
+               
                     <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
+                                <CreditCard className="h-6 w-6 text-teal-600" />
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(stats?.total_amount_processed ?? 0)}</div>
+                            <p className="text-sm text-muted-foreground">Total Amount Process</p>
+                        </CardContent>
+                    </Card>
+                      <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
                                 <DollarSign className="h-6 w-6 text-blue-600" />
@@ -284,7 +297,7 @@ export default function AccountDashboard({
                             <p className="text-sm text-muted-foreground">Total Fees Process</p>
                         </CardContent>
                     </Card>
-                    <Card>
+                         <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div className="h-12 w-12 rounded-lg bg-violet-100 flex items-center justify-center">
                                 <FileText className="h-6 w-6 text-violet-600" />
@@ -293,17 +306,6 @@ export default function AccountDashboard({
                         <CardContent>
                             <div className="text-2xl font-bold">{formatCurrency(stats?.total_document_processed ?? 0)}</div>
                             <p className="text-sm text-muted-foreground">Total Document Process</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center">
-                                <CreditCard className="h-6 w-6 text-teal-600" />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(stats?.total_amount_processed ?? 0)}</div>
-                            <p className="text-sm text-muted-foreground">Total Amount Process</p>
                         </CardContent>
                     </Card>
                     <Card>
