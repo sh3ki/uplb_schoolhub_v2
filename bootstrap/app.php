@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureStudentActive;
 use App\Http\Middleware\EnsureStudentEnrolled;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\HandleAppearance;
@@ -22,11 +23,13 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            EnsureStudentActive::class,
         ]);
 
         $middleware->alias([
             'role' => EnsureUserHasRole::class,
             'enrolled' => EnsureStudentEnrolled::class,
+            'student.active' => EnsureStudentActive::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
