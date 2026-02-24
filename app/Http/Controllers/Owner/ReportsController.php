@@ -141,19 +141,95 @@ class ReportsController extends Controller
             })
             ->values();
 
+        // ── Department Analysis ──────────────────────────────────────────────────
+        $departmentAnalysis = Department::all()
+            ->map(function ($dept) {
+                $studentIds = Student::where('department_id', $dept->id)
+                    ->whereNull('deleted_at')->pluck('id');
+                $totalBilled    = (float) StudentFee::whereIn('student_id', $studentIds)->sum('total_amount');
+                $totalCollected = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount');
+                $totalBalance   = (float) StudentFee::whereIn('student_id', $studentIds)->sum('balance');
+                $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
+                return [
+                    'department'      => $dept->name,
+                    'students'        => $studentIds->count(),
+                    'billed'          => round($totalBilled, 2),
+                    'collected'       => round($totalCollected, 2),
+                    'balance'         => round($totalBalance, 2),
+                    'collection_rate' => $collectionRate,
+                ];
+            })
+            ->sortByDesc('collected')
+            ->values();
+
+        // ── Cashier Transaction Summary ──────────────────────────────────────────
+        $cashierSummary = StudentPayment::with('recordedBy:id,name')
+            ->selectRaw('recorded_by, COUNT(*) as transaction_count, SUM(amount) as total_amount,
+                SUM(CASE WHEN payment_method = "cash" THEN amount ELSE 0 END) as cash_total,
+                SUM(CASE WHEN payment_method = "gcash" THEN amount ELSE 0 END) as gcash_total,
+                SUM(CASE WHEN payment_method = "bank" THEN amount ELSE 0 END) as bank_total')
+            ->groupBy('recorded_by')
+            ->orderByDesc('total_amount')
+            ->get()
+            ->map(fn ($p) => [
+                'cashier'           => $p->recordedBy?->name ?? 'System / Unknown',
+                'transaction_count' => (int) $p->transaction_count,
+                'total_amount'      => round((float) $p->total_amount, 2),
+                'cash_total'        => round((float) $p->cash_total, 2),
+                'gcash_total'       => round((float) $p->gcash_total, 2),
+                'bank_total'        => round((float) $p->bank_total, 2),
+            ])
+            ->values();
+
+        // ── Recent Transactions (last 50) ────────────────────────────────────────
+        $recentTransactions = StudentPayment::with([
+                'student:id,first_name,last_name,middle_name,suffix',
+                'recordedBy:id,name',
+            ])
+            ->latest('payment_date')
+            ->take(50)
+            ->get()
+            ->map(fn ($p) => [
+                'id'          => $p->id,
+                'or_number'   => $p->or_number ?? 'N/A',
+                'date'        => $p->payment_date->format('Y-m-d'),
+                'student'     => $p->student?->full_name ?? 'Unknown',
+                'amount'      => round((float) $p->amount, 2),
+                'method'      => $p->payment_method ?? 'cash',
+                'payment_for' => $p->payment_for ?? 'general',
+                'cashier'     => $p->recordedBy?->name ?? '—',
+            ]);
+
+        // ── Monthly Trend (current year) ─────────────────────────────────────────
+        $currentYear = (int) date('Y');
+        $monthlyTrend = [];
+        for ($m = 1; $m <= 12; $m++) {
+            $start  = Carbon::create($currentYear, $m, 1)->startOfMonth();
+            $end    = Carbon::create($currentYear, $m, 1)->endOfMonth();
+            $amount = (float) StudentPayment::whereBetween('payment_date', [$start, $end])->sum('amount');
+            $monthlyTrend[] = [
+                'month'  => Carbon::create($currentYear, $m, 1)->format('M'),
+                'amount' => $amount,
+            ];
+        }
+
         return Inertia::render('owner/reports', [
             'summary' => [
-                'total_students' => $totalStudents,
-                'total_revenue' => $totalRevenue,
-                'total_expected' => $totalExpected,
-                'total_balance' => $totalBalance,
-                'collection_rate' => $totalExpected > 0 
-                    ? round(($totalRevenue / $totalExpected) * 100, 1) 
+                'total_students'  => $totalStudents,
+                'total_revenue'   => (float) $totalRevenue,
+                'total_expected'  => (float) $totalExpected,
+                'total_balance'   => (float) $totalBalance,
+                'collection_rate' => $totalExpected > 0
+                    ? round(((float) $totalRevenue / (float) $totalExpected) * 100, 1)
                     : 0,
             ],
-            'school_year' => $currentSchoolYear,
-            'feeReport' => $feeReport,
-            'documentFeeReport' => $documentFeeReport,
+            'school_year'        => $currentSchoolYear,
+            'feeReport'          => $feeReport,
+            'documentFeeReport'  => $documentFeeReport,
+            'departmentAnalysis' => $departmentAnalysis,
+            'cashierSummary'     => $cashierSummary,
+            'recentTransactions' => $recentTransactions,
+            'monthlyTrend'       => $monthlyTrend,
         ]);
     }
 
