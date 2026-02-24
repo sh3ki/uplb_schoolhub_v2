@@ -404,6 +404,9 @@ class StudentController extends Controller
             'programs' => Program::where('is_active', true)->with('department:id,name')->get(['id', 'name', 'department_id']),
             'yearLevels' => YearLevel::where('is_active', true)->with('department:id,name')->get(['id', 'name', 'department_id', 'level_number']),
             'sections' => Section::where('is_active', true)->with(['yearLevel:id,name', 'department:id,name', 'strand:id,name,code'])->get(['id', 'name', 'year_level_id', 'department_id', 'strand_id', 'code', 'capacity', 'room_number']),
+            // College subjects curriculum (only for college departments)
+            'collegeSubjects' => $this->getCollegeSubjectData($student),
+            'currentSchoolYear' => AppSetting::getSetting('school_year', date('Y') . '-' . (date('Y') + 1)),
         ]);
     }
 
