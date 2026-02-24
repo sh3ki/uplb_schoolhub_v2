@@ -17,7 +17,7 @@ class StudentSubjectController extends Controller
      */
     public function index(Request $request, Student $student)
     {
-        $schoolYear = $request->input('school_year', AppSetting::getSetting('school_year', date('Y') . '-' . (date('Y') + 1)));
+        $schoolYear = $request->input('school_year', AppSetting::current()->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
         $semester   = $request->input('semester'); // 1 | 2 | null
 
         // All subjects in the student's department (all year levels = full curriculum view)
