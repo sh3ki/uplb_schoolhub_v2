@@ -1,5 +1,5 @@
-import { Head, useForm } from '@inertiajs/react';
-import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -47,6 +47,8 @@ interface Props {
     summary: FeeSummary;
     recentPayments: OnlinePayment[];
     paymentMethods: { value: string; label: string }[];
+    enrollmentStatus?: string;
+    isDropped?: boolean;
 }
 
 const statusConfig: Record<string, { label: string; icon: any; bgColor: string; textColor: string }> = {
