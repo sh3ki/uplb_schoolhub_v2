@@ -1,8 +1,12 @@
-import { Head, Link } from '@inertiajs/react';
-import { Download, FileSpreadsheet, TrendingUp, Users, Wallet, DollarSign } from 'lucide-react';
+import { Head } from '@inertiajs/react';
+import {
+    Download, TrendingUp, Users, Wallet, DollarSign, Building2,
+    CreditCard, BarChart3, FileText, Receipt, Clock, AlertCircle,
+} from 'lucide-react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import {
     Table,
     TableBody,
@@ -11,13 +15,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import OwnerLayout from '@/layouts/owner/owner-layout';
 import type { BreadcrumbItem } from '@/types';
