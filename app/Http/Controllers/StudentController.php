@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Controller;
+
 use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Models\Student;
@@ -13,6 +15,9 @@ use App\Models\Section;
 use App\Models\Requirement;
 use App\Models\StudentRequirement;
 use App\Models\ParentModel;
+use App\Models\Subject;
+use App\Models\StudentSubject;
+use App\Models\AppSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
