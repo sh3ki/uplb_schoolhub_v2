@@ -550,4 +550,19 @@ class StudentController extends Controller
 
         return back()->with('success', 'Student dropped successfully.' . ($totalPaid > 0 ? ' A refund request has been created for accounting review.' : ''));
     }
+
+    /**
+     * Bulk archive selected students (soft delete).
+     */
+    public function bulkArchive(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids' => 'required|array|min:1',
+            'student_ids.*' => 'integer|exists:students,id',
+        ]);
+
+        $count = Student::whereIn('id', $validated['student_ids'])->delete();
+
+        return back()->with('success', "{$count} student(s) archived successfully.");
+    }
 }
