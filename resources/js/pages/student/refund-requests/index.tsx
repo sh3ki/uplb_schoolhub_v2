@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -6,6 +6,7 @@ import {
     Info,
     Plus,
     RefreshCw,
+    UserMinus,
     XCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -64,6 +65,8 @@ type StudentFee = {
 type Props = {
     requests: RefundRequest[];
     studentFees: StudentFee[];
+    canRequestRefund?: boolean;
+    dropStatus?: 'none' | 'pending' | 'approved' | 'rejected';
 };
 
 const fmt = (val: number) =>
