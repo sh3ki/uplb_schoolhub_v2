@@ -69,6 +69,8 @@ interface FeeItem {
     students_availed?: number;
     total_revenue?: number;
     total_income?: number;
+    is_per_unit?: boolean;
+    unit_price?: string;
 }
 
 interface FeeCategory {
@@ -214,6 +216,8 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         section_id: null as number | null,
         assignment_scope: 'all' as 'all' | 'specific',
         is_active: true,
+        is_per_unit: false,
+        unit_price: '',
     });
 
     const formatCurrency = (amount: string | number) => {
@@ -267,6 +271,8 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 year_level_id: item.year_level_id || null,
                 section_id: item.section_id || null,
                 assignment_scope: item.assignment_scope || 'all',
+                is_per_unit: item.is_per_unit ?? false,
+                unit_price: item.unit_price ?? '',
             });
         } else {
             setEditingItem(null);
@@ -285,6 +291,8 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 year_level_id: null,
                 section_id: null,
                 assignment_scope: 'all',
+                is_per_unit: false,
+                unit_price: '',
             });
         }
         setIsItemModalOpen(true);
@@ -785,12 +793,23 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                 <TableBody>
                                                     {category.items.map((item) => (
                                                         <TableRow key={item.id}>
-                                                            <TableCell className="font-medium">{item.name}</TableCell>
+                                                            <TableCell className="font-medium">
+                                                                {item.name}
+                                                                {item.is_per_unit && (
+                                                                    <Badge variant="outline" className="ml-2 text-xs border-amber-400 text-amber-700 bg-amber-50">
+                                                                        ₱{item.unit_price}/unit
+                                                                    </Badge>
+                                                                )}
+                                                            </TableCell>
                                                             <TableCell className="text-muted-foreground max-w-[200px] truncate">
                                                                 {item.description || '-'}
                                                             </TableCell>
                                                             <TableCell className="text-right">{formatCurrency(item.cost_price)}</TableCell>
-                                                            <TableCell className="text-right">{formatCurrency(item.selling_price)}</TableCell>
+                                                            <TableCell className="text-right">
+                                                                {item.is_per_unit
+                                                                    ? <span className="text-amber-600 text-xs italic">per unit</span>
+                                                                    : formatCurrency(item.selling_price)}
+                                                            </TableCell>
                                                             <TableCell className="text-right">
                                                                 <span className={parseFloat(item.profit) >= 0 ? 'text-green-600' : 'text-red-600'}>
                                                                     {formatCurrency(item.profit)}
@@ -1702,11 +1721,42 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                         type="number"
                                         step="0.01"
                                         value={itemForm.data.selling_price}
+                                        disabled={itemForm.data.is_per_unit}
                                         onChange={(e) => itemForm.setData('selling_price', e.target.value)}
-                                        placeholder="0.00"
+                                        placeholder={itemForm.data.is_per_unit ? 'Computed per unit' : '0.00'}
                                     />
                                     {itemForm.errors.selling_price && <p className="text-sm text-red-500">{itemForm.errors.selling_price}</p>}
                                 </div>
+                            </div>
+
+                            {/* Per-unit tuition toggle (College Tuition category) */}
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <Switch
+                                        id="is_per_unit"
+                                        checked={itemForm.data.is_per_unit}
+                                        onCheckedChange={(checked) => itemForm.setData('is_per_unit', checked)}
+                                    />
+                                    <div>
+                                        <Label htmlFor="is_per_unit" className="font-medium">Per-Unit Tuition (College)</Label>
+                                        <p className="text-xs text-muted-foreground">When enabled, tuition = <em>rate × enrolled units</em>. Selling Price is computed automatically.</p>
+                                    </div>
+                                </div>
+                                {itemForm.data.is_per_unit && (
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="unit_price">Rate per Unit (₱) *</Label>
+                                        <Input
+                                            id="unit_price"
+                                            type="number"
+                                            step="0.01"
+                                            value={itemForm.data.unit_price}
+                                            onChange={(e) => itemForm.setData('unit_price', e.target.value)}
+                                            placeholder="e.g. 350.00"
+                                        />
+                                        {itemForm.errors.unit_price && <p className="text-sm text-red-500">{itemForm.errors.unit_price}</p>}
+                                        <p className="text-xs text-muted-foreground">Final amount = rate × number of enrolled subject units per student.</p>
+                                    </div>
+                                )}
                             </div>
                             <div className="rounded-lg bg-muted p-4">
                                 <div className="flex justify-between items-center">
