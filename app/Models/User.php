@@ -22,6 +22,8 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public const ROLE_ACCOUNTING = 'accounting';
 
+    public const ROLE_SUPER_ACCOUNTING = 'super-accounting';
+
     public const ROLE_STUDENT = 'student';
 
     public const ROLE_TEACHER = 'teacher';
@@ -203,6 +205,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function isCanteen(): bool
     {
         return $this->role === self::ROLE_CANTEEN;
+    }
+
+    /**
+     * Check if user is super accounting
+     */
+    public function isSuperAccounting(): bool
+    {
+        return $this->role === self::ROLE_SUPER_ACCOUNTING;
     }
 
     /**
