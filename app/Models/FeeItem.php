@@ -29,13 +29,17 @@ class FeeItem extends Model
         'assignment_scope',
         'is_required',
         'is_active',
+        'is_per_unit',
+        'unit_price',
     ];
 
     protected $casts = [
-        'cost_price' => 'decimal:2',
-        'selling_price' => 'decimal:2',
-        'is_required' => 'boolean',
-        'is_active' => 'boolean',
+        'cost_price'   => 'decimal:2',
+        'selling_price'=> 'decimal:2',
+        'unit_price'   => 'decimal:2',
+        'is_required'  => 'boolean',
+        'is_active'    => 'boolean',
+        'is_per_unit'  => 'boolean',
     ];
 
     /**
@@ -224,8 +228,19 @@ class FeeItem extends Model
                 default => 'other_fees',
             };
 
-            // Add this fee item's selling price to the appropriate field
-            $studentFee->$feeField = ((float) $studentFee->$feeField) + ((float) $this->selling_price);
+            // Add this fee item's price to the appropriate field.
+            // For per-unit tuition, multiply unit_price by the student's currently enrolled units.
+            if ($this->is_per_unit && $feeField === 'tuition_fee') {
+                $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+                    ->where('school_year', $this->school_year)
+                    ->where('status', 'enrolled')
+                    ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+                    ->sum('subjects.units');
+                $feeAmount = (float) $this->unit_price * (float) $enrolledUnits;
+            } else {
+                $feeAmount = (float) $this->selling_price;
+            }
+            $studentFee->$feeField = ((float) $studentFee->$feeField) + $feeAmount;
             
             // Recalculate total and balance
             $studentFee->total_amount = 
