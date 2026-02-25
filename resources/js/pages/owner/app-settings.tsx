@@ -70,6 +70,13 @@ interface AppSettingsData {
     favicon_url: string | null;
     has_k12: boolean;
     has_college: boolean;
+    // Enrollment period settings
+    k12_enrollment_open: boolean;
+    k12_enrollment_start: string | null;
+    k12_enrollment_end: string | null;
+    college_enrollment_open: boolean;
+    college_enrollment_start: string | null;
+    college_enrollment_end: string | null;
     // Landing page
     hero_title: string | null;
     hero_subtitle: string | null;
@@ -117,6 +124,15 @@ export default function AppSettings({ settings }: Props) {
     const [hasCollege, setHasCollege]  = useState<boolean>(settings.has_college);
     const [academicSaving, setAcademicSaving] = useState(false);
 
+    // Enrollment period state
+    const [k12EnrollmentOpen, setK12EnrollmentOpen] = useState<boolean>(settings.k12_enrollment_open);
+    const [k12EnrollmentStart, setK12EnrollmentStart] = useState<string>(settings.k12_enrollment_start || '');
+    const [k12EnrollmentEnd, setK12EnrollmentEnd] = useState<string>(settings.k12_enrollment_end || '');
+    const [collegeEnrollmentOpen, setCollegeEnrollmentOpen] = useState<boolean>(settings.college_enrollment_open);
+    const [collegeEnrollmentStart, setCollegeEnrollmentStart] = useState<string>(settings.college_enrollment_start || '');
+    const [collegeEnrollmentEnd, setCollegeEnrollmentEnd] = useState<string>(settings.college_enrollment_end || '');
+    const [enrollmentSaving, setEnrollmentSaving] = useState(false);
+
     const handleAcademicToggle = (field: 'has_k12' | 'has_college', value: boolean) => {
         const next = { has_k12: hasK12, has_college: hasCollege, [field]: value };
         if (field === 'has_k12') setHasK12(value); else setHasCollege(value);
@@ -125,6 +141,22 @@ export default function AppSettings({ settings }: Props) {
             preserveScroll: true,
             onSuccess: () => { toast.success('Academic structure saved'); setAcademicSaving(false); },
             onError:   () => { toast.error('Failed to save');              setAcademicSaving(false); },
+        });
+    };
+
+    const handleEnrollmentPeriodSave = () => {
+        setEnrollmentSaving(true);
+        router.patch('/owner/app-settings/enrollment-period', {
+            k12_enrollment_open: k12EnrollmentOpen,
+            k12_enrollment_start: k12EnrollmentStart || null,
+            k12_enrollment_end: k12EnrollmentEnd || null,
+            college_enrollment_open: collegeEnrollmentOpen,
+            college_enrollment_start: collegeEnrollmentStart || null,
+            college_enrollment_end: collegeEnrollmentEnd || null,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Enrollment period settings saved'); setEnrollmentSaving(false); },
+            onError:   () => { toast.error('Failed to save enrollment settings'); setEnrollmentSaving(false); },
         });
     };
 
