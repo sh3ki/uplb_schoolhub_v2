@@ -114,6 +114,7 @@ export default function StudentsIndex({
     programs, 
     yearLevels, 
     sections, 
+    schoolYears,
     stats, 
     filters, 
     teacherDepartment,
@@ -125,6 +126,7 @@ export default function StudentsIndex({
     const [program, setProgram] = useState(filters.program || 'all');
     const [yearLevel, setYearLevel] = useState(filters.year_level || 'all');
     const [section, setSection] = useState(filters.section || 'all');
+    const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
 
     const navigate = (params: Record<string, string>) => {
         const cleanParams = Object.fromEntries(
@@ -135,22 +137,27 @@ export default function StudentsIndex({
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
-        navigate({ search: value, program, year_level: yearLevel, section });
+        navigate({ search: value, program, year_level: yearLevel, section, school_year: schoolYear });
     };
 
     const handleProgramChange = (value: string) => {
         setProgram(value);
-        navigate({ search, program: value, year_level: yearLevel, section });
+        navigate({ search, program: value, year_level: yearLevel, section, school_year: schoolYear });
     };
 
     const handleYearLevelChange = (value: string) => {
         setYearLevel(value);
-        navigate({ search, program, year_level: value, section });
+        navigate({ search, program, year_level: value, section, school_year: schoolYear });
     };
 
     const handleSectionChange = (value: string) => {
         setSection(value);
-        navigate({ search, program, year_level: yearLevel, section: value });
+        navigate({ search, program, year_level: yearLevel, section: value, school_year: schoolYear });
+    };
+
+    const handleSchoolYearChange = (value: string) => {
+        setSchoolYear(value);
+        navigate({ search, program, year_level: yearLevel, section, school_year: value });
     };
 
     const resetFilters = () => {
@@ -158,10 +165,11 @@ export default function StudentsIndex({
         setProgram('all');
         setYearLevel('all');
         setSection('all');
+        setSchoolYear('all');
         router.get('/teacher/students');
     };
 
-    const hasActiveFilters = !!(search || program !== 'all' || yearLevel !== 'all' || section !== 'all');
+    const hasActiveFilters = !!(search || program !== 'all' || yearLevel !== 'all' || section !== 'all' || schoolYear !== 'all');
 
     return (
         <TeacherLayout>
@@ -223,6 +231,21 @@ export default function StudentsIndex({
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* School Year Tabs */}
+                {schoolYears.length > 0 && (
+                    <div className="flex items-center gap-3">
+                        <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Tabs value={schoolYear} onValueChange={handleSchoolYearChange} className="w-full">
+                            <TabsList className="h-auto flex-wrap gap-1 bg-muted/50 p-1">
+                                <TabsTrigger value="all" className="text-xs px-3 py-1.5">All Years</TabsTrigger>
+                                {schoolYears.map((sy) => (
+                                    <TabsTrigger key={sy} value={sy} className="text-xs px-3 py-1.5">{sy}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                )}
 
                 {/* Students Table */}
                 <Card>
