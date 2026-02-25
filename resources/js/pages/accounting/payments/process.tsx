@@ -251,21 +251,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         e.preventDefault();
         const amount = parseFloat(amountReceived) || 0;
         if (amount <= 0) return;
-        
-        // Find the fee with balance to apply payment to
-        const feeWithBalance = fees.find(f => f.balance > 0);
-        if (!feeWithBalance) return;
-        
-        paymentForm.setData({
-            ...paymentForm.data,
-            student_fee_id: feeWithBalance.id.toString(),
-            amount: amountReceived,
-            print_receipt: printReceipt,
-        });
+        if (!selectedFeeId) return;
         
         router.post('/accounting/payments', {
             student_id: student.id.toString(),
-            student_fee_id: feeWithBalance.id.toString(),
+            student_fee_id: selectedFeeId,
             payment_date: paymentForm.data.payment_date,
             or_number: paymentForm.data.or_number,
             amount: amountReceived,
