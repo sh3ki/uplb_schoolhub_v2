@@ -217,6 +217,22 @@ class Student extends Model
     }
 
     /**
+     * Get all enrolled subjects for this student (student_subjects table)
+     */
+    public function studentSubjects()
+    {
+        return $this->hasMany(StudentSubject::class);
+    }
+
+    /**
+     * Get all attendance records for this student
+     */
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    /**
      * Get all promissory notes for this student
      */
     public function promissoryNotes()
