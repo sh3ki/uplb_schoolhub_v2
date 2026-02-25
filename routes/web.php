@@ -327,6 +327,8 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
 
     // Refund / Void Requests Management
     Route::get('refunds', [App\Http\Controllers\Accounting\RefundController::class, 'index'])->name('refunds.index');
+    Route::get('refunds/search-students', [App\Http\Controllers\Accounting\RefundController::class, 'searchStudents'])->name('refunds.search-students');
+    Route::post('refunds', [App\Http\Controllers\Accounting\RefundController::class, 'store'])->name('refunds.store');
     Route::post('refunds/{refund}/approve', [App\Http\Controllers\Accounting\RefundController::class, 'approve'])->name('refunds.approve');
     Route::post('refunds/{refund}/reject', [App\Http\Controllers\Accounting\RefundController::class, 'reject'])->name('refunds.reject');
     
