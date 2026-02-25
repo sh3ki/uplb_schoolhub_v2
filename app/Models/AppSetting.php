@@ -16,6 +16,13 @@ class AppSetting extends Model
         'school_year',
         'has_k12',
         'has_college',
+        // Enrollment period settings
+        'k12_enrollment_open',
+        'k12_enrollment_start',
+        'k12_enrollment_end',
+        'college_enrollment_open',
+        'college_enrollment_start',
+        'college_enrollment_end',
         // Landing page
         'hero_title',
         'hero_subtitle',
@@ -43,13 +50,19 @@ class AppSetting extends Model
     ];
 
     protected $casts = [
-        'has_k12'          => 'boolean',
-        'has_college'      => 'boolean',
-        'features_show'    => 'boolean',
-        'hero_images'      => 'array',
-        'alumni_items'     => 'array',
-        'features_items'   => 'array',
-        'nav_links'        => 'array',
+        'has_k12'                  => 'boolean',
+        'has_college'              => 'boolean',
+        'k12_enrollment_open'      => 'boolean',
+        'k12_enrollment_start'     => 'date',
+        'k12_enrollment_end'       => 'date',
+        'college_enrollment_open'  => 'boolean',
+        'college_enrollment_start' => 'date',
+        'college_enrollment_end'   => 'date',
+        'features_show'            => 'boolean',
+        'hero_images'              => 'array',
+        'alumni_items'             => 'array',
+        'features_items'           => 'array',
+        'nav_links'                => 'array',
     ];
 
     public static function current(): self
@@ -94,5 +107,43 @@ class AppSetting extends Model
             $item['photo_url'] = isset($item['photo_path']) ? Storage::url($item['photo_path']) : null;
             return $item;
         }, $this->alumni_items);
+    }
+
+    /**
+     * Check if enrollment is currently open for a given classification.
+     * Classification should be 'K-12' or 'College'.
+     */
+    public function isEnrollmentOpen(string $classification): bool
+    {
+        $today = now()->startOfDay();
+
+        if (strtolower($classification) === 'k-12' || strtolower($classification) === 'k12') {
+            if (!$this->k12_enrollment_open) {
+                return false;
+            }
+            // If dates are set, check if within range
+            if ($this->k12_enrollment_start && $today->lt($this->k12_enrollment_start)) {
+                return false;
+            }
+            if ($this->k12_enrollment_end && $today->gt($this->k12_enrollment_end)) {
+                return false;
+            }
+            return true;
+        }
+
+        if (strtolower($classification) === 'college') {
+            if (!$this->college_enrollment_open) {
+                return false;
+            }
+            if ($this->college_enrollment_start && $today->lt($this->college_enrollment_start)) {
+                return false;
+            }
+            if ($this->college_enrollment_end && $today->gt($this->college_enrollment_end)) {
+                return false;
+            }
+            return true;
+        }
+
+        return false;
     }
 }
