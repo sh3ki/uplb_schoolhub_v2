@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import {
     Upload, Save, Palette, Globe, Image as ImageIcon, GraduationCap,
     Layout, Users, MessageSquare, Trophy, Footprints, Navigation,
-    Plus, Trash2, GripVertical, X, Camera,
+    Plus, Trash2, GripVertical, X, Camera, Calendar,
 } from 'lucide-react';
 import OwnerLayout from '@/layouts/owner/owner-layout';
 import { PageHeader } from '@/components/page-header';
@@ -410,6 +410,107 @@ export default function AppSettings({ settings }: Props) {
                                         <Switch checked={hasCollege} disabled={academicSaving} onCheckedChange={v => handleAcademicToggle('has_college', v)} />
                                     </div>
                                     {!hasK12 && !hasCollege && <p className="text-sm text-destructive">At least one track must be enabled.</p>}
+                                </CardContent>
+                            </Card>
+
+                            {/* Enrollment Period Settings */}
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Enrollment Period</CardTitle>
+                                    <CardDescription>Control when students can enroll. K-12 and College can have different enrollment periods.</CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-6">
+                                    {/* K-12 Enrollment */}
+                                    {hasK12 && (
+                                        <div className="rounded-lg border p-4 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">K-12 Enrollment</p>
+                                                    <p className="text-sm text-muted-foreground">Open enrollment for K-12 students</p>
+                                                </div>
+                                                <Switch 
+                                                    checked={k12EnrollmentOpen} 
+                                                    disabled={enrollmentSaving} 
+                                                    onCheckedChange={setK12EnrollmentOpen} 
+                                                />
+                                            </div>
+                                            {k12EnrollmentOpen && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="k12_start">Start Date (optional)</Label>
+                                                        <Input 
+                                                            id="k12_start" 
+                                                            type="date" 
+                                                            value={k12EnrollmentStart}
+                                                            onChange={e => setK12EnrollmentStart(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="k12_end">End Date (optional)</Label>
+                                                        <Input 
+                                                            id="k12_end" 
+                                                            type="date" 
+                                                            value={k12EnrollmentEnd}
+                                                            onChange={e => setK12EnrollmentEnd(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* College Enrollment */}
+                                    {hasCollege && (
+                                        <div className="rounded-lg border p-4 space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="font-medium">College Enrollment</p>
+                                                    <p className="text-sm text-muted-foreground">Open enrollment for College students</p>
+                                                </div>
+                                                <Switch 
+                                                    checked={collegeEnrollmentOpen} 
+                                                    disabled={enrollmentSaving} 
+                                                    onCheckedChange={setCollegeEnrollmentOpen} 
+                                                />
+                                            </div>
+                                            {collegeEnrollmentOpen && (
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="college_start">Start Date (optional)</Label>
+                                                        <Input 
+                                                            id="college_start" 
+                                                            type="date" 
+                                                            value={collegeEnrollmentStart}
+                                                            onChange={e => setCollegeEnrollmentStart(e.target.value)}
+                                                        />
+                                                    </div>
+                                                    <div className="grid gap-2">
+                                                        <Label htmlFor="college_end">End Date (optional)</Label>
+                                                        <Input 
+                                                            id="college_end" 
+                                                            type="date" 
+                                                            value={collegeEnrollmentEnd}
+                                                            onChange={e => setCollegeEnrollmentEnd(e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {!hasK12 && !hasCollege && (
+                                        <p className="text-sm text-muted-foreground">Enable at least one academic track above to configure enrollment periods.</p>
+                                    )}
+
+                                    <div className="flex justify-end">
+                                        <Button 
+                                            type="button" 
+                                            onClick={handleEnrollmentPeriodSave} 
+                                            disabled={enrollmentSaving || (!hasK12 && !hasCollege)}
+                                        >
+                                            {enrollmentSaving ? 'Saving...' : 'Save Enrollment Settings'}
+                                        </Button>
+                                    </div>
                                 </CardContent>
                             </Card>
 
