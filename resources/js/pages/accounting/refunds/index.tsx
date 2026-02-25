@@ -30,7 +30,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AccountingLayout from '@/layouts/accounting-layout';
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
 
 type Student = {
     id: number;
