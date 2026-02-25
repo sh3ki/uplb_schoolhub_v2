@@ -39,6 +39,20 @@ class HandleInertiaRequests extends Middleware
     {
         $user = $request->user();
 
+        // Get student data if user is a student
+        $studentData = null;
+        if ($user && $user->role === 'student' && $user->student_id) {
+            $student = \App\Models\Student::select('id', 'enrollment_status', 'school_year')
+                ->find($user->student_id);
+            if ($student) {
+                $studentData = [
+                    'id' => $student->id,
+                    'enrollment_status' => $student->enrollment_status,
+                    'school_year' => $student->school_year,
+                ];
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),
@@ -51,6 +65,7 @@ class HandleInertiaRequests extends Middleware
                     'student_id' => $user->student_id,
                     'email_verified_at' => $user->email_verified_at,
                     'avatar' => $user->profile_photo_url,
+                    'student' => $studentData,
                 ] : null,
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
