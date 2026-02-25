@@ -28,6 +28,13 @@ class AppSettingsController extends Controller
                 'school_year'               => $settings->school_year ?? '2024-2025',
                 'has_k12'                   => (bool) $settings->has_k12,
                 'has_college'               => (bool) $settings->has_college,
+                // Enrollment period settings
+                'k12_enrollment_open'       => (bool) $settings->k12_enrollment_open,
+                'k12_enrollment_start'      => $settings->k12_enrollment_start?->format('Y-m-d'),
+                'k12_enrollment_end'        => $settings->k12_enrollment_end?->format('Y-m-d'),
+                'college_enrollment_open'   => (bool) $settings->college_enrollment_open,
+                'college_enrollment_start'  => $settings->college_enrollment_start?->format('Y-m-d'),
+                'college_enrollment_end'    => $settings->college_enrollment_end?->format('Y-m-d'),
                 // Landing page
                 'hero_title'                => $settings->hero_title,
                 'hero_subtitle'             => $settings->hero_subtitle,
@@ -70,6 +77,32 @@ class AppSettingsController extends Controller
         $settings->save();
 
         return redirect()->back()->with('success', 'Academic structure updated.');
+    }
+
+    /**
+     * Update enrollment period settings for K-12 and College.
+     */
+    public function updateEnrollmentPeriod(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'k12_enrollment_open'      => 'required|boolean',
+            'k12_enrollment_start'     => 'nullable|date',
+            'k12_enrollment_end'       => 'nullable|date|after_or_equal:k12_enrollment_start',
+            'college_enrollment_open'  => 'required|boolean',
+            'college_enrollment_start' => 'nullable|date',
+            'college_enrollment_end'   => 'nullable|date|after_or_equal:college_enrollment_start',
+        ]);
+
+        $settings = AppSetting::current();
+        $settings->k12_enrollment_open      = (bool) $request->input('k12_enrollment_open');
+        $settings->k12_enrollment_start     = $request->input('k12_enrollment_start');
+        $settings->k12_enrollment_end       = $request->input('k12_enrollment_end');
+        $settings->college_enrollment_open  = (bool) $request->input('college_enrollment_open');
+        $settings->college_enrollment_start = $request->input('college_enrollment_start');
+        $settings->college_enrollment_end   = $request->input('college_enrollment_end');
+        $settings->save();
+
+        return redirect()->back()->with('success', 'Enrollment period settings updated.');
     }
 
     public function update(Request $request): RedirectResponse
