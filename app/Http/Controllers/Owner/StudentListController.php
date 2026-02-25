@@ -14,7 +14,7 @@ class StudentListController extends Controller
         $query = Student::query()
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix',
                      'lrn', 'gender', 'program', 'year_level', 'section',
-                     'enrollment_status', 'student_photo_url')
+                     'enrollment_status', 'school_year', 'student_photo_url')
             ->whereNull('deleted_at');
 
         if ($request->filled('search')) {
@@ -38,6 +38,10 @@ class StudentListController extends Controller
             $query->where('enrollment_status', $request->input('enrollment_status'));
         }
 
+        if ($request->filled('school_year') && $request->input('school_year') !== 'all') {
+            $query->where('school_year', $request->input('school_year'));
+        }
+
         // Always sort A-Z by last name within gender groups
         $all = $query->orderBy('last_name')->orderBy('first_name')->get();
 
@@ -52,14 +56,16 @@ class StudentListController extends Controller
 
         $programs    = Student::whereNotNull('program')->distinct()->pluck('program')->sort()->values();
         $yearLevels  = Student::whereNotNull('year_level')->distinct()->pluck('year_level')->sort()->values();
+        $schoolYears = Student::whereNotNull('school_year')->distinct()->pluck('school_year')->sort()->values();
 
         return Inertia::render('owner/students/index', [
-            'male'    => $male,
-            'female'  => $female,
-            'stats'   => $stats,
-            'programs'   => $programs,
-            'yearLevels' => $yearLevels,
-            'filters' => $request->only(['search', 'program', 'year_level', 'enrollment_status']),
+            'male'        => $male,
+            'female'      => $female,
+            'stats'       => $stats,
+            'programs'    => $programs,
+            'yearLevels'  => $yearLevels,
+            'schoolYears' => $schoolYears,
+            'filters'     => $request->only(['search', 'program', 'year_level', 'enrollment_status', 'school_year']),
         ]);
     }
 }
