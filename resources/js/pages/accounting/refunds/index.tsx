@@ -30,8 +30,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AccountingLayout from '@/layouts/accounting-layout';
-import { useState, useCallback } from 'react';
-import debounce from 'lodash/debounce';
+import { useState, useCallback, useRef } from 'react';
 
 type Student = {
     id: number;
@@ -114,6 +113,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
     const [selectedStudent, setSelectedStudent] = useState<StudentWithFees | null>(null);
     const [selectedFee, setSelectedFee] = useState<StudentFee | null>(null);
     const [searching, setSearching] = useState(false);
+    const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const createForm = useForm({
         student_id: 0,
@@ -136,16 +136,17 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
         }
     };
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const debouncedSearch = useCallback(
-        debounce(async (search: string) => {
-            if (search.length < 2) {
-                setStudentResults([]);
-                return;
-            }
+    const handleStudentSearch = (value: string) => {
+        setStudentSearch(value);
+        if (debounceTimer.current) clearTimeout(debounceTimer.current);
+        if (value.length < 2) {
+            setStudentResults([]);
+            return;
+        }
+        debounceTimer.current = setTimeout(async () => {
             setSearching(true);
             try {
-                const response = await fetch(`/accounting/refunds/search-students?search=${encodeURIComponent(search)}`);
+                const response = await fetch(`/accounting/refunds/search-students?search=${encodeURIComponent(value)}`);
                 const data = await response.json();
                 setStudentResults(data);
             } catch {
@@ -153,13 +154,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
             } finally {
                 setSearching(false);
             }
-        }, 300),
-        []
-    );
-
-    const handleStudentSearch = (value: string) => {
-        setStudentSearch(value);
-        debouncedSearch(value);
+        }, 300);
     };
 
     const selectStudent = (student: StudentWithFees) => {
