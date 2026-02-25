@@ -87,6 +87,83 @@ class RefundController extends Controller
     }
 
     /**
+     * Get students for creating a refund request (search by name/LRN).
+     */
+    public function searchStudents(Request $request)
+    {
+        $search = $request->input('search', '');
+        
+        if (strlen($search) < 2) {
+            return response()->json([]);
+        }
+
+        $students = Student::where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('lrn', 'like', "%{$search}%");
+            })
+            ->with(['studentFees' => function ($q) {
+                $q->where('balance', '>', 0)
+                  ->orWhere('total_paid', '>', 0);
+            }])
+            ->limit(10)
+            ->get()
+            ->map(fn ($s) => [
+                'id' => $s->id,
+                'full_name' => $s->full_name,
+                'lrn' => $s->lrn,
+                'program' => $s->program,
+                'year_level' => $s->year_level,
+                'fees' => $s->studentFees->map(fn ($f) => [
+                    'id' => $f->id,
+                    'school_year' => $f->school_year,
+                    'total_amount' => (float) $f->total_amount,
+                    'total_paid' => (float) $f->total_paid,
+                    'balance' => (float) $f->balance,
+                ]),
+            ]);
+
+        return response()->json($students);
+    }
+
+    /**
+     * Store a new refund request created by accounting (for walk-in/physical requests).
+     */
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+            'student_fee_id' => 'required|exists:student_fees,id',
+            'type' => 'required|in:refund,void',
+            'amount' => 'required|numeric|min:0.01',
+            'reason' => 'required|string|max:1000',
+        ]);
+
+        // Verify fee belongs to student
+        $fee = StudentFee::where('id', $validated['student_fee_id'])
+            ->where('student_id', $validated['student_id'])
+            ->firstOrFail();
+
+        // For refunds, amount cannot exceed total_paid
+        if ($validated['type'] === 'refund' && $validated['amount'] > $fee->total_paid) {
+            return back()->withErrors([
+                'amount' => 'Refund amount cannot exceed the total amount paid (₱' . number_format($fee->total_paid, 2) . ').',
+            ]);
+        }
+
+        RefundRequest::create([
+            'student_id' => $validated['student_id'],
+            'student_fee_id' => $validated['student_fee_id'],
+            'type' => $validated['type'],
+            'amount' => $validated['amount'],
+            'reason' => $validated['reason'],
+            'status' => 'pending',
+        ]);
+
+        return back()->with('success', 'Refund request created successfully.');
+    }
+
+    /**
      * Approve a refund/void request.
      * For refund: decrease total_paid and increase balance on the student fee.
      * For void:   same accounting effect — reverses an erroneous payment.
