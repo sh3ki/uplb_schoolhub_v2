@@ -48,7 +48,7 @@ import {
 } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, DollarSign, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp } from 'lucide-react';
+import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, DollarSign, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp, Search, X } from 'lucide-react';
 
 interface FeeItem {
     id: number;
@@ -158,6 +158,10 @@ interface Props {
 export default function FeeManagementIndex({ categories, totals, departments, programs, yearLevels, sections, documentFees, documentCategories, tab, studentCounts = [], studentSchoolYears = [] }: Props) {
     const [activeTab, setActiveTab] = useState(tab || 'general');
 
+    // Search/filter state for general fees
+    const [feeSearch, setFeeSearch] = useState('');
+    const [feeClassificationFilter, setFeeClassificationFilter] = useState<string>('all');
+
     // Projected revenue filter state
     const [projSchoolYear, setProjSchoolYear] = useState<string>('');
     const [projClassification, setProjClassification] = useState<string>('');
@@ -219,6 +223,27 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         is_per_unit: false,
         unit_price: '',
     });
+
+    // Filter categories based on search and classification
+    const filteredCategories = useMemo(() => {
+        return categories.map(category => {
+            const filteredItems = category.items.filter(item => {
+                const matchesSearch = !feeSearch || 
+                    item.name.toLowerCase().includes(feeSearch.toLowerCase()) ||
+                    (item.description && item.description.toLowerCase().includes(feeSearch.toLowerCase()));
+                
+                const matchesClassification = feeClassificationFilter === 'all' || 
+                    !item.classification || 
+                    item.classification === feeClassificationFilter;
+                
+                return matchesSearch && matchesClassification;
+            });
+            return { ...category, items: filteredItems };
+        }).filter(category => 
+            // Keep categories that have matching items, or show all when no search
+            !feeSearch || category.items.length > 0
+        );
+    }, [categories, feeSearch, feeClassificationFilter]);
 
     const formatCurrency = (amount: string | number) => {
         const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -694,17 +719,78 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     </Card>
                 </div>
 
+                {/* Search and Filter Bar */}
+                <Card>
+                    <CardContent className="pt-4">
+                        <div className="flex flex-wrap items-center gap-4">
+                            <div className="flex-1 min-w-[250px]">
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search fee items by name or description..."
+                                        className="pl-9"
+                                        value={feeSearch}
+                                        onChange={(e) => setFeeSearch(e.target.value)}
+                                    />
+                                    {feeSearch && (
+                                        <button
+                                            onClick={() => setFeeSearch('')}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="w-[180px]">
+                                <Select value={feeClassificationFilter} onValueChange={setFeeClassificationFilter}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Classification" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Classifications</SelectItem>
+                                        <SelectItem value="K-12">K-12</SelectItem>
+                                        <SelectItem value="College">College</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            {(feeSearch || feeClassificationFilter !== 'all') && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                        setFeeSearch('');
+                                        setFeeClassificationFilter('all');
+                                    }}
+                                >
+                                    <X className="h-4 w-4 mr-1" />
+                                    Clear Filters
+                                </Button>
+                            )}
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Categories Accordion */}
-                {categories.length === 0 ? (
+                {filteredCategories.length === 0 ? (
                     <Card>
                         <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                            <FolderPlus className="h-12 w-12 mb-4" />
-                            <p>No fee categories yet. Create your first category to get started.</p>
+                            {categories.length === 0 ? (
+                                <>
+                                    <FolderPlus className="h-12 w-12 mb-4" />
+                                    <p>No fee categories yet. Create your first category to get started.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <Search className="h-12 w-12 mb-4" />
+                                    <p>No fee items match your search criteria.</p>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 ) : (
-                    <Accordion type="multiple" defaultValue={categories.map(c => c.id.toString())} className="space-y-4">
-                        {categories.map((category) => (
+                    <Accordion type="multiple" defaultValue={filteredCategories.map(c => c.id.toString())} className="space-y-4">
+                        {filteredCategories.map((category) => (
                             <AccordionItem key={category.id} value={category.id.toString()} className="border rounded-lg px-4">
                                 <AccordionTrigger className="hover:no-underline">
                                     <div className="flex items-center justify-between w-full pr-4">
