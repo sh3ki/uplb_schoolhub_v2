@@ -1,5 +1,5 @@
 import { Head, router } from '@inertiajs/react';
-import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, MailCheck, MailWarning, RotateCcw, Archive, Trash2 } from 'lucide-react';
+import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, MailCheck, MailWarning, RotateCcw, Archive, Trash2, CalendarDays } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { show as showStudent, destroy as destroyStudent } from '@/routes/registrar/students';
 import { StudentFilters } from '@/components/registrar/student-filters';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -123,6 +124,7 @@ interface Props {
     stats: Stats;
     programs: string[];
     yearLevels: string[];
+    schoolYears: string[];
     filters: {
         search?: string;
         type?: string;
@@ -131,6 +133,7 @@ interface Props {
         enrollment_status?: string;
         requirements_status?: string;
         needs_sectioning?: string;
+        school_year?: string;
     };    departments: Department[];
     allPrograms: Program[];
     allYearLevels: YearLevelData[];
@@ -152,7 +155,7 @@ interface Props {
     }>;
 }
 
-export default function StudentsIndex({ students, stats, programs, yearLevels, filters, departments, allPrograms, allYearLevels, sections, flash, classListMale, classListFemale }: Props) {
+export default function StudentsIndex({ students, stats, programs, yearLevels, schoolYears, filters, departments, allPrograms, allYearLevels, sections, flash, classListMale, classListFemale }: Props) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editingStudent, setEditingStudent] = useState<Student | undefined>();
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -415,6 +418,25 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, f
 
                 {/* Filters */}
                 <StudentFilters programs={programs} yearLevels={yearLevels} filters={filters} />
+
+                {/* School Year Tabs */}
+                {schoolYears.length > 0 && (
+                    <div className="flex items-center gap-3">
+                        <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Tabs
+                            value={filters.school_year || 'all'}
+                            onValueChange={(val) => router.get('/registrar/students', { ...filters, school_year: val }, { preserveState: true, replace: true })}
+                            className="w-full"
+                        >
+                            <TabsList className="h-auto flex-wrap gap-1 bg-muted/50 p-1">
+                                <TabsTrigger value="all" className="text-xs px-3 py-1.5">All Years</TabsTrigger>
+                                {schoolYears.map((sy) => (
+                                    <TabsTrigger key={sy} value={sy} className="text-xs px-3 py-1.5">{sy}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                )}
 
                 {viewMode === 'classlist' ? (
                     /* ── Class List: Male / Female split A-Z ── */
