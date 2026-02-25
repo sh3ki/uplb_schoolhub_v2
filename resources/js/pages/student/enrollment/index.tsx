@@ -8,6 +8,7 @@ import {
     Info,
     User,
     Calendar,
+    XCircle,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,12 @@ interface Props {
     departments: Department[];
     programs: Program[];
     yearLevels: YearLevel[];
+    enrollmentOpen: boolean;
+    classification: string;
+    enrollmentPeriod: {
+        start: string | null;
+        end: string | null;
+    };
 }
 
 const statusConfig: Record<string, { label: string; color: string }> = {
@@ -86,6 +93,9 @@ export default function SelfEnrollmentIndex({
     departments,
     programs,
     yearLevels,
+    enrollmentOpen,
+    classification,
+    enrollmentPeriod,
 }: Props) {
     const [selectedDeptId, setSelectedDeptId] = useState<number | null>(student.department_id);
 
@@ -158,8 +168,29 @@ export default function SelfEnrollmentIndex({
                     </Alert>
                 )}
 
+                {/* Enrollment Closed Notice */}
+                {!enrollmentOpen && !hasPendingRequest && (
+                    <Alert variant="destructive">
+                        <XCircle className="h-4 w-4" />
+                        <AlertTitle>Enrollment Period Closed</AlertTitle>
+                        <AlertDescription>
+                            <p>
+                                Enrollment for <strong>{classification}</strong> students for School Year <strong>{currentSchoolYear}</strong> is currently closed.
+                            </p>
+                            {enrollmentPeriod.start && enrollmentPeriod.end && (
+                                <p className="mt-2 text-sm">
+                                    Enrollment period: {enrollmentPeriod.start} to {enrollmentPeriod.end}
+                                </p>
+                            )}
+                            <p className="mt-2 text-sm">
+                                Please contact the Registrar's Office for more information.
+                            </p>
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 {/* Enrollment Form */}
-                {!hasPendingRequest && (
+                {!hasPendingRequest && enrollmentOpen && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
