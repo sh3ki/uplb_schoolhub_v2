@@ -106,9 +106,11 @@ export default function Dashboard({ student, stats, enrollmentClearance, payment
                         <AlertDescription className="mt-2">
                             <p className="text-base mb-4">
                                 Your enrollment status is <strong className="uppercase">{student.enrollment_status.replace(/-/g, ' ')}</strong>.
-                                You need to complete the following before you can be officially enrolled:
+                                {(student.enrollment_status === 'not-enrolled' || student.enrollment_status === 'dropped') && (
+                                    <> You need to complete the following before you can be officially enrolled:</>
+                                )}
                             </p>
-                            
+
                             {/* Re-enrollment button for students not yet pending */}
                             {(student.enrollment_status === 'not-enrolled' || student.enrollment_status === 'dropped') && (
                                 <div className="mb-4">
@@ -118,6 +120,26 @@ export default function Dashboard({ student, stats, enrollmentClearance, payment
                                             Apply for Re-Enrollment
                                         </Button>
                                     </Link>
+                                </div>
+                            )}
+
+                            {/* Pending Registrar review notice */}
+                            {student.enrollment_status === 'pending-registrar' && (
+                                <div className="flex items-center gap-2 rounded-lg bg-yellow-50 border border-yellow-200 p-3 mb-4">
+                                    <Clock className="h-4 w-4 text-yellow-600 shrink-0" />
+                                    <p className="text-sm text-yellow-800 font-medium">
+                                        Your re-enrollment application has been submitted and is currently under review by the Registrar. Please wait for their approval.
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Pending Accounting clearance notice */}
+                            {student.enrollment_status === 'pending-accounting' && (
+                                <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3 mb-4">
+                                    <Clock className="h-4 w-4 text-blue-600 shrink-0" />
+                                    <p className="text-sm text-blue-800 font-medium">
+                                        The Registrar has approved your enrollment. Your application is now pending Accounting clearance. Please settle your fees to complete enrollment.
+                                    </p>
                                 </div>
                             )}
                             
