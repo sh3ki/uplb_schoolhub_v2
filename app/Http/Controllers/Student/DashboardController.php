@@ -22,8 +22,14 @@ class DashboardController extends Controller
         $pendingRequirements = $student->requirements->where('status', 'pending')->count();
         $requirementsPercentage = $totalRequirements > 0 ? round(($completedRequirements / $totalRequirements) * 100) : 0;
 
+        // Get current school year
+        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+
         // Get payment info using same logic as online payments
         $paymentInfo = $this->getPaymentSummary($student);
+
+        // Get previous school year balances
+        $previousBalances = $this->getPreviousSchoolYearBalances($student, $currentSchoolYear);
 
         // Check if student has incomplete requirements
         $incompleteRequirements = $student->requirements
@@ -39,6 +45,7 @@ class DashboardController extends Controller
 
         return Inertia::render('student/dashboard', [
             'student' => $student,
+            'currentSchoolYear' => $currentSchoolYear,
             'stats' => [
                 'totalRequirements' => $totalRequirements,
                 'completedRequirements' => $completedRequirements,
@@ -47,6 +54,7 @@ class DashboardController extends Controller
             ],
             'enrollmentClearance' => $student->enrollmentClearance,
             'paymentInfo' => $paymentInfo,
+            'previousBalances' => $previousBalances,
             'incompleteRequirements' => $incompleteRequirements,
         ]);
     }
@@ -147,6 +155,28 @@ class DashboardController extends Controller
         return (float) \App\Models\FeeItem::whereIn('id', $feeItemIds)
             ->where('is_active', true)
             ->sum('selling_price');
+    }
+
+    /**
+     * Get previous school year balances.
+     */
+    private function getPreviousSchoolYearBalances(Student $student, string $currentSchoolYear): array
+    {
+        return StudentFee::where('student_id', $student->id)
+            ->where('school_year', '!=', $currentSchoolYear)
+            ->where('balance', '>', 0)
+            ->orderBy('school_year', 'desc')
+            ->get()
+            ->map(function ($fee) {
+                return [
+                    'id' => $fee->id,
+                    'school_year' => $fee->school_year,
+                    'total_amount' => (float) $fee->total_amount,
+                    'total_paid' => (float) $fee->total_paid,
+                    'balance' => (float) $fee->balance,
+                ];
+            })
+            ->toArray();
     }
 }
 
