@@ -667,4 +667,113 @@ class StudentController extends Controller
 
         return back()->with('success', "{$count} student(s) archived successfully.");
     }
+
+    /**
+     * Re-enroll a student (Registrar initiates enrollment for new school year).
+     * Sets the student to pending-registrar or directly to pending-accounting if registrar clearance is auto-granted.
+     */
+    public function reEnroll(Request $request, Student $student)
+    {
+        $settings = AppSetting::current();
+        $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        // Check if enrollment is open for student's classification
+        $dept = Department::find($student->department_id);
+        $classification = $dept?->classification ?? 'K-12';
+        
+        if (!$settings->isEnrollmentOpen($classification)) {
+            return back()->with('error', "Enrollment for {$classification} is currently closed. Open it in App Settings first.");
+        }
+
+        // Don't allow if already enrolled for this school year
+        if ($student->enrollment_status === 'enrolled' && $student->school_year === $currentSchoolYear) {
+            return back()->with('error', 'Student is already enrolled for the current school year.');
+        }
+
+        $validated = $request->validate([
+            'year_level'       => 'required|string|max:100',
+            'program'          => 'nullable|string|max:255',
+            'section'          => 'nullable|string|max:100',
+            'department_id'    => 'nullable|exists:departments,id',
+            'section_id'       => 'nullable|exists:sections,id',
+            'year_level_id'    => 'nullable|exists:year_levels,id',
+            'auto_clear'       => 'boolean', // If true, skip pending-registrar and go to pending-accounting
+        ]);
+
+        $oldStatus     = $student->enrollment_status;
+        $oldYearLevel  = $student->year_level;
+        $oldSchoolYear = $student->school_year;
+        $autoClear     = $validated['auto_clear'] ?? false;
+
+        // Determine enrollment status - if registrar auto-clears, go to pending-accounting
+        $newStatus = $autoClear ? 'pending-accounting' : 'pending-registrar';
+
+        // Update student record
+        $student->update([
+            'enrollment_status' => $newStatus,
+            'school_year'       => $currentSchoolYear,
+            'year_level'        => $validated['year_level'],
+            'program'           => $validated['program'] ?? $student->program,
+            'section'           => $validated['section'] ?? null,
+            'department_id'     => $validated['department_id'] ?? $student->department_id,
+            'section_id'        => $validated['section_id'] ?? null,
+            'year_level_id'     => $validated['year_level_id'] ?? $student->year_level_id,
+        ]);
+
+        // If auto-clear, also update the enrollment clearance
+        if ($autoClear) {
+            $clearance = $student->enrollmentClearance()->firstOrCreate([]);
+            $clearance->update([
+                'registrar_clearance'   => true,
+                'registrar_cleared_at'  => now(),
+                'registrar_cleared_by'  => auth()->id(),
+            ]);
+
+            // Create StudentFee record for the new school year
+            $previousFees = \App\Models\StudentFee::where('student_id', $student->id)
+                ->where('school_year', '!=', $currentSchoolYear)
+                ->where('balance', '>', 0)
+                ->get();
+
+            $carriedBalance = $previousFees->sum('balance');
+            $carriedFrom    = $previousFees->pluck('school_year')->unique()->sort()->implode(', ');
+
+            \App\Models\StudentFee::firstOrCreate(
+                [
+                    'student_id' => $student->id,
+                    'school_year' => $currentSchoolYear,
+                ],
+                [
+                    'registration_fee'          => 0,
+                    'tuition_fee'               => 0,
+                    'misc_fee'                  => 0,
+                    'books_fee'                 => 0,
+                    'other_fees'                => 0,
+                    'total_amount'              => 0,
+                    'total_paid'                => 0,
+                    'balance'                   => 0,
+                    'grant_discount'            => 0,
+                    'carried_forward_balance'   => $carriedBalance > 0 ? $carriedBalance : 0,
+                    'carried_forward_from'      => $carriedBalance > 0 ? $carriedFrom : null,
+                ]
+            );
+        }
+
+        // Log the action
+        StudentActionLog::create([
+            'student_id'   => $student->id,
+            'performed_by' => auth()->id(),
+            'action'       => 'Re-Enrollment Initiated by Registrar',
+            'action_type'  => 'enrollment',
+            'details'      => "Registrar initiated re-enrollment for {$currentSchoolYear}. Year Level: {$validated['year_level']}." . ($autoClear ? ' Registrar clearance auto-granted.' : ''),
+            'changes'      => [
+                'enrollment_status' => ['from' => $oldStatus, 'to' => $newStatus],
+                'school_year'       => ['from' => $oldSchoolYear, 'to' => $currentSchoolYear],
+                'year_level'        => ['from' => $oldYearLevel, 'to' => $validated['year_level']],
+            ],
+        ]);
+
+        $statusText = $autoClear ? 'pending-accounting (registrar cleared)' : 'pending-registrar';
+        return back()->with('success', "Student re-enrolled for {$currentSchoolYear}. Status: {$statusText}");
+    }
 }
