@@ -31,11 +31,13 @@ interface Props {
     stats: { total: number; male: number; female: number };
     programs: string[];
     yearLevels: string[];
+    schoolYears: string[];
     filters: {
         search?: string;
         program?: string;
         year_level?: string;
         enrollment_status?: string;
+        school_year?: string;
     };
 }
 
