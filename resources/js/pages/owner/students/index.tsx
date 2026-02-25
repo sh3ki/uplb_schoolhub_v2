@@ -120,11 +120,12 @@ function GenderTable({ title, students, color }: { title: string; students: Stud
     );
 }
 
-export default function OwnerStudentsIndex({ male, female, stats, programs, yearLevels, filters }: Props) {
+export default function OwnerStudentsIndex({ male, female, stats, programs, yearLevels, schoolYears, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [program, setProgram] = useState(filters.program || 'all');
     const [yearLevel, setYearLevel] = useState(filters.year_level || 'all');
     const [enrollmentStatus, setEnrollmentStatus] = useState(filters.enrollment_status || 'all');
+    const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
 
     const navigate = (params: Record<string, string>) => {
         router.get('/owner/students', params, { preserveState: true, replace: true });
@@ -132,19 +133,23 @@ export default function OwnerStudentsIndex({ male, female, stats, programs, year
 
     const handleSearch = (val: string) => {
         setSearch(val);
-        navigate({ search: val, program, year_level: yearLevel, enrollment_status: enrollmentStatus });
+        navigate({ search: val, program, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: schoolYear });
     };
     const handleProgram = (val: string) => {
         setProgram(val);
-        navigate({ search, program: val, year_level: yearLevel, enrollment_status: enrollmentStatus });
+        navigate({ search, program: val, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: schoolYear });
     };
     const handleYearLevel = (val: string) => {
         setYearLevel(val);
-        navigate({ search, program, year_level: val, enrollment_status: enrollmentStatus });
+        navigate({ search, program, year_level: val, enrollment_status: enrollmentStatus, school_year: schoolYear });
     };
     const handleStatus = (val: string) => {
         setEnrollmentStatus(val);
-        navigate({ search, program, year_level: yearLevel, enrollment_status: val });
+        navigate({ search, program, year_level: yearLevel, enrollment_status: val, school_year: schoolYear });
+    };
+    const handleSchoolYear = (val: string) => {
+        setSchoolYear(val);
+        navigate({ search, program, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: val });
     };
 
     return (
@@ -203,6 +208,21 @@ export default function OwnerStudentsIndex({ male, female, stats, programs, year
                         ]}
                     />
                 </FilterBar>
+
+                {/* School Year Tabs */}
+                {schoolYears.length > 0 && (
+                    <div className="flex items-center gap-3">
+                        <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <Tabs value={schoolYear} onValueChange={handleSchoolYear} className="w-full">
+                            <TabsList className="h-auto flex-wrap gap-1 bg-muted/50 p-1">
+                                <TabsTrigger value="all" className="text-xs px-3 py-1.5">All Years</TabsTrigger>
+                                {schoolYears.map((sy) => (
+                                    <TabsTrigger key={sy} value={sy} className="text-xs px-3 py-1.5">{sy}</TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                )}
 
                 {/* Male Table */}
                 <GenderTable title="Male Students" students={male} color="bg-sky-600" />
