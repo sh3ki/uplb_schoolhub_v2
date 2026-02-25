@@ -612,6 +612,31 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <CardDescription>Enter payment information</CardDescription>
                                         </CardHeader>
                                         <CardContent className="space-y-4">
+                                            {/* Fee / School Year Selector */}
+                                            <div className="grid gap-2">
+                                                <Label>Fee / School Year *</Label>
+                                                {feesWithBalance.length > 0 ? (
+                                                    <Select
+                                                        value={selectedFeeId}
+                                                        onValueChange={setSelectedFeeId}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select fee / school year" />
+                                                        </SelectTrigger>
+                                                        <SelectContent position="popper">
+                                                            {feesWithBalance.map((fee) => (
+                                                                <SelectItem key={fee.id} value={fee.id.toString()}>
+                                                                    {fee.school_year} — Balance: {formatCurrency(fee.balance)}
+                                                                </SelectItem>
+                                                            ))}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : (
+                                                    <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                                                        No outstanding fees for this student
+                                                    </div>
+                                                )}
+                                            </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="grid gap-2">
                                                     <Label htmlFor="or_number">OR Number *</Label>
@@ -791,7 +816,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     <Button 
                                         type="submit" 
                                         className="w-full h-12 text-lg"
-                                        disabled={!amountReceived || parseFloat(amountReceived) <= 0 || !paymentForm.data.or_number}
+                                        disabled={!amountReceived || parseFloat(amountReceived) <= 0 || !paymentForm.data.or_number || !selectedFeeId}
                                     >
                                         <Receipt className="h-5 w-5 mr-2" />
                                         Record Payment
