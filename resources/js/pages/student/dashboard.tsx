@@ -48,6 +48,14 @@ interface IncompleteRequirement {
     status: string;
 }
 
+interface PreviousBalance {
+    id: number;
+    school_year: string;
+    total_amount: number;
+    total_paid: number;
+    balance: number;
+}
+
 interface Student {
     id: number;
     first_name: string;
@@ -61,6 +69,7 @@ interface Student {
 
 interface Props {
     student: Student;
+    currentSchoolYear: string;
     stats: {
         totalRequirements: number;
         completedRequirements: number;
@@ -69,10 +78,11 @@ interface Props {
     };
     enrollmentClearance: EnrollmentClearance | null;
     paymentInfo: PaymentInfo | null;
+    previousBalances: PreviousBalance[];
     incompleteRequirements: IncompleteRequirement[];
 }
 
-export default function Dashboard({ student, stats, enrollmentClearance, paymentInfo, incompleteRequirements }: Props) {
+export default function Dashboard({ student, currentSchoolYear, stats, enrollmentClearance, paymentInfo, previousBalances, incompleteRequirements }: Props) {
     const formatCurrency = (amount: number) => {
         return `₱${amount.toLocaleString('en-PH', {
             minimumFractionDigits: 2,
@@ -92,6 +102,11 @@ export default function Dashboard({ student, stats, enrollmentClearance, payment
     };
 
     const isNotEnrolled = student.enrollment_status !== 'enrolled';
+
+    // Calculate total previous balance
+    const totalPreviousBalance = previousBalances.reduce((sum, b) => sum + b.balance, 0);
+    const currentBalance = paymentInfo?.balance || 0;
+    const totalAllBalance = currentBalance + totalPreviousBalance;
 
     return (
         <StudentLayout>
@@ -247,14 +262,78 @@ export default function Dashboard({ student, stats, enrollmentClearance, payment
                 )}
 
                 {/* Welcome Header */}
-                <div>
-                    <h1 className="text-3xl font-bold">
-                        Welcome back, {student.first_name}!
-                    </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Here's your enrollment status and requirements progress
-                    </p>
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <h1 className="text-3xl font-bold">
+                            Welcome back, {student.first_name}!
+                        </h1>
+                        <p className="text-muted-foreground mt-1">
+                            Here's your enrollment status and requirements progress
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-base px-3 py-1.5">
+                            <CalendarDays className="h-4 w-4 mr-2" />
+                            School Year: {currentSchoolYear}
+                        </Badge>
+                    </div>
                 </div>
+
+                {/* Prominent Balance Display */}
+                {(currentBalance > 0 || totalPreviousBalance > 0) && (
+                    <Card className="border-2 border-red-200 bg-red-50">
+                        <CardContent className="pt-6">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-14 w-14 rounded-full bg-red-100 flex items-center justify-center">
+                                        <AlertTriangle className="h-7 w-7 text-red-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-red-600 font-medium">Outstanding Balance</p>
+                                        <p className="text-3xl font-bold text-red-700">{formatCurrency(totalAllBalance)}</p>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    {currentBalance > 0 && (
+                                        <div className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="text-red-600">Current ({currentSchoolYear}):</span>
+                                            <span className="font-semibold text-red-700">{formatCurrency(currentBalance)}</span>
+                                        </div>
+                                    )}
+                                    {previousBalances.map(prev => (
+                                        <div key={prev.id} className="flex items-center justify-between gap-4 text-sm">
+                                            <span className="text-orange-600">Previous ({prev.school_year}):</span>
+                                            <span className="font-semibold text-orange-700">{formatCurrency(prev.balance)}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Link href="/student/payments/online">
+                                    <Button className="bg-red-600 hover:bg-red-700 text-white">
+                                        <CreditCard className="h-4 w-4 mr-2" />
+                                        Pay Now
+                                    </Button>
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Fully Paid Badge */}
+                {paymentInfo?.is_fully_paid && totalPreviousBalance === 0 && (
+                    <Card className="border-2 border-green-200 bg-green-50">
+                        <CardContent className="pt-6 pb-6">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                    <CheckCircle className="h-6 w-6 text-green-600" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold text-green-700">All Paid!</p>
+                                    <p className="text-sm text-green-600">You have no outstanding balance for {currentSchoolYear}</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Stats Cards */}
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
