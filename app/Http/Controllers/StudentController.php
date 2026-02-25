@@ -76,6 +76,11 @@ class StudentController extends Controller
             });
         }
 
+        // School year filter
+        if ($request->filled('school_year') && $request->school_year !== 'all') {
+            $query->where('school_year', $request->school_year);
+        }
+
         // Get paginated students with requirements and enrollmentClearance
         $students = $query->with(['requirements.requirement', 'enrollmentClearance', 'user'])->latest()->paginate(10)->withQueryString();
 
@@ -106,6 +111,7 @@ class StudentController extends Controller
         // Get unique values for filters
         $programs = Student::select('program')->distinct()->pluck('program');
         $yearLevels = Student::select('year_level')->distinct()->pluck('year_level');
+        $schoolYears = Student::whereNotNull('school_year')->distinct()->pluck('school_year')->sort()->values();
 
         // Get academic structure data for the form
         $departments = Department::where('is_active', true)->get(['id', 'name', 'classification']);
@@ -120,7 +126,8 @@ class StudentController extends Controller
             'stats' => $stats,
             'programs' => $programs,
             'yearLevels' => $yearLevels,
-            'filters' => $request->only(['search', 'type', 'program', 'year_level', 'enrollment_status', 'requirements_status', 'needs_sectioning']),
+            'schoolYears' => $schoolYears,
+            'filters' => $request->only(['search', 'type', 'program', 'year_level', 'enrollment_status', 'requirements_status', 'needs_sectioning', 'school_year']),
             // Academic structure data for Add/Edit form
             'departments' => $departments,
             'allPrograms' => $allPrograms,
