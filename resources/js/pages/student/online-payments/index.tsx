@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, useForm } from '@inertiajs/react';
 import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -165,15 +165,10 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                                 Account Dropped
                             </CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3">
+                        <CardContent>
                             <p className="text-sm text-red-700 dark:text-red-300">
-                                Your enrollment has been dropped. Online payments are disabled. If you believe this is an error or wish to request a refund, please visit the Refund Requests page.
+                                Your enrollment has been dropped. Online payments are disabled. Please visit the accounting office for any refund concerns.
                             </p>
-                            <Button asChild variant="outline" className="border-red-300 text-red-800 hover:bg-red-100 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/30">
-                                <Link href="/student/refund-requests">
-                                    View Refund Options
-                                </Link>
-                            </Button>
                         </CardContent>
                     </Card>
                 )}
