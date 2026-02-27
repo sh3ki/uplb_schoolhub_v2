@@ -20,6 +20,14 @@ class Department extends Model
     ];
 
     /**
+     * Programs under this department (college)
+     */
+    public function programs(): HasMany
+    {
+        return $this->hasMany(Program::class);
+    }
+
+    /**
      * Teachers in this department
      */
     public function teachers(): HasMany
