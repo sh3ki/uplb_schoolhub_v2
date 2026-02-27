@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -130,6 +130,14 @@ export default function RegistrarReportsIndex({
     departments,
     filters,
 }: Props) {
+    const { props } = usePage();
+    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
+    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const classificationOptions = [
+        ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
+        ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
+    ];
+
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [selectedDepartment, setSelectedDepartment] = useState(filters.department_id || 'all');
     const [activeTab, setActiveTab] = useState<'analytics' | 'sections'>('analytics');
@@ -258,10 +266,7 @@ export default function RegistrarReportsIndex({
                             label="Classification"
                             value={classification}
                             onChange={handleClassificationChange}
-                            options={[
-                                { value: 'K-12', label: 'K-12' },
-                                { value: 'College', label: 'College' },
-                            ]}
+                            options={classificationOptions}
                         />
                         <FilterDropdown
                             label="Department"
