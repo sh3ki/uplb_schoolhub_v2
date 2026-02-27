@@ -25,6 +25,7 @@ class ParentModel extends Model
         'workplace',
         'emergency_contact',
         'is_active',
+        'photo_url',
     ];
 
     protected $casts = [
