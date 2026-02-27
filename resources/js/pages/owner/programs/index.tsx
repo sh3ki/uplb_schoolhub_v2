@@ -27,6 +27,9 @@ interface Program {
     duration_years: number;
     is_active: boolean;
     department: Department;
+    year_levels_count?: number;
+    sections_count?: number;
+    students_count?: number;
 }
 
 interface Props {
@@ -241,6 +244,9 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
                                         <th className="text-left p-3 font-semibold">Department</th>
                                         <th className="text-left p-3 font-semibold">Description</th>
                                         <th className="text-center p-3 font-semibold">Duration (Years)</th>
+                                        <th className="text-center p-3 font-semibold">Year Levels</th>
+                                        <th className="text-center p-3 font-semibold">Sections</th>
+                                        <th className="text-center p-3 font-semibold">Students</th>
                                         <th className="text-center p-3 font-semibold">Status</th>
                                         <th className="text-center p-3 font-semibold">Actions</th>
                                     </tr>
@@ -248,7 +254,7 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
                                 <tbody>
                                     {programs.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="text-center p-8 text-gray-500">
+                                            <td colSpan={9} className="text-center p-8 text-gray-500">
                                                 No programs found. Create one to get started.
                                             </td>
                                         </tr>
@@ -265,6 +271,9 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
                                                     {program.description || '-'}
                                                 </td>
                                                 <td className="p-3 text-center">{program.duration_years}</td>
+                                                <td className="p-3 text-center">{program.year_levels_count || 0}</td>
+                                                <td className="p-3 text-center">{program.sections_count || 0}</td>
+                                                <td className="p-3 text-center">{program.students_count || 0}</td>
                                                 <td className="p-3 text-center">
                                                     <span
                                                         className={`inline-block px-2 py-1 text-xs rounded ${
