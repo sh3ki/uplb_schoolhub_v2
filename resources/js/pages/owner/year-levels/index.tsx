@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import OwnerLayout from '@/layouts/owner/owner-layout';
@@ -52,6 +52,14 @@ interface Props {
 }
 
 export default function YearLevelsIndex({ yearLevels, departments, filters }: Props) {
+    const { props } = usePage();
+    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
+    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const classificationOptions = [
+        ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
+        ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
+    ];
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingYearLevel, setEditingYearLevel] = useState<YearLevel | null>(null);
     const [activeTab, setActiveTab] = useState('all');
@@ -62,7 +70,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
 
     const form = useForm({
         department_id: '',
-        classification: 'K-12' as 'K-12' | 'College',
+        classification: (hasK12 ? 'K-12' : 'College') as 'K-12' | 'College',
         name: '',
         level_number: 1,
         is_active: true,
@@ -232,10 +240,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                 label="Classification"
                                 value={classification}
                                 onChange={handleClassificationChange}
-                                options={[
-                                    { value: 'K-12', label: 'K-12' },
-                                    { value: 'College', label: 'College' }
-                                ]}
+                                options={classificationOptions}
                                 placeholder="All Classifications"
                             />
                             <FilterDropdown 
@@ -260,10 +265,10 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="all">All</TabsTrigger>
-                                <TabsTrigger value="elementary">Elementary</TabsTrigger>
-                                <TabsTrigger value="jhs">JHS</TabsTrigger>
-                                <TabsTrigger value="shs">SHS</TabsTrigger>
-                                <TabsTrigger value="college">College</TabsTrigger>
+                                {hasK12 && <TabsTrigger value="elementary">Elementary</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="jhs">JHS</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="shs">SHS</TabsTrigger>}
+                                {hasCollege && <TabsTrigger value="college">College</TabsTrigger>}
                             </TabsList>
 
                             <TabsContent value={activeTab}>
@@ -376,18 +381,26 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                         <SelectValue placeholder="Select department" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500">K-12</div>
-                                        {k12Departments.map((dept) => (
-                                            <SelectItem key={dept.id} value={dept.id.toString()}>
-                                                {dept.name}
-                                            </SelectItem>
-                                        ))}
-                                        <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 mt-2">College</div>
-                                        {collegeDepartments.map((dept) => (
-                                            <SelectItem key={dept.id} value={dept.id.toString()}>
-                                                {dept.name}
-                                            </SelectItem>
-                                        ))}
+                                        {hasK12 && k12Departments.length > 0 && (
+                                            <>
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500">K-12</div>
+                                                {k12Departments.map((dept) => (
+                                                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                                                        {dept.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </>
+                                        )}
+                                        {hasCollege && collegeDepartments.length > 0 && (
+                                            <>
+                                                <div className="px-2 py-1.5 text-xs font-semibold text-gray-500 mt-2">College</div>
+                                                {collegeDepartments.map((dept) => (
+                                                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                                                        {dept.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </>
+                                        )}
                                     </SelectContent>
                                 </Select>
                                 {form.errors.department_id && (
