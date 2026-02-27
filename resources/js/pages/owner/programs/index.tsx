@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import OwnerLayout from '@/layouts/owner/owner-layout';
@@ -50,6 +50,14 @@ interface Props {
 }
 
 export default function ProgramsIndex({ programs, departments, filters }: Props) {
+    const { props } = usePage();
+    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
+    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const classificationOptions = [
+        ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
+        ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
+    ];
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProgram, setEditingProgram] = useState<Program | null>(null);
     const [search, setSearch] = useState(filters.search || '');
@@ -203,10 +211,7 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
                                 label="Classification"
                                 value={classification}
                                 onChange={handleClassificationChange}
-                                options={[
-                                    { value: 'K-12', label: 'K-12' },
-                                    { value: 'College', label: 'College' }
-                                ]}
+                                options={classificationOptions}
                                 placeholder="All Classifications"
                             />
                             <FilterDropdown 
