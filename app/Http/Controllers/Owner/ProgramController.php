@@ -12,7 +12,7 @@ class ProgramController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Program::with('department');
+        $query = Program::with('department')->withCount(['yearLevels', 'sections', 'students']);
 
         // Search filter
         if ($request->filled('search')) {
