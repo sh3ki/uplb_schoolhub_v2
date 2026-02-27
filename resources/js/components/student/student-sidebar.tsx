@@ -13,7 +13,6 @@ import {
     FileText,
     CreditCard,
     Lock,
-    RotateCcw,
     UserMinus,
 } from 'lucide-react';
 import {
@@ -104,11 +103,6 @@ export function StudentSidebar() {
             title: 'Drop Request',
             href: '/student/drop-request',
             icon: UserMinus,
-        },
-        {
-            title: 'Refund Requests',
-            href: '/student/refund-requests',
-            icon: RotateCcw,
         },
         {
             title: 'Profile',
