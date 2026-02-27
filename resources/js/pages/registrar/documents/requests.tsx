@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { FileCheck, FileX, FileClock, FileText, Eye, Check, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -92,6 +92,14 @@ interface Props {
 }
 
 export default function DocumentRequests({ documents, requirements, stats, filters }: Props) {
+    const { props } = usePage();
+    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
+    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const classificationOptions = [
+        ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
+        ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
+    ];
+
     const [search, setSearch] = useState(filters.search || '');
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
@@ -302,10 +310,7 @@ export default function DocumentRequests({ documents, requirements, stats, filte
                                 label="Classification"
                                 value={classification}
                                 onChange={handleClassificationChange}
-                                options={[
-                                    { value: 'K-12', label: 'K-12' },
-                                    { value: 'College', label: 'College' },
-                                ]}
+                                options={classificationOptions}
                             />
                             <FilterDropdown
                                 label="Status"
