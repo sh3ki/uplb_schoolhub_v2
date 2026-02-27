@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import OwnerLayout from '@/layouts/owner/owner-layout';
@@ -47,6 +47,14 @@ interface Props {
 }
 
 export default function DepartmentsIndex({ departments, filters }: Props) {
+    const { props } = usePage();
+    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
+    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const classificationOptions = [
+        ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
+        ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
+    ];
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
     const [activeTab, setActiveTab] = useState('all');
@@ -57,7 +65,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
     const form = useForm({
         name: '',
         code: '',
-        classification: 'K-12' as 'K-12' | 'College',
+        classification: (hasK12 ? 'K-12' : 'College') as 'K-12' | 'College',
         description: '',
         is_active: true,
     });
@@ -217,10 +225,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                                 label="Classification"
                                 value={classification}
                                 onChange={handleClassificationChange}
-                                options={[
-                                    { value: 'K-12', label: 'K-12' },
-                                    { value: 'College', label: 'College' }
-                                ]}
+                                options={classificationOptions}
                                 placeholder="All Classifications"
                             />
                             <FilterDropdown 
@@ -238,10 +243,10 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="all">All</TabsTrigger>
-                                <TabsTrigger value="elementary">Elementary</TabsTrigger>
-                                <TabsTrigger value="jhs">JHS</TabsTrigger>
-                                <TabsTrigger value="shs">SHS</TabsTrigger>
-                                <TabsTrigger value="college">College</TabsTrigger>
+                                {hasK12 && <TabsTrigger value="elementary">Elementary</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="jhs">JHS</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="shs">SHS</TabsTrigger>}
+                                {hasCollege && <TabsTrigger value="college">College</TabsTrigger>}
                             </TabsList>
 
                             <TabsContent value={activeTab}>
@@ -385,8 +390,8 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                                         <SelectValue placeholder="Select classification" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="K-12">K-12</SelectItem>
-                                        <SelectItem value="College">College</SelectItem>
+                                        {hasK12 && <SelectItem value="K-12">K-12</SelectItem>}
+                                        {hasCollege && <SelectItem value="College">College</SelectItem>}
                                     </SelectContent>
                                 </Select>
                                 {form.errors.classification && (
