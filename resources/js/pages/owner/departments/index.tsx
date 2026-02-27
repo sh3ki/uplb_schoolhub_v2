@@ -26,6 +26,7 @@ interface Department {
     year_levels_count?: number;
     sections_count?: number;
     students_count?: number;
+    programs_count?: number;
 }
 
 interface Props {
@@ -172,22 +173,8 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
     // Filter departments based on active tab
     const filteredDepartments = departments.data.filter(dept => {
         if (activeTab === 'all') return true;
-        if (activeTab === 'elementary') {
-            return dept.name.toLowerCase().includes('elementary') || 
-                   dept.name.toLowerCase().includes('elem') ||
-                   dept.code === 'ELEM';
-        }
-        if (activeTab === 'jhs') {
-            return dept.name.toLowerCase().includes('junior') || 
-                   dept.code === 'JHS';
-        }
-        if (activeTab === 'shs') {
-            return dept.name.toLowerCase().includes('senior') || 
-                   dept.code === 'SHS';
-        }
-        if (activeTab === 'college') {
-            return dept.classification === 'College';
-        }
+        if (activeTab === 'k12') return dept.classification === 'K-12';
+        if (activeTab === 'college') return dept.classification === 'College';
         return true;
     });
 
@@ -243,9 +230,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="all">All</TabsTrigger>
-                                {hasK12 && <TabsTrigger value="elementary">Elementary</TabsTrigger>}
-                                {hasK12 && <TabsTrigger value="jhs">JHS</TabsTrigger>}
-                                {hasK12 && <TabsTrigger value="shs">SHS</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="k12">K-12</TabsTrigger>}
                                 {hasCollege && <TabsTrigger value="college">College</TabsTrigger>}
                             </TabsList>
 
@@ -259,6 +244,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                                                 <th className="text-left p-3 font-semibold">Classification</th>
                                                 <th className="text-left p-3 font-semibold">Description</th>
                                                 <th className="text-center p-3 font-semibold">Year Levels</th>
+                                                {hasCollege && <th className="text-center p-3 font-semibold">Programs</th>}
                                                 <th className="text-center p-3 font-semibold">Sections</th>
                                                 <th className="text-center p-3 font-semibold">Students</th>
                                                 <th className="text-center p-3 font-semibold">Status</th>
@@ -268,7 +254,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                                         <tbody>
                                             {filteredDepartments.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={9} className="text-center p-8 text-gray-500">
+                                                    <td colSpan={hasCollege ? 10 : 9} className="text-center p-8 text-gray-500">
                                                         No departments found for this filter.
                                                     </td>
                                                 </tr>
@@ -294,6 +280,11 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
                                                             {dept.description || '-'}
                                                         </td>
                                                         <td className="p-3 text-center">{dept.year_levels_count || 0}</td>
+                                                        {hasCollege && (
+                                                            <td className="p-3 text-center">
+                                                                {dept.classification === 'College' ? (dept.programs_count || 0) : '-'}
+                                                            </td>
+                                                        )}
                                                         <td className="p-3 text-center">{dept.sections_count || 0}</td>
                                                         <td className="p-3 text-center">{dept.students_count || 0}</td>
                                                         <td className="p-3 text-center">
