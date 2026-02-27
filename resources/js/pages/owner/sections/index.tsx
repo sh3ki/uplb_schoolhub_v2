@@ -38,7 +38,7 @@ interface Section {
     name: string;
     code: string | null;
     capacity: number | null;
-    school_year: string;
+    room_number: string | null;
     is_active: boolean;
     year_level: YearLevel;
     department?: Department;
@@ -59,19 +59,17 @@ interface Props {
     yearLevels: YearLevel[];
     departments: Department[];
     strands: Strand[];
-    schoolYears: string[];
     filters: {
         search?: string;
         classification?: string;
         department_id?: string;
         year_level_id?: string;
         strand_id?: string;
-        school_year?: string;
         status?: string;
     };
 }
 
-export default function SectionsIndex({ sections, yearLevels, departments, strands, schoolYears, filters }: Props) {
+export default function SectionsIndex({ sections, yearLevels, departments, strands, filters }: Props) {
     const { props } = usePage();
     const hasK12 = (props.appSettings as any)?.has_k12 !== false;
     const hasCollege = (props.appSettings as any)?.has_college !== false;
@@ -87,7 +85,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
     const [selectedDepartment, setSelectedDepartment] = useState(filters.department_id || 'all');
     const [selectedYearLevel, setSelectedYearLevel] = useState(filters.year_level_id || 'all');
     const [selectedStrand, setSelectedStrand] = useState(filters.strand_id || 'all');
-    const [selectedSchoolYear, setSelectedSchoolYear] = useState(filters.school_year || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
 
     const form = useForm({
@@ -97,13 +94,12 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
         name: '',
         code: '',
         capacity: '',
-        school_year: new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString(),
+        room_number: '',
         is_active: true,
     });
 
     const openCreateModal = () => {
         form.reset();
-        form.setData('school_year', new Date().getFullYear().toString() + '-' + (new Date().getFullYear() + 1).toString());
         setEditingSection(null);
         setIsModalOpen(true);
     };
@@ -117,7 +113,7 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             name: section.name,
             code: section.code || '',
             capacity: section.capacity?.toString() || '',
-            school_year: section.school_year,
+            room_number: section.room_number || '',
             is_active: section.is_active,
         });
         setIsModalOpen(true);
@@ -155,7 +151,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
         setSelectedDepartment('all');
         setSelectedYearLevel('all');
         setSelectedStrand('all');
-        setSelectedSchoolYear('all');
         setStatus('all');
         router.get('/owner/sections');
     };
@@ -168,7 +163,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: selectedDepartment,
             year_level_id: selectedYearLevel,
             strand_id: selectedStrand,
-            school_year: selectedSchoolYear,
             status,
         }, {
             preserveState: true,
@@ -184,7 +178,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: selectedDepartment,
             year_level_id: selectedYearLevel,
             strand_id: selectedStrand,
-            school_year: selectedSchoolYear,
             status,
         }, {
             preserveState: true,
@@ -200,7 +193,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: value,
             year_level_id: selectedYearLevel,
             strand_id: selectedStrand,
-            school_year: selectedSchoolYear,
             status,
         }, {
             preserveState: true,
@@ -216,7 +208,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: selectedDepartment,
             year_level_id: value,
             strand_id: selectedStrand,
-            school_year: selectedSchoolYear,
             status,
         }, {
             preserveState: true,
@@ -232,23 +223,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: selectedDepartment,
             year_level_id: selectedYearLevel,
             strand_id: value,
-            school_year: selectedSchoolYear,
-            status,
-        }, {
-            preserveState: true,
-            preserveScroll: true,
-        });
-    };
-
-    const handleSchoolYearChange = (value: string) => {
-        setSelectedSchoolYear(value);
-        router.get('/owner/sections', {
-            search,
-            classification,
-            department_id: selectedDepartment,
-            year_level_id: selectedYearLevel,
-            strand_id: selectedStrand,
-            school_year: value,
             status,
         }, {
             preserveState: true,
@@ -264,7 +238,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
             department_id: selectedDepartment,
             year_level_id: selectedYearLevel,
             strand_id: selectedStrand,
-            school_year: selectedSchoolYear,
             status: value,
         }, {
             preserveState: true,
@@ -296,7 +269,7 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                     </CardHeader>
                     <CardContent>
                         {/* Filter Bar */}
-                        <FilterBar onReset={resetFilters} showReset={!!(search || classification !== 'all' || selectedDepartment !== 'all' || selectedYearLevel !== 'all' || selectedStrand !== 'all' || selectedSchoolYear !== 'all' || status !== 'all')}>
+                        <FilterBar onReset={resetFilters} showReset={!!(search || classification !== 'all' || selectedDepartment !== 'all' || selectedYearLevel !== 'all' || selectedStrand !== 'all' || status !== 'all')}>
                             <SearchBar 
                                 value={search}
                                 onChange={handleSearchChange}
@@ -331,13 +304,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                                 placeholder="All Strands"
                             />
                             <FilterDropdown 
-                                label="School Year"
-                                value={selectedSchoolYear}
-                                onChange={handleSchoolYearChange}
-                                options={schoolYears.map(sy => ({ value: sy, label: sy }))}
-                                placeholder="All School Years"
-                            />
-                            <FilterDropdown 
                                 label="Status"
                                 value={status}
                                 onChange={handleStatusChange}
@@ -354,11 +320,11 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                                 <thead>
                                     <tr className="border-b">
                                         <th className="text-left p-3 font-semibold">Name</th>
+                                        <th className="text-left p-3 font-semibold">Code</th>
                                         <th className="text-left p-3 font-semibold">Department</th>
                                         <th className="text-left p-3 font-semibold">Year Level</th>
                                         <th className="text-left p-3 font-semibold">Strand</th>
                                         <th className="text-center p-3 font-semibold">Capacity</th>
-                                        <th className="text-center p-3 font-semibold">School Year</th>
                                         <th className="text-center p-3 font-semibold">Status</th>
                                         <th className="text-center p-3 font-semibold">Actions</th>
                                     </tr>
@@ -374,6 +340,13 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                                         sections.data.map((section) => (
                                             <tr key={section.id} className="border-b hover:bg-gray-50">
                                                 <td className="p-3 font-medium">{section.name}</td>
+                                                <td className="p-3">
+                                                    {section.code ? (
+                                                        <span className="font-mono text-sm bg-gray-100 px-2 py-1 rounded">
+                                                            {section.code}
+                                                        </span>
+                                                    ) : <span className="text-gray-400">-</span>}
+                                                </td>
                                                 <td className="p-3">
                                                     {section.department ? (
                                                         <span className="inline-block px-2 py-1 text-xs rounded bg-indigo-100 text-indigo-700">
@@ -400,7 +373,6 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                                                 <td className="p-3 text-center">
                                                     {section.capacity || '-'}
                                                 </td>
-                                                <td className="p-3 text-center">{section.school_year}</td>
                                                 <td className="p-3 text-center">
                                                     <span
                                                         className={`inline-block px-2 py-1 text-xs rounded ${
@@ -563,16 +535,15 @@ export default function SectionsIndex({ sections, yearLevels, departments, stran
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="school_year">School Year *</Label>
+                                <Label htmlFor="room_number">Room Number (Optional)</Label>
                                 <Input
-                                    id="school_year"
-                                    value={form.data.school_year}
-                                    onChange={(e) => form.setData('school_year', e.target.value)}
-                                    placeholder="e.g., 2024-2025"
-                                    required
+                                    id="room_number"
+                                    value={form.data.room_number}
+                                    onChange={(e) => form.setData('room_number', e.target.value)}
+                                    placeholder="e.g., Room 101"
                                 />
-                                {form.errors.school_year && (
-                                    <p className="text-sm text-red-500">{form.errors.school_year}</p>
+                                {form.errors.room_number && (
+                                    <p className="text-sm text-red-500">{form.errors.room_number}</p>
                                 )}
                             </div>
 
