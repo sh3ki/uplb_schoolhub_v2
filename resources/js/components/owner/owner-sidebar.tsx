@@ -28,101 +28,96 @@ import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/owner/dashboard',
-        icon: LayoutGrid,
-    },
-    {
-        title: "Today's Income",
-        href: '/owner/income/today',
-        icon: BadgeDollarSign,
-    },
-    {
-        title: 'Overall Income',
-        href: '/owner/income/overall',
-        icon: TrendingUp,
-    },
-    {
-        title: 'Expected Income',
-        href: '/owner/income/expected',
-        icon: TrendingUp,
-    },
-    {
-        title: 'Academic Structure',
-        icon: Building2,
-        items: [
-            {
-                title: 'Departments',
-                href: '/owner/departments',
-            },
-            {
-                title: 'Programs',
-                href: '/owner/programs',
-            },
-            {
-                title: 'Year Levels',
-                href: '/owner/year-levels',
-            },
-            {
-                title: 'Sections',
-                href: '/owner/sections',
-            },
-        ],
-    },
-    {
-        title: 'Subjects',
-        href: '/owner/subjects',
-        icon: BookOpen,
-    },
-    {
-        title: 'Schedules',
-        href: '/owner/schedules',
-        icon: Calendar,
-    },
-    {
-        title: 'Calendar View',
-        href: '/owner/calendar',
-        icon: Calendar,
-    },
-    {
-        title: 'User Management',
-        href: '/owner/users',
-        icon: Users,
-    },
-    {
-        title: 'Students',
-        href: '/owner/students',
-        icon: UserSquare2,
-    },
-    {
-        title: 'Announcements',
-        href: '/owner/announcements',
-        icon: Megaphone,
-    },
-    {
-        title: 'Export Reports',
-        href: '/owner/reports',
-        icon: FileText,
-    },
-    {
-        title: 'App Settings',
-        href: '/owner/app-settings',
-        icon: Settings,
-    },
-];
-
 interface AppSettings {
     app_name?: string;
     logo_url?: string | null;
     primary_color?: string;
+    has_k12?: boolean;
+    has_college?: boolean;
 }
 
 export function OwnerSidebar() {
     const { appSettings } = usePage<{ appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
+    const hasK12 = appSettings?.has_k12 !== false;
+    const hasCollege = appSettings?.has_college !== false;
+
+    // Build academic structure sub-items based on enabled academic modes
+    const academicStructureItems: NavItem[] = [
+        { title: 'Departments', href: '/owner/departments' },
+        ...(hasCollege ? [{ title: 'Programs', href: '/owner/programs' }] : []),
+        { title: 'Year Levels', href: '/owner/year-levels' },
+        { title: 'Sections', href: '/owner/sections' },
+    ];
+
+    const mainNavItems: NavItem[] = [
+        {
+            title: 'Dashboard',
+            href: '/owner/dashboard',
+            icon: LayoutGrid,
+        },
+        {
+            title: "Today's Income",
+            href: '/owner/income/today',
+            icon: BadgeDollarSign,
+        },
+        {
+            title: 'Overall Income',
+            href: '/owner/income/overall',
+            icon: TrendingUp,
+        },
+        {
+            title: 'Expected Income',
+            href: '/owner/income/expected',
+            icon: TrendingUp,
+        },
+        {
+            title: 'Academic Structure',
+            icon: Building2,
+            items: academicStructureItems,
+        },
+        {
+            title: 'Subjects',
+            href: '/owner/subjects',
+            icon: BookOpen,
+        },
+        {
+            title: 'Schedules',
+            href: '/owner/schedules',
+            icon: Calendar,
+        },
+        {
+            title: 'Calendar View',
+            href: '/owner/calendar',
+            icon: Calendar,
+        },
+        {
+            title: 'User Management',
+            href: '/owner/users',
+            icon: Users,
+        },
+        {
+            title: 'Students',
+            href: '/owner/students',
+            icon: UserSquare2,
+        },
+        {
+            title: 'Announcements',
+            href: '/owner/announcements',
+            icon: Megaphone,
+        },
+        {
+            title: 'Export Reports',
+            href: '/owner/reports',
+            icon: FileText,
+        },
+        {
+            title: 'App Settings',
+            href: '/owner/app-settings',
+            icon: Settings,
+        },
+    ];
 
     return (
         <Sidebar collapsible="icon" variant="inset">
