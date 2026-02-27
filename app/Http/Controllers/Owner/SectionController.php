@@ -26,6 +26,13 @@ class SectionController extends Controller
             });
         }
         
+        // Classification filter (via department)
+        if ($request->filled('classification') && $request->classification !== 'all') {
+            $query->whereHas('department', function($q) use ($request) {
+                $q->where('classification', $request->classification);
+            });
+        }
+        
         // Department filter
         if ($request->filled('department_id') && $request->department_id !== 'all') {
             $query->where('department_id', $request->department_id);
@@ -58,6 +65,7 @@ class SectionController extends Controller
             'strands' => $strands,
             'filters' => [
                 'search' => $request->search,
+                'classification' => $request->classification,
                 'department_id' => $request->department_id,
                 'year_level_id' => $request->year_level_id,
                 'strand_id' => $request->strand_id,
