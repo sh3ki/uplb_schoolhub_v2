@@ -22,6 +22,12 @@ interface Department {
     code: string;
 }
 
+interface Program {
+    id: number;
+    name: string;
+    department_id: number;
+}
+
 interface YearLevel {
     id: number;
     name: string;
@@ -29,6 +35,8 @@ interface YearLevel {
     classification: 'K-12' | 'College';
     is_active: boolean;
     department: Department;
+    program_id: number | null;
+    sections_count?: number;
 }
 
 interface Props {
@@ -43,6 +51,7 @@ interface Props {
         links: any[];
     };
     departments: Department[];
+    programs: Program[];
     filters: {
         search?: string;
         department_id?: string;
@@ -51,7 +60,7 @@ interface Props {
     };
 }
 
-export default function YearLevelsIndex({ yearLevels, departments, filters }: Props) {
+export default function YearLevelsIndex({ yearLevels, departments, programs, filters }: Props) {
     const { props } = usePage();
     const hasK12 = (props.appSettings as any)?.has_k12 !== false;
     const hasCollege = (props.appSettings as any)?.has_college !== false;
@@ -70,11 +79,17 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
 
     const form = useForm({
         department_id: '',
+        program_id: '' as string,
         classification: (hasK12 ? 'K-12' : 'College') as 'K-12' | 'College',
         name: '',
         level_number: 1,
         is_active: true,
     });
+
+    // Programs available for the currently selected department
+    const selectedDeptForForm = departments.find(d => d.id.toString() === form.data.department_id);
+    const isCollegeDept = selectedDeptForForm?.classification === 'College';
+    const programsForDept = programs.filter(p => p.department_id.toString() === form.data.department_id);
 
     const openCreateModal = () => {
         form.reset();
@@ -86,6 +101,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
         setEditingYearLevel(yearLevel);
         form.setData({
             department_id: yearLevel.department.id.toString(),
+            program_id: yearLevel.program_id?.toString() || '',
             classification: yearLevel.classification,
             name: yearLevel.name,
             level_number: yearLevel.level_number,
@@ -187,22 +203,8 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
     // Filter year levels based on active tab
     const filteredYearLevels = yearLevels.data.filter(yl => {
         if (activeTab === 'all') return true;
-        if (activeTab === 'elementary') {
-            return yl.department.name.toLowerCase().includes('elementary') || 
-                   yl.department.name.toLowerCase().includes('elem') ||
-                   yl.department.code === 'ELEM';
-        }
-        if (activeTab === 'jhs') {
-            return yl.department.name.toLowerCase().includes('junior') || 
-                   yl.department.code === 'JHS';
-        }
-        if (activeTab === 'shs') {
-            return yl.department.name.toLowerCase().includes('senior') || 
-                   yl.department.code === 'SHS';
-        }
-        if (activeTab === 'college') {
-            return yl.classification === 'College';
-        }
+        if (activeTab === 'k12') return yl.classification === 'K-12';
+        if (activeTab === 'college') return yl.classification === 'College';
         return true;
     });
 
@@ -265,9 +267,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                         <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
                             <TabsList className="mb-4">
                                 <TabsTrigger value="all">All</TabsTrigger>
-                                {hasK12 && <TabsTrigger value="elementary">Elementary</TabsTrigger>}
-                                {hasK12 && <TabsTrigger value="jhs">JHS</TabsTrigger>}
-                                {hasK12 && <TabsTrigger value="shs">SHS</TabsTrigger>}
+                                {hasK12 && <TabsTrigger value="k12">K-12</TabsTrigger>}
                                 {hasCollege && <TabsTrigger value="college">College</TabsTrigger>}
                             </TabsList>
 
@@ -280,6 +280,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                                 <th className="text-left p-3 font-semibold">Department</th>
                                                 <th className="text-center p-3 font-semibold">Classification</th>
                                                 <th className="text-center p-3 font-semibold">Level #</th>
+                                                <th className="text-center p-3 font-semibold">Sections</th>
                                                 <th className="text-center p-3 font-semibold">Status</th>
                                                 <th className="text-center p-3 font-semibold">Actions</th>
                                             </tr>
@@ -287,7 +288,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                         <tbody>
                                             {filteredYearLevels.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={6} className="text-center p-8 text-gray-500">
+                                                    <td colSpan={7} className="text-center p-8 text-gray-500">
                                                         No year levels found for this department.
                                                     </td>
                                                 </tr>
@@ -310,6 +311,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                                             </span>
                                                         </td>
                                                         <td className="p-3 text-center">{yearLevel.level_number}</td>
+                                                        <td className="p-3 text-center">{yearLevel.sections_count ?? 0}</td>
                                                         <td className="p-3 text-center">
                                                             <span
                                                                 className={`inline-block px-2 py-1 text-xs rounded ${
@@ -373,6 +375,7 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                         form.setData({
                                             ...form.data,
                                             department_id: value,
+                                            program_id: '',
                                             classification: dept?.classification || 'K-12',
                                         });
                                     }}
@@ -417,6 +420,30 @@ export default function YearLevelsIndex({ yearLevels, departments, filters }: Pr
                                 />
                                 <p className="text-xs text-gray-500">Auto-selected based on department</p>
                             </div>
+
+                            {isCollegeDept && programsForDept.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="program_id">Program</Label>
+                                    <Select
+                                        value={form.data.program_id}
+                                        onValueChange={(value) => form.setData('program_id', value)}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select program (optional)" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {programsForDept.map((prog) => (
+                                                <SelectItem key={prog.id} value={prog.id.toString()}>
+                                                    {prog.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {form.errors.program_id && (
+                                        <p className="text-sm text-red-500">{form.errors.program_id}</p>
+                                    )}
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label htmlFor="name">Name *</Label>
