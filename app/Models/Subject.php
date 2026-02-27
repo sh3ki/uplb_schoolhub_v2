@@ -82,6 +82,38 @@ class Subject extends Model
     }
 
     /**
+     * Get departments assigned to this subject (many-to-many).
+     */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'subject_departments');
+    }
+
+    /**
+     * Get programs assigned to this subject (college only, many-to-many).
+     */
+    public function programs(): BelongsToMany
+    {
+        return $this->belongsToMany(Program::class, 'subject_programs');
+    }
+
+    /**
+     * Get year levels assigned to this subject (many-to-many).
+     */
+    public function yearLevels(): BelongsToMany
+    {
+        return $this->belongsToMany(YearLevel::class, 'subject_year_levels');
+    }
+
+    /**
+     * Get sections assigned to this subject (many-to-many).
+     */
+    public function assignedSections(): BelongsToMany
+    {
+        return $this->belongsToMany(Section::class, 'subject_sections');
+    }
+
+    /**
      * Get student enrollment records for this subject.
      */
     public function studentSubjects(): HasMany
