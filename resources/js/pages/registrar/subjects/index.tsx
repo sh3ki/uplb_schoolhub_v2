@@ -389,7 +389,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
                                         <th className="p-3 text-left text-sm font-semibold">Department</th>
                                         <th className="p-3 text-left text-sm font-semibold">Classification</th>
                                         <th className="p-3 text-left text-sm font-semibold">Type</th>
-                                        <th className="p-3 text-left text-sm font-semibold">Units</th>
+                                       
                                         <th className="p-3 text-left text-sm font-semibold">Teacher(s)</th>
                                         <th className="p-3 text-left text-sm font-semibold">Status</th>
                                         <th className="p-3 text-left text-sm font-semibold">Actions</th>
@@ -431,11 +431,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
                                                 <td className="p-3">
                                                     {getTypeBadge(subject.type)}
                                                 </td>
-                                                <td className="p-3">
-                                                    <span className="text-sm">
-                                                        {subject.units ? `${subject.units} units` : '-'}
-                                                    </span>
-                                                </td>
+                                              
                                                 <td className="p-3">
                                                     {(subject.teachers ?? []).length === 0 ? (
                                                         <span className="text-xs text-muted-foreground italic">Unassigned</span>
