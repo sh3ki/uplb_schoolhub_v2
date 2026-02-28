@@ -80,6 +80,7 @@ class ReportsController extends Controller
         }
 
         $balanceReport = $balanceQuery
+            ->whereHas('student')
             ->orderBy('balance', 'desc')
             ->get()
             ->map(function ($fee) {
