@@ -101,7 +101,7 @@ class OnlineTransactionController extends Controller
             'other' => 'Other',
         ];
 
-        return Inertia::render('accounting/online-transactions/index', [
+        return Inertia::render($this->viewPrefix() . '/online-transactions/index', [
             'transactions' => $transactions,
             'providers' => $providers,
             'stats' => $stats,
