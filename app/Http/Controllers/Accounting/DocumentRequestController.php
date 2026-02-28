@@ -100,7 +100,7 @@ class DocumentRequestController extends Controller
             'total_unpaid' => DocumentRequest::unpaid()->sum('fee'),
         ];
 
-        return Inertia::render('accounting/document-requests/index', [
+        return Inertia::render($this->viewPrefix() . '/document-requests/index', [
             'requests' => $requests,
             'students' => $students,
             'documentTypes' => DocumentRequest::DOCUMENT_TYPES,
