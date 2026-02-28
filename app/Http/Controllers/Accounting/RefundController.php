@@ -79,7 +79,7 @@ class RefundController extends Controller
             'total_approved_amount' => (float) RefundRequest::where('status', 'approved')->sum('amount'),
         ];
 
-        return Inertia::render('accounting/refunds/index', [
+        return Inertia::render($this->viewPrefix() . '/refunds/index', [
             'refunds' => $refunds,
             'stats'   => $stats,
             'filters' => $request->only(['search', 'status', 'type']),
