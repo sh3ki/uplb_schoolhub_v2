@@ -42,13 +42,15 @@ class HandleInertiaRequests extends Middleware
         // Get student data if user is a student
         $studentData = null;
         if ($user && $user->role === 'student' && $user->student_id) {
-            $student = \App\Models\Student::select('id', 'enrollment_status', 'school_year')
+            $student = \App\Models\Student::with('department:id,name,classification')
+                ->select('id', 'enrollment_status', 'school_year', 'department_id')
                 ->find($user->student_id);
             if ($student) {
                 $studentData = [
                     'id' => $student->id,
                     'enrollment_status' => $student->enrollment_status,
                     'school_year' => $student->school_year,
+                    'department_classification' => $student->department?->classification,
                 ];
             }
         }
@@ -89,6 +91,8 @@ class HandleInertiaRequests extends Middleware
                 'secondary_color'           => $settings->secondary_color,
                 'has_k12'                   => (bool) $settings->has_k12,
                 'has_college'               => (bool) $settings->has_college,
+                'k12_enrollment_open'       => (bool) $settings->k12_enrollment_open,
+                'college_enrollment_open'   => (bool) $settings->college_enrollment_open,
                 // Landing page fields
                 'hero_title'                => $settings->hero_title,
                 'hero_subtitle'             => $settings->hero_subtitle,
@@ -124,6 +128,8 @@ class HandleInertiaRequests extends Middleware
                 'secondary_color'=> '#64748b',
                 'has_k12'        => true,
                 'has_college'    => true,
+                'k12_enrollment_open'     => false,
+                'college_enrollment_open' => false,
                 'hero_image_urls'=> [],
                 'alumni_items'   => [],
                 'nav_links'      => [],
