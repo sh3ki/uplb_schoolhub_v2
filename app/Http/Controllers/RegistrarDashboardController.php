@@ -94,7 +94,7 @@ class RegistrarDashboardController extends Controller
                 }
 
                 return [
-                    'student' => $sr->student->full_name,
+                    'student' => $sr->student?->full_name ?? 'Unknown',
                     'activity' => $activity,
                     'time' => $sr->updated_at->diffForHumans(),
                     'registrar' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
