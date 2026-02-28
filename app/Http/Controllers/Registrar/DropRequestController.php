@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\DropRequest;
+use App\Models\FeeCategory;
+use App\Models\FeeItem;
 use App\Models\Student;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,14 +22,16 @@ class DropRequestController extends Controller
     public function index(Request $request): Response
     {
         $query = DropRequest::with([
-            'student:id,first_name,last_name,middle_name,suffix,lrn,email,program,year_level,section,student_photo_url,enrollment_status',
-            'processedBy:id,name',
+            'student:id,first_name,last_name,middle_name,suffix,lrn,email,program,year_level,section,student_photo_url,enrollment_status,department_id',
+            'student.department:id,name,classification',
+            'registrarApprovedBy:id,name',
+            'feeItems',
         ]);
 
-        // Filter by status
+        // Filter by registrar_status
         $tab = $request->input('tab', 'pending');
         if ($tab && $tab !== 'all') {
-            $query->where('status', $tab);
+            $query->where('registrar_status', $tab);
         }
 
         // Search
@@ -46,12 +51,24 @@ class DropRequestController extends Controller
                 'id' => $r->id,
                 'reason' => $r->reason,
                 'status' => $r->status,
+                'registrar_status' => $r->registrar_status,
+                'accounting_status' => $r->accounting_status,
                 'semester' => $r->semester,
                 'school_year' => $r->school_year,
-                'registrar_notes' => $r->registrar_notes,
-                'processed_by' => $r->processedBy,
-                'processed_at' => $r->processed_at?->format('M d, Y h:i A'),
+                'registrar_remarks' => $r->registrar_remarks,
+                'fee_amount' => (float) $r->fee_amount,
+                'is_paid' => $r->is_paid,
+                'registrar_approved_by' => $r->registrarApprovedBy ? [
+                    'id' => $r->registrarApprovedBy->id,
+                    'name' => $r->registrarApprovedBy->name,
+                ] : null,
+                'registrar_approved_at' => $r->registrar_approved_at?->format('M d, Y h:i A'),
                 'created_at' => $r->created_at->format('M d, Y h:i A'),
+                'fee_items' => $r->feeItems->map(fn($fi) => [
+                    'id' => $fi->id,
+                    'name' => $fi->name,
+                    'amount' => (float) $fi->pivot->amount,
+                ]),
                 'student' => [
                     'id' => $r->student->id,
                     'full_name' => $r->student->full_name,
@@ -62,75 +79,102 @@ class DropRequestController extends Controller
                     'section' => $r->student->section,
                     'student_photo_url' => $r->student->student_photo_url,
                     'enrollment_status' => $r->student->enrollment_status,
+                    'classification' => $r->student->department?->classification,
                 ],
             ];
         });
 
         // Stats
         $stats = [
-            'pending' => DropRequest::where('status', 'pending')->count(),
-            'approved' => DropRequest::where('status', 'approved')->count(),
-            'rejected' => DropRequest::where('status', 'rejected')->count(),
+            'pending' => DropRequest::where('registrar_status', 'pending')->count(),
+            'approved' => DropRequest::where('registrar_status', 'approved')->count(),
+            'rejected' => DropRequest::where('registrar_status', 'rejected')->count(),
         ];
+
+        // Get drop fee items for selection
+        $dropFeeItems = FeeItem::whereHas('category', function ($q) {
+            $q->where('name', 'like', '%Drop%');
+        })->where('is_active', true)->get()->map(fn($item) => [
+            'id' => $item->id,
+            'name' => $item->name,
+            'selling_price' => (float) $item->selling_price,
+            'category' => $item->category?->name,
+        ]);
+
+        $appSettings = AppSetting::current();
 
         return Inertia::render('registrar/drop-requests/index', [
             'requests' => $requests,
             'stats' => $stats,
             'tab' => $tab,
             'filters' => $request->only(['search']),
+            'dropFeeItems' => $dropFeeItems,
+            'appSettings' => [
+                'has_k12' => $appSettings->has_k12,
+                'has_college' => $appSettings->has_college,
+            ],
         ]);
     }
 
     /**
-     * Approve a drop request.
+     * Approve a drop request (registrar stage - first approval).
      */
     public function approve(Request $request, DropRequest $dropRequest): RedirectResponse
     {
-        if ($dropRequest->status !== 'pending') {
+        if ($dropRequest->registrar_status !== 'pending') {
             return back()->with('error', 'Only pending requests can be approved.');
         }
 
         $validated = $request->validate([
-            'registrar_notes' => 'nullable|string|max:1000',
+            'registrar_remarks' => 'nullable|string|max:1000',
+            'fee_item_ids' => 'nullable|array',
+            'fee_item_ids.*' => 'exists:fee_items,id',
         ]);
 
-        // Update the drop request
-        $dropRequest->update([
-            'status' => 'approved',
-            'processed_by' => Auth::id(),
-            'processed_at' => now(),
-            'registrar_notes' => $validated['registrar_notes'] ?? null,
-        ]);
+        // Approve at registrar level (forwards to accounting)
+        $dropRequest->approveByRegistrar(
+            Auth::id(),
+            $validated['registrar_remarks'] ?? null
+        );
 
-        // Update the student's enrollment status and deactivate
-        $student = $dropRequest->student;
-        $student->update([
-            'enrollment_status' => 'dropped',
-            'is_active' => false,
-        ]);
+        // Attach fee items if selected
+        if (!empty($validated['fee_item_ids'])) {
+            $feeItemsData = [];
+            $totalFee = 0;
 
-        return back()->with('success', 'Drop request approved. Student has been marked as dropped and deactivated.');
+            foreach ($validated['fee_item_ids'] as $feeItemId) {
+                $feeItem = FeeItem::find($feeItemId);
+                if ($feeItem) {
+                    $amount = (float) $feeItem->selling_price;
+                    $feeItemsData[$feeItemId] = ['amount' => $amount];
+                    $totalFee += $amount;
+                }
+            }
+
+            $dropRequest->feeItems()->sync($feeItemsData);
+            $dropRequest->update(['fee_amount' => $totalFee]);
+        }
+
+        return back()->with('success', 'Drop request approved and forwarded to accounting for final approval.');
     }
 
     /**
-     * Reject a drop request.
+     * Reject a drop request (registrar stage).
      */
     public function reject(Request $request, DropRequest $dropRequest): RedirectResponse
     {
-        if ($dropRequest->status !== 'pending') {
+        if ($dropRequest->registrar_status !== 'pending') {
             return back()->with('error', 'Only pending requests can be rejected.');
         }
 
         $validated = $request->validate([
-            'registrar_notes' => 'required|string|max:1000',
+            'registrar_remarks' => 'required|string|max:1000',
         ]);
 
-        $dropRequest->update([
-            'status' => 'rejected',
-            'processed_by' => Auth::id(),
-            'processed_at' => now(),
-            'registrar_notes' => $validated['registrar_notes'],
-        ]);
+        $dropRequest->rejectByRegistrar(
+            Auth::id(),
+            $validated['registrar_remarks']
+        );
 
         return back()->with('success', 'Drop request rejected.');
     }
@@ -145,7 +189,7 @@ class DropRequestController extends Controller
         }
 
         $student->update([
-            'enrollment_status' => 'not-enrolled', // Reset to not-enrolled so they can enroll again
+            'enrollment_status' => 'not-enrolled',
             'is_active' => true,
         ]);
 
