@@ -157,10 +157,10 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
     const rejectForm = useForm({ registrar_remarks: '' });
 
     const selectedFeeTotal = useMemo(() => {
-        return dropFeeItems
+        return applicableFeeItems
             .filter((fi) => selectedFeeItemIds.includes(fi.id))
             .reduce((sum, fi) => sum + fi.selling_price, 0);
-    }, [selectedFeeItemIds, dropFeeItems]);
+    }, [selectedFeeItemIds, applicableFeeItems]);
 
     const handleTabChange = (newTab: string) => {
         setActiveTab(newTab);
@@ -177,11 +177,25 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
         });
     };
 
-    const openApproveModal = (request: DropRequest) => {
+    const openApproveModal = async (request: DropRequest) => {
         setSelectedRequest(request);
         approveForm.reset();
         setSelectedFeeItemIds([]);
+        setApplicableFeeItems([]);
         setShowApproveModal(true);
+        
+        // Fetch applicable fee items for this student
+        setLoadingFeeItems(true);
+        try {
+            const response = await fetch(`/registrar/drop-requests/${request.id}/fee-items`);
+            const data = await response.json();
+            setApplicableFeeItems(data.feeItems || []);
+        } catch (error) {
+            console.error('Failed to fetch applicable fee items:', error);
+            toast.error('Failed to load fee items');
+        } finally {
+            setLoadingFeeItems(false);
+        }
     };
 
     const toggleFeeItem = (id: number) => {
@@ -469,39 +483,49 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             {/* Fee Items Selection */}
-                            {dropFeeItems.length > 0 && (
-                                <div className="space-y-3">
-                                    <Label className="text-sm font-medium">Drop Fee Items</Label>
-                                    <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
-                                        {dropFeeItems.map((item) => (
-                                            <label
-                                                key={item.id}
-                                                className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer"
-                                            >
-                                                <Checkbox
-                                                    checked={selectedFeeItemIds.includes(item.id)}
-                                                    onCheckedChange={() => toggleFeeItem(item.id)}
-                                                />
-                                                <span className="flex-1 text-sm">{item.name}</span>
-                                                <span className="text-sm font-medium">
-                                                    {formatCurrency(item.selling_price)}
-                                                </span>
-                                            </label>
-                                        ))}
+                            <div className="space-y-3">
+                                <Label className="text-sm font-medium">Drop Fee Items</Label>
+                                {loadingFeeItems ? (
+                                    <div className="border rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                        Loading applicable fee items...
                                     </div>
-                                    {selectedFeeItemIds.length > 0 && (
-                                        <div className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
-                                            <span className="text-sm font-medium flex items-center gap-1">
-                                                <DollarSign className="h-4 w-4" />
-                                                Total Fee:
-                                            </span>
-                                            <span className="text-sm font-bold">
-                                                {formatCurrency(selectedFeeTotal)}
-                                            </span>
+                                ) : applicableFeeItems.length > 0 ? (
+                                    <>
+                                        <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
+                                            {applicableFeeItems.map((item) => (
+                                                <label
+                                                    key={item.id}
+                                                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer"
+                                                >
+                                                    <Checkbox
+                                                        checked={selectedFeeItemIds.includes(item.id)}
+                                                        onCheckedChange={() => toggleFeeItem(item.id)}
+                                                    />
+                                                    <span className="flex-1 text-sm">{item.name}</span>
+                                                    <span className="text-sm font-medium">
+                                                        {formatCurrency(item.selling_price)}
+                                                    </span>
+                                                </label>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            )}
+                                        {selectedFeeItemIds.length > 0 && (
+                                            <div className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
+                                                <span className="text-sm font-medium flex items-center gap-1">
+                                                    <DollarSign className="h-4 w-4" />
+                                                    Total Fee:
+                                                </span>
+                                                <span className="text-sm font-bold">
+                                                    {formatCurrency(selectedFeeTotal)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    <div className="border rounded-lg p-4 text-center text-sm text-muted-foreground">
+                                        No applicable drop fee items found for this student.
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="approve_remarks">Remarks (Optional)</Label>
