@@ -213,7 +213,7 @@ class ReportsController extends Controller
             })
             ->values();
 
-        return Inertia::render('accounting/reports', [
+        return Inertia::render($this->viewPrefix() . '/reports', [
             'paymentSummary' => $paymentSummary,
             'balanceReport' => $balanceReport,
             'filters' => $request->only(['from', 'to', 'school_year', 'status', 'department_id', 'classification']),
