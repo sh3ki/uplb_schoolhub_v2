@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import OwnerLayout from '@/layouts/owner/owner-layout';
 import { Plus, Pencil, Trash2, UserPlus, GraduationCap } from 'lucide-react';
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -511,7 +511,7 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                                                     </div>
                                                 </td>
                                                 <td className="p-3">
-                                                    <span className="text-sm">{subject.department.name}</span>
+                                                    <span className="text-sm">{subject.department?.name ?? subject.departments?.[0]?.name ?? '—'}</span>
                                                 </td>
                                                 <td className="p-3">
                                                     <Badge variant={subject.classification === 'K-12' ? 'secondary' : 'default'}>
@@ -585,6 +585,9 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                         <DialogTitle>
                             {editingSubject ? 'Edit Subject' : 'Create New Subject'}
                         </DialogTitle>
+                        <DialogDescription>
+                            {editingSubject ? 'Update the subject details below.' : 'Fill in the details to create a new subject.'}
+                        </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -737,7 +740,7 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                                                     onChange={() => toggleMultiSelect('year_level_ids', yl.id.toString())}
                                                     className="h-3.5 w-3.5"
                                                 />
-                                                <span className="text-sm">{yl.name} <span className="text-xs text-muted-foreground">({yl.department.name})</span></span>
+                                                <span className="text-sm">{yl.name} <span className="text-xs text-muted-foreground">({yl.department?.name})</span></span>
                                             </label>
                                         ))}
                                     </div>
@@ -859,6 +862,9 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                             <GraduationCap className="h-5 w-5" />
                             Assign Teachers — {subjectForTeacher?.code}
                         </DialogTitle>
+                        <DialogDescription>
+                            Select one or more teachers to assign to this subject.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-2 py-2">
                         <p className="text-sm text-muted-foreground">Select one or more teachers to assign to this subject.</p>
