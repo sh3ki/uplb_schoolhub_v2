@@ -57,13 +57,13 @@ class DocumentApprovalController extends Controller
         $requests->through(function ($request) {
             return [
                 'id' => $request->id,
-                'student' => [
+                'student' => $request->student ? [
                     'id' => $request->student->id,
                     'full_name' => $request->student->full_name,
                     'lrn' => $request->student->lrn,
                     'program' => $request->student->program,
                     'year_level' => $request->student->year_level,
-                ],
+                ] : null,
                 'document_type' => $request->document_type,
                 'document_type_label' => $request->document_type_label,
                 'document_fee_item' => $request->documentFeeItem ? [
