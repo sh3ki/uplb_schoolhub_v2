@@ -2,7 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 import { PageHeader } from '@/components/page-header';
-import { reports as reportsRoute } from '@/routes/accounting';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { StudentPhoto } from '@/components/ui/student-photo';
@@ -152,7 +151,7 @@ export default function AccountingReports({
 
     const handleFetchReport = () => {
         router.get(
-            reportsRoute.url(),
+            '/super-accounting/reports',
             {
                 from: from || undefined,
                 to: to || undefined,
@@ -413,7 +412,7 @@ export default function AccountingReports({
                                     setStatus('all');
                                     setDepartmentId('all');
                                     setClassification('all');
-                                    router.get(reportsRoute.url());
+                                    router.get('/super-accounting/reports');
                                 }}
                             >
                                 Reset Filters
