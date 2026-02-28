@@ -179,6 +179,7 @@ export default function Deadlines({ deadlines, requirements, filters }: Props) {
         if (editingDeadline) {
             form.put(`/registrar/deadlines/${editingDeadline.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -186,6 +187,7 @@ export default function Deadlines({ deadlines, requirements, filters }: Props) {
         } else {
             form.post('/registrar/deadlines', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -202,6 +204,7 @@ export default function Deadlines({ deadlines, requirements, filters }: Props) {
         if (deadlineToDelete) {
             router.delete(`/registrar/deadlines/${deadlineToDelete.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setDeleteDialogOpen(false);
                     setDeadlineToDelete(null);
                 },
