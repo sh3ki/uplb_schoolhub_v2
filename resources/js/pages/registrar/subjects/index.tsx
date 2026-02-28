@@ -242,6 +242,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
         if (editingSubject) {
             router.put(`/registrar/subjects/${editingSubject.id}`, submitData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -249,6 +250,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
         } else {
             router.post('/registrar/subjects', submitData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -273,6 +275,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
             teacher_ids: selectedTeacherIds,
         }, {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setTeacherDialogOpen(false);
                 setSubjectForTeacher(null);
             },
@@ -289,6 +292,7 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
         if (subjectToDelete) {
             router.delete(`/registrar/subjects/${subjectToDelete.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setDeleteDialogOpen(false);
                     setSubjectToDelete(null);
                 },
