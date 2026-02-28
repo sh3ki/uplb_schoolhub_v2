@@ -183,11 +183,15 @@ class StudentAccountController extends Controller
             ];
         }
 
-        // Calculate total from applicable fee items
+        // Calculate total from applicable fee items (exclude Drop category - those are only charged via drop requests)
         $totalAmount = FeeItem::where('school_year', $schoolYear)
             ->where('is_active', true)
+            ->whereDoesntHave('category', function ($q) {
+                $q->where('name', 'like', '%Drop%');
+            })
             ->where(function ($query) use ($student) {
                 $query->where('assignment_scope', 'all')
+                    ->orWhereNull('assignment_scope')
                     ->orWhere(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific');
                         $this->applyStudentFilters($q, $student);
