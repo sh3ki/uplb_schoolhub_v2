@@ -240,7 +240,7 @@ class StudentPaymentController extends Controller
         $totalCurrentBalance = $allCurrentFees->sum('balance');
         $totalBalanceToPay = $totalCurrentBalance + $totalPreviousBalance;
 
-        return Inertia::render('accounting/payments/index', [
+        return Inertia::render($this->viewPrefix() . '/payments/index', [
             'students' => $students,
             'selectedStudent' => $paymentData,
             'filters' => $request->only(['search', 'enrollment_status', 'student_id']),
@@ -342,7 +342,7 @@ class StudentPaymentController extends Controller
             $fees = $student->fees;
         }
 
-        return Inertia::render('accounting/payments/create', [
+        return Inertia::render($this->viewPrefix() . '/payments/create', [
             'student' => $student,
             'fees' => $fees,
         ]);
@@ -449,7 +449,7 @@ class StudentPaymentController extends Controller
         // Get current authenticated user for cashier field
         $currentUser = $request->user();
 
-        return Inertia::render('accounting/payments/process', [
+        return Inertia::render($this->viewPrefix() . '/payments/process', [
             'student' => [
                 'id' => $student->id,
                 'full_name' => $student->full_name,
