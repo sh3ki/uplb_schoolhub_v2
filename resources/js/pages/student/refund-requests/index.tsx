@@ -113,6 +113,7 @@ export default function RefundRequestsIndex({ requests, studentFees, canRequestR
         e.preventDefault();
         form.post('/student/refund-requests', {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setIsOpen(false);
                 form.reset();
             },
