@@ -151,7 +151,7 @@ class StudentAccountController extends Controller
         $classListBase = Student::whereNull('deleted_at')
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
-        return Inertia::render('accounting/student-accounts/index', [
+        return Inertia::render($this->viewPrefix() . '/student-accounts/index', [
             'accounts' => $accounts,
             'schoolYears' => $schoolYears,
             'stats' => $stats,
