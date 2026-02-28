@@ -167,6 +167,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
         e.preventDefault();
         grantForm.post('/accounting/grants', {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setIsGrantModalOpen(false);
                 grantForm.reset();
             },
@@ -178,6 +179,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
         if (editingGrant) {
             grantForm.put(`/accounting/grants/${editingGrant.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsGrantModalOpen(false);
                     setEditingGrant(null);
                     grantForm.reset();
@@ -210,6 +212,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
         e.preventDefault();
         assignForm.post('/accounting/grants/recipients', {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setIsAssignModalOpen(false);
                 setStudentSearch('');
                 assignForm.reset();
