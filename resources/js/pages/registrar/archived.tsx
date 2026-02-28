@@ -2,6 +2,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import { Archive, RotateCcw, Trash2, Users, Search, AlertTriangle, Filter } from 'lucide-react';
 import { useState } from 'react';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +52,7 @@ interface ArchivedStudent {
     first_name: string;
     last_name: string;
     email: string;
+    student_photo_url: string | null;
     department: string | null;
     classification: string | null;
     year_level: string | null;
@@ -396,7 +398,15 @@ export default function ArchivedStudentsIndex({ students, filters, schoolYears, 
                                                         {student.lrn}
                                                     </TableCell>
                                                     <TableCell className="font-medium">
-                                                        {student.last_name}, {student.first_name}
+                                                        <div className="flex items-center gap-3">
+                                                            <Avatar className="h-8 w-8">
+                                                                <AvatarImage src={student.student_photo_url || ''} alt={`${student.first_name} ${student.last_name}`} />
+                                                                <AvatarFallback className="text-xs">
+                                                                    {student.first_name?.[0]}{student.last_name?.[0]}
+                                                                </AvatarFallback>
+                                                            </Avatar>
+                                                            <span>{student.last_name}, {student.first_name}</span>
+                                                        </div>
                                                     </TableCell>
                                                     <TableCell className="text-sm text-muted-foreground">
                                                         {student.email}
