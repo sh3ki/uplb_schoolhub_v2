@@ -68,11 +68,11 @@ class DashboardController extends Controller
                     'payment_date'=> $payment->payment_date->format('Y-m-d'),
                     'or_number'   => $payment->or_number,
                     'amount'      => (string) $payment->amount,
-                    'student'     => [
+                    'student'     => $payment->student ? [
                         'first_name' => $payment->student->first_name,
                         'last_name'  => $payment->student->last_name,
                         'lrn'        => $payment->student->lrn,
-                    ],
+                    ] : ['first_name' => 'Unknown', 'last_name' => '', 'lrn' => 'N/A'],
                     'recorded_by' => $payment->recordedBy ? ['name' => $payment->recordedBy->name] : null,
                 ];
             })
@@ -90,13 +90,13 @@ class DashboardController extends Controller
                     'id'           => $fee->id,
                     'balance'      => (string) $fee->balance,
                     'total_amount' => (string) $fee->total_amount,
-                    'student'      => [
+                    'student'      => $fee->student ? [
                         'first_name' => $fee->student->first_name,
                         'last_name'  => $fee->student->last_name,
                         'lrn'        => $fee->student->lrn,
                         'program'    => $fee->student->program ?? 'N/A',
                         'year_level' => $fee->student->year_level ?? 'N/A',
-                    ],
+                    ] : ['first_name' => 'Unknown', 'last_name' => '', 'lrn' => 'N/A', 'program' => 'N/A', 'year_level' => 'N/A'],
                 ];
             })
             ->toArray();
