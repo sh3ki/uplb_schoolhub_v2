@@ -329,6 +329,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         if (editingCategory) {
             categoryForm.put(`/accounting/fee-management/categories/${editingCategory.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsCategoryModalOpen(false);
                     categoryForm.reset();
                     setEditingCategory(null);
@@ -337,6 +340,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         } else {
             categoryForm.post('/accounting/fee-management/categories', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsCategoryModalOpen(false);
                     categoryForm.reset();
                 },
@@ -350,6 +356,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
             console.log('Updating fee item:', editingItem.id, itemForm.data);
             itemForm.put(`/accounting/fee-management/items/${editingItem.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     console.log('Fee item updated successfully');
                     setIsItemModalOpen(false);
                     itemForm.reset();
@@ -363,6 +372,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
             console.log('Creating new fee item:', itemForm.data);
             itemForm.post('/accounting/fee-management/items', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     console.log('Fee item created successfully');
                     setIsItemModalOpen(false);
                     itemForm.reset();
@@ -429,6 +441,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         if (editingDocFee) {
             router.put(`/accounting/fee-management/document-fees/${editingDocFee.id}`, submitData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsDocFeeModalOpen(false);
                     docFeeForm.reset();
                     setEditingDocFee(null);
@@ -439,6 +454,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         } else {
             router.post('/accounting/fee-management/document-fees', submitData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsDocFeeModalOpen(false);
                     docFeeForm.reset();
                     setIsAddingNewDocCategory(false);
@@ -558,6 +576,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
             school_year: '2024-2025',
         }, {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
+                toast.success('Changes saved successfully');
+                toast.success('Changes saved successfully');
                 setSavingAssignments(false);
             },
             onError: () => {
