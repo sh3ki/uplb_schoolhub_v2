@@ -69,11 +69,11 @@ class DocumentRequestController extends Controller
                 'released_at' => $request->release_date,
                 'remarks' => $request->remarks,
                 'created_at' => $request->created_at,
-                'student' => [
+                'student' => $request->student ? [
                     'id' => $request->student->id,
                     'full_name' => $request->student->full_name,
                     'lrn' => $request->student->lrn,
-                ],
+                ] : null,
                 'processed_by' => $request->processedBy ? ['name' => $request->processedBy->name] : null,
                 'released_by' => $request->releasedBy ? ['name' => $request->releasedBy->name] : null,
             ];
