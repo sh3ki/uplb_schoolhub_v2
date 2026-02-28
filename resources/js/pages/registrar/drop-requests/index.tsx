@@ -36,6 +36,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
+import { toast } from 'sonner';
 
 type Student = {
     id: number;
