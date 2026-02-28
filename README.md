@@ -48,7 +48,7 @@ The system includes the following modules and user accounts:
 - [x] **Landing Page CMS** — Edit hero (title, subtitle, image gallery carousel), faculty section, principal's message (with author photo), alumni/notable graduates section, footer, and navigation links — all from a 4-tab settings editor
 - [x] **App Settings** — App name, academic structure type (K12/College), theme colors, logo/favicon upload
 
-#### **1.2 Registrar Account** ✅ `75% COMPLETE`
+#### **1.2 Registrar Account** ✅ `80% COMPLETE`
 
 - [x] Student record management (full CRUD with enrollment status)
 - [x] Enrollment and registration processing (clearance workflow)
@@ -60,10 +60,12 @@ The system includes the following modules and user accounts:
 - [x] Schedule viewing
 - [x] Reports and exports
 - [x] Announcements viewing (role-targeted)
+- [x] **Student Subjects tab** — On the Registrar's student detail page, a Subjects tab appears for college students showing their enrolled subjects pulled from the `student_subjects` table
 - [ ] Academic record and transcript generation
+- [ ] Archived students page (`registrar/archived.tsx` missing — route is defined but page file does not exist)
 - [ ] Integration with e-LMS for student academic tracking
 
-#### **1.3 Accounting Account** ✅ `70% COMPLETE`
+#### **1.3 Accounting Account** ✅ `75% COMPLETE`
 
 - [x] Student billing and fees management (CRUD)
 - [x] Student payments processing (CRUD)
@@ -74,6 +76,8 @@ The system includes the following modules and user accounts:
 - [x] **Comprehensive main dashboard** — Student count by payment status (fully paid/partial/overdue), total projected revenue, total collected, outstanding balance, collection rate progress bar, monthly income bar chart, department balance breakdown, recent payment activity feed
 - [x] **Accounting dashboard** — Daily income table per month, colored stat cards with collection rate, payment status breakdown (fully paid/partial/unpaid) with progress indicators, recent payments and top pending balances
 - [x] **Account dashboard** — Per-student account view with payment history, daily collection bar chart, payment method breakdown (Cash/GCash/Bank), transaction history table
+- [x] **Per-unit fee items** — `FeeItem` model supports `is_per_unit` (boolean) and `unit_price`; fee management UI shows an amber per-unit card; `StudentPaymentController` auto-calculates charges based on enrolled unit count from `student_subjects`
+- [x] **Auto carry-forward balance** — When the Registrar grants registrar clearance for a student, any outstanding balances from prior school years are automatically summed and written to the new year's fee record as `carried_forward_balance`
 - [ ] Advanced financial auditing
 - [ ] Monitoring and approval of student wallet/load transactions
 
@@ -94,7 +98,7 @@ The system includes the following modules and user accounts:
 - [ ] Attendance monitoring
 - [ ] Uploading of lessons, modules, and learning materials
 - [ ] Creation of assignments
-#### **1.5 Student Portal** 🔄 `35% COMPLETE`
+#### **1.5 Student Portal** 🔄 `55% COMPLETE`
 
 - [x] Dashboard with quick links
 - [x] View class schedules (PDF viewer, filtered by department/program)
@@ -105,9 +109,12 @@ The system includes the following modules and user accounts:
 - [x] **Quiz Taking** - Take quizzes with timer and auto-save
 - [x] **Quiz Results** - View scores and correct answers
 - [x] Announcements viewing (role-targeted)
+- [x] **Self-Enrollment** — Students with `not-enrolled` or `dropped` status can apply for re-enrollment from their dashboard; `SelfEnrollmentController` creates/updates the `EnrollmentClearance` record and sets status to `pending-registrar`
+- [x] **Enrollment Status Dashboard** — Dashboard banner now surfaces the correct context per status: `not-enrolled`/`dropped` shows the Apply button; `pending-registrar` shows a yellow clock notice; `pending-accounting` shows a blue accounting notice
+- [x] **Enrolled Subjects view** — `/student/subjects` shows subjects pulled from `student_subjects` (requires enrolled middleware)
 - [ ] Viewing grades and report cards
 - [ ] Attendance records using RFID Portal
-- [ ] Enrollment fees viewing
+- [ ] Enrollment fees viewing (no dedicated student fee summary page)
 - [ ] Loadable wallet balance
 - [ ] Submission of academic requirements
 - [ ] Transaction history
@@ -447,17 +454,17 @@ school-mgmt_lms_pos/
 
 ## 📊 Implementation Progress
 
-### **Overall Progress: ~50%**
+### **Overall Progress: ~60%**
 
 | Module | Status | Completion | Priority |
 |--------|--------|------------|----------|
 | 🏫 Owner/Admin Portal | ✅ Done | 98% | - |
-| 📝 Registrar Account | ✅ Done | 75% | - |
-| 💰 Accounting Account | ✅ Enhanced | 70% | High |
+| 📝 Registrar Account | ✅ Done | 80% | - |
+| 💰 Accounting Account | ✅ Enhanced | 75% | High |
 | 👨‍🏫 Teacher Portal | 🔄 In Progress | 50% | **Critical** |
-| 👨‍🎓 Student Portal | 🔄 In Progress | 35% | **Critical** |
-| 👨‍👩‍👦 Parent Portal | 🔄 In Progress | 10% | **Critical** |
-| 🧑‍⚕️ Guidance Counselor | 🔄 In Progress | 20% | Medium |
+| 👨‍🎓 Student Portal | 🔄 In Progress | 55% | **Critical** |
+| 👨‍👩‍👦 Parent Portal | 🔄 In Progress | 35% | **Critical** |
+| 🧑‍⚕️ Guidance Counselor | 🔄 In Progress | 35% | Medium |
 | 📚 Librarian Account | 🔄 In Progress | 25% | Medium |
 | 🏥 Medical/Clinic | 🔄 Started | 5% | Low |
 | 🍽️ Canteen POS | 🔄 Started | 5% | Low |
@@ -499,6 +506,13 @@ school-mgmt_lms_pos/
 - [x] **Public Landing Page** — Dynamic welcome page driven by app settings; hero image carousel, faculty cards from DB, principal's message, alumni showcase, custom footer; no gradients, clean flat design
 - [x] **Accounting Dashboards** — Comprehensive stats with colored stat cards, collection rate progress, payment status breakdown, monthly/daily income charts, department balance breakdown
 - [x] **Teacher Profile Page** — Edit bio, phone, specialization; upload profile photo; toggle `show_on_landing` to appear in public faculty section
+- [x] **Student Self-Enrollment** — `SelfEnrollmentController` + `/student/enrollment` page; sets status to `pending-registrar` on submit
+- [x] **Student Enrollment Status Dashboard** — Context-aware banner: Apply button for `not-enrolled`/`dropped`, yellow pending notice for `pending-registrar`, blue accounting notice for `pending-accounting`
+- [x] **Student Subjects table** (`student_subjects`) — Migration, `StudentSubject` model, `StudentSubjectController`, routes; used for per-unit fee calculation
+- [x] **Per-unit Fee Items** — `fee_items.is_per_unit` + `unit_price` columns; fee management UI toggle; payment controller auto-calculates from enrolled unit count
+- [x] **Auto carry-forward balance** — On registrar clearance approval, prior-year outstanding balances are automatically stamped onto the new year's `StudentFee` record
+- [x] **Registrar Student Subjects tab** — College students' subjects tab in the registrar's student show page
+- [x] **Landing Page preview layout fix** — Full-width iframe preview at top of Landing tab in App Settings
 
 #### 🔄 **In Progress (15%)**
 - [ ] Teacher grade encoding
@@ -622,6 +636,18 @@ php artisan test --coverage
 - Issue: A `replace_string_in_file` operation prepended new content without removing old duplicate component (~500 lines of old code remained)
 - Fix: File truncated to exact line boundary; one clean `Welcome` component remains
 
+✅ **AppSetting::getSetting() Undefined Method** *(Fixed: Mar 2026)*
+- Issue: `BadMethodCallException: Call to undefined method AppSetting::getSetting()` thrown in `StudentController`, `StudentSubjectController`, and `AppSettingsController`
+- Fix: Replaced all three call sites with `AppSetting::current()->school_year ?? (date('Y').'-'.(date('Y')+1))`
+
+✅ **Landing Page Preview Layout** *(Fixed: Mar 2026)*
+- Issue: App-settings landing tab showed preview and editor in a 25/75 split that made the iframe unusable
+- Fix: Restructured layout to full-width — iframe preview at top (85 vh), all editor forms (Hero, Features, Faculty, Message, Footer) stacked below in a single column
+
+✅ **Student Dashboard Missing Pending Status UI** *(Fixed: Mar 2026)*
+- Issue: Students in `pending-registrar` or `pending-accounting` status saw only the red "NOT enrolled" banner with no contextual guidance; the "Apply for Re-Enrollment" button was the only CTA and only showed for `not-enrolled`/`dropped`
+- Fix: Added two conditional notice blocks — a yellow clock notice for `pending-registrar` and a blue clock notice for `pending-accounting`; the description text also becomes status-aware
+
 ---
 
 ## 🗺️ Roadmap
@@ -692,4 +718,4 @@ For issues, questions, or feature requests:
 
 **Built with ❤️ using Laravel 12, React 19, TypeScript 5, and TailwindCSS 4**
 
-*Project Progress: 50% Complete | Last Updated: February 22, 2026*
+*Project Progress: 60% Complete | Last Updated: March 2026*
