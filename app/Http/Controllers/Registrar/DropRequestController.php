@@ -216,7 +216,9 @@ class DropRequestController extends Controller
         })
             ->where('is_active', true)
             ->where(function ($query) use ($student) {
+                // Include items with assignment_scope = 'all' or NULL (default = all students)
                 $query->where('assignment_scope', 'all')
+                    ->orWhereNull('assignment_scope')
                     ->orWhere(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific');
                         $this->applyStudentFilters($q, $student);
