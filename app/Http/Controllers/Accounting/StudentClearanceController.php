@@ -118,7 +118,7 @@ class StudentClearanceController extends Controller
         $departments = Department::orderBy('name')->get(['id', 'name', 'code', 'classification']);
         $classifications = Department::distinct()->pluck('classification')->filter()->sort()->values();
 
-        return Inertia::render('accounting/clearance/index', [
+        return Inertia::render($this->viewPrefix() . '/clearance/index', [
             'students' => $students,
             'programs' => $programs,
             'yearLevels' => $yearLevels,
@@ -143,7 +143,7 @@ class StudentClearanceController extends Controller
         $totalPaid = $student->fees->sum('total_paid');
         $balance = $totalFees - $totalPaid;
 
-        return Inertia::render('accounting/clearance/show', [
+        return Inertia::render($this->viewPrefix() . '/clearance/show', [
             'student' => $student,
             'totalFees' => $totalFees,
             'totalPaid' => $totalPaid,
