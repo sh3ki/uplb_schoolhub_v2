@@ -132,6 +132,7 @@ export default function PromissoryNotes({ notes, studentFees, stats }: Props) {
         e.preventDefault();
         form.post('/student/promissory-notes', {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setIsDialogOpen(false);
                 form.reset();
                 setSelectedFeeId('');
