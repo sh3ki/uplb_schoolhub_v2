@@ -13,8 +13,22 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
+
+        // Guard: student_id must be linked to an actual Student record
+        if (!$user->student_id) {
+            Auth::logout();
+            return redirect()->route('login')
+                ->with('error', 'Your account is not linked to a student record. Please contact the registrar.');
+        }
+
         $student = Student::with(['requirements.requirement', 'enrollmentClearance'])
-            ->findOrFail($user->student_id);
+            ->find($user->student_id);
+
+        if (!$student) {
+            Auth::logout();
+            return redirect()->route('login')
+                ->with('error', 'Your student record could not be found. Please contact the registrar.');
+        }
 
         // Calculate requirements stats
         $totalRequirements = $student->requirements->count();
