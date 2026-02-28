@@ -332,6 +332,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsCategoryModalOpen(false);
                     categoryForm.reset();
                     setEditingCategory(null);
@@ -340,6 +341,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         } else {
             categoryForm.post('/accounting/fee-management/categories', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
@@ -359,6 +361,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     console.log('Fee item updated successfully');
                     setIsItemModalOpen(false);
                     itemForm.reset();
@@ -372,6 +375,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
             console.log('Creating new fee item:', itemForm.data);
             itemForm.post('/accounting/fee-management/items', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
@@ -444,6 +448,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
+                    toast.success('Changes saved successfully');
                     setIsDocFeeModalOpen(false);
                     docFeeForm.reset();
                     setEditingDocFee(null);
@@ -454,6 +459,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         } else {
             router.post('/accounting/fee-management/document-fees', submitData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
                     toast.success('Changes saved successfully');
@@ -576,6 +582,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
             school_year: '2024-2025',
         }, {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 toast.success('Changes saved successfully');
                 toast.success('Changes saved successfully');
                 toast.success('Changes saved successfully');
