@@ -154,6 +154,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
         approveForm.post(`/accounting/document-approvals/${selectedRequest.id}/approve`, {
             preserveScroll: true,
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setShowApproveModal(false);
                 setSelectedRequest(null);
                 approveForm.reset();
@@ -166,6 +167,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
         rejectForm.post(`/accounting/document-approvals/${selectedRequest.id}/reject`, {
             preserveScroll: true,
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setShowRejectModal(false);
                 setSelectedRequest(null);
                 rejectForm.reset();
