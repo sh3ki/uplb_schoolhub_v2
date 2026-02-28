@@ -209,6 +209,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
         if (!actionRefund || !actionType) return;
         notesForm.post(`/accounting/refunds/${actionRefund.id}/${actionType}`, {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setActionRefund(null);
                 setActionType(null);
             },
