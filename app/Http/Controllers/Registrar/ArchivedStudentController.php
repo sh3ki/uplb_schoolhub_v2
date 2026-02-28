@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\Department;
 use App\Models\Student;
 use App\Models\StudentActionLog;
 use Illuminate\Http\Request;
@@ -14,13 +16,15 @@ class ArchivedStudentController extends Controller
 {
     /**
      * Display listing of archived (soft-deleted) students.
+     * K-12 students can be filtered by school year.
+     * College students can be filtered by school year and semester.
      */
     public function index(Request $request): Response
     {
-        $filters = $request->only(['search', 'classification', 'department_id', 'year_level']);
+        $filters = $request->only(['search', 'classification', 'department_id', 'year_level', 'school_year', 'semester']);
 
         $query = Student::onlyTrashed()
-            ->with(['department:id,name', 'yearLevel:id,name'])
+            ->with(['department:id,name,classification', 'yearLevel:id,name'])
             ->when($filters['search'] ?? null, function ($q, $search) {
                 $q->where(function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
@@ -37,6 +41,13 @@ class ArchivedStudentController extends Controller
             })
             ->when($filters['year_level'] ?? null, function ($q, $yearLevel) {
                 $q->where('year_level', $yearLevel);
+            })
+            ->when($filters['school_year'] ?? null, function ($q, $schoolYear) {
+                $q->where('school_year', $schoolYear);
+            })
+            ->when($filters['semester'] ?? null, function ($q, $semester) {
+                // Filter college students by semester via their enrolled subjects
+                $q->whereHas('studentSubjects', fn ($s) => $s->where('semester', $semester));
             })
             ->orderBy('deleted_at', 'desc');
 
@@ -57,9 +68,34 @@ class ArchivedStudentController extends Controller
             'deleted_at'        => $student->deleted_at?->toDateTimeString(),
         ]);
 
+        // Distinct school years from archived students
+        $schoolYears = Student::onlyTrashed()
+            ->whereNotNull('school_year')
+            ->where('school_year', '!=', '')
+            ->distinct()
+            ->orderBy('school_year', 'desc')
+            ->pluck('school_year');
+
+        // Departments for filter
+        $departments = Department::orderBy('name')
+            ->get()
+            ->map(fn ($d) => [
+                'value' => (string) $d->id,
+                'label' => $d->name,
+                'classification' => $d->classification,
+            ]);
+
+        $appSettings = AppSetting::current();
+
         return Inertia::render('registrar/archived', [
-            'students' => $students,
-            'filters'  => $filters,
+            'students'     => $students,
+            'filters'      => $filters,
+            'schoolYears'  => $schoolYears,
+            'departments'  => $departments,
+            'appSettings'  => [
+                'has_k12'     => $appSettings->has_k12,
+                'has_college' => $appSettings->has_college,
+            ],
         ]);
     }
 
