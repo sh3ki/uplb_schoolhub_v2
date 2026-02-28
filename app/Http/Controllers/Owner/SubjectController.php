@@ -17,6 +17,7 @@ class SubjectController extends Controller
     public function index(Request $request)
     {
         $query = Subject::with([
+            'department:id,name,classification',
             'departments:id,name,classification',
             'programs:id,name',
             'yearLevels:id,name',
