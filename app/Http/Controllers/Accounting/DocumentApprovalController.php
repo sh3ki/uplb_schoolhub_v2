@@ -111,7 +111,7 @@ class DocumentApprovalController extends Controller
         // Get document types for filter
         $documentTypes = DocumentRequest::DOCUMENT_TYPES;
 
-        return Inertia::render('accounting/document-approvals/index', [
+        return Inertia::render($this->viewPrefix() . '/document-approvals/index', [
             'requests' => $requests,
             'stats' => $stats,
             'documentTypes' => $documentTypes,
