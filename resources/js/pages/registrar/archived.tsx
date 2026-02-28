@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Archive, RotateCcw, Trash2, Users, Search, AlertTriangle } from 'lucide-react';
+import { Archive, RotateCcw, Trash2, Users, Search, AlertTriangle, Filter } from 'lucide-react';
 import { useState } from 'react';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
     TableBody,
@@ -61,6 +69,12 @@ interface PaginatedStudents {
     to: number;
 }
 
+interface DepartmentOption {
+    value: string;
+    label: string;
+    classification: string;
+}
+
 interface Props {
     students: PaginatedStudents;
     filters: {
@@ -68,22 +82,68 @@ interface Props {
         classification?: string;
         department_id?: string;
         year_level?: string;
+        school_year?: string;
+        semester?: string;
+    };
+    schoolYears: string[];
+    departments: DepartmentOption[];
+    appSettings: {
+        has_k12: boolean;
+        has_college: boolean;
     };
 }
 
-export default function ArchivedStudentsIndex({ students, filters }: Props) {
+export default function ArchivedStudentsIndex({ students, filters, schoolYears, departments, appSettings }: Props) {
     const { flash } = usePage().props as any;
     const [search, setSearch] = useState(filters.search || '');
     const [selectedStudents, setSelectedStudents] = useState<number[]>([]);
     const [isRestoring, setIsRestoring] = useState(false);
     const [studentToDelete, setStudentToDelete] = useState<ArchivedStudent | null>(null);
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/registrar/archived', { ...filters, search: value }, {
+    const hasBothClassifications = appSettings.has_k12 && appSettings.has_college;
+    const activeClassification = filters.classification || '';
+
+    // Filter departments based on selected classification
+    const filteredDepartments = activeClassification
+        ? departments.filter(d => d.classification === activeClassification)
+        : departments;
+
+    const applyFilter = (newFilters: Record<string, string | undefined>) => {
+        const merged = { ...filters, ...newFilters, page: undefined };
+        // Remove empty values
+        Object.keys(merged).forEach(k => {
+            if (!merged[k]) delete merged[k];
+        });
+        router.get('/registrar/archived', merged, {
             preserveState: true,
             replace: true,
         });
+    };
+
+    const handleSearch = (value: string) => {
+        setSearch(value);
+        applyFilter({ search: value || undefined });
+    };
+
+    const handleClassificationChange = (value: string) => {
+        // Reset dependent filters when classification changes
+        applyFilter({
+            classification: value || undefined,
+            department_id: undefined,
+            semester: undefined,
+        });
+    };
+
+    const handleSchoolYearChange = (value: string) => {
+        applyFilter({ school_year: value === '_all' ? undefined : value });
+    };
+
+    const handleSemesterChange = (value: string) => {
+        applyFilter({ semester: value === '_all' ? undefined : value });
+    };
+
+    const handleDepartmentChange = (value: string) => {
+        applyFilter({ department_id: value === '_all' ? undefined : value });
     };
 
     const handleSelectAll = (checked: boolean) => {
@@ -184,6 +244,80 @@ export default function ArchivedStudentsIndex({ students, filters }: Props) {
                                 <p className="text-sm text-muted-foreground">Total Archived</p>
                                 <p className="text-2xl font-bold">{students.total}</p>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Classification Tabs & Filters */}
+                <Card>
+                    <CardContent className="p-4 space-y-4">
+                        {/* Classification Tabs */}
+                        {hasBothClassifications && (
+                            <Tabs value={activeClassification || 'all'} onValueChange={(v) => handleClassificationChange(v === 'all' ? '' : v)}>
+                                <TabsList>
+                                    <TabsTrigger value="all">All Students</TabsTrigger>
+                                    <TabsTrigger value="K-12">K-12</TabsTrigger>
+                                    <TabsTrigger value="College">College</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        )}
+
+                        {/* Filter Row */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+
+                            {/* School Year */}
+                            <Select value={filters.school_year || '_all'} onValueChange={handleSchoolYearChange}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="School Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="_all">All School Years</SelectItem>
+                                    {schoolYears.map((sy) => (
+                                        <SelectItem key={sy} value={sy}>{sy}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Semester - only for college */}
+                            {(activeClassification === 'College' || (!hasBothClassifications && appSettings.has_college)) && (
+                                <Select value={filters.semester || '_all'} onValueChange={handleSemesterChange}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Semester" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="_all">All Semesters</SelectItem>
+                                        <SelectItem value="1">1st Semester</SelectItem>
+                                        <SelectItem value="2">2nd Semester</SelectItem>
+                                        <SelectItem value="3">Summer</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
+
+                            {/* Department */}
+                            <Select value={filters.department_id || '_all'} onValueChange={handleDepartmentChange}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Department" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="_all">All Departments</SelectItem>
+                                    {filteredDepartments.map((d) => (
+                                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            {/* Clear Filters */}
+                            {(filters.classification || filters.school_year || filters.semester || filters.department_id) && (
+                                <Button variant="ghost" size="sm" onClick={() => applyFilter({
+                                    classification: undefined,
+                                    school_year: undefined,
+                                    semester: undefined,
+                                    department_id: undefined,
+                                })}>
+                                    Clear filters
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
