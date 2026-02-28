@@ -195,4 +195,107 @@ class DropRequestController extends Controller
 
         return back()->with('success', 'Student has been reactivated and can now log in again.');
     }
+
+    /**
+     * Get applicable drop fee items for a specific drop request.
+     * Filters fee items based on the student's classification, department, program, year level, and section.
+     */
+    public function getApplicableFeeItems(DropRequest $dropRequest)
+    {
+        $student = $dropRequest->student;
+        
+        if (!$student) {
+            return response()->json(['feeItems' => []]);
+        }
+
+        // Load department for classification
+        $student->load('department');
+
+        $feeItems = FeeItem::whereHas('category', function ($q) {
+            $q->where('name', 'like', '%Drop%');
+        })
+            ->where('is_active', true)
+            ->where(function ($query) use ($student) {
+                $query->where('assignment_scope', 'all')
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific');
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    ->orWhereHas('assignments', function ($q) use ($student) {
+                        $this->applyAssignmentFilters($q, $student);
+                    });
+            })
+            ->get()
+            ->map(fn($item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'selling_price' => (float) $item->selling_price,
+                'category' => $item->category?->name,
+            ]);
+
+        return response()->json(['feeItems' => $feeItems]);
+    }
+
+    /**
+     * Apply student-specific filters to fee item query.
+     */
+    private function applyStudentFilters($query, Student $student): void
+    {
+        // Match classification if set
+        if ($student->department) {
+            $query->where(function ($sq) use ($student) {
+                $sq->whereNull('classification')
+                    ->orWhere('classification', $student->department->classification);
+            });
+        }
+
+        // Match department if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('department_id')
+                ->orWhere('department_id', $student->department_id);
+        });
+
+        // Match program if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('program_id')
+                ->orWhere('program_id', $student->program_id);
+        });
+
+        // Match year level if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('year_level_id')
+                ->orWhere('year_level_id', $student->year_level_id);
+        });
+
+        // Match section if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('section_id')
+                ->orWhere('section_id', $student->section_id);
+        });
+    }
+
+    /**
+     * Apply student-specific filters to fee_item_assignments query.
+     */
+    private function applyAssignmentFilters($query, Student $student): void
+    {
+        $query->where('is_active', true);
+
+        if ($student->department) {
+            $query->where(function ($sq) use ($student) {
+                $sq->whereNull('classification')
+                    ->orWhere('classification', $student->department->classification);
+            });
+        }
+
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('department_id')
+                ->orWhere('department_id', $student->department_id);
+        });
+
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('year_level_id')
+                ->orWhere('year_level_id', $student->year_level_id);
+        });
+    }
 }
