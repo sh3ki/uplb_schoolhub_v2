@@ -137,6 +137,7 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
         form.post('/student/online-payments', {
             forceFormData: true,
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 form.reset();
                 clearFile();
             },
