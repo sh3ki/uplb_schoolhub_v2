@@ -1,4 +1,5 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import { useState, useMemo } from 'react';
 import AccountingLayout from '@/layouts/accounting-layout';
 import { PageHeader } from '@/components/page-header';
@@ -267,6 +268,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             onSuccess: () => {
                 setAmountReceived('');
                 paymentForm.reset();
+                toast.success('Payment recorded successfully');
             },
         });
     };
