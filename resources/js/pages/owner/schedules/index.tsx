@@ -232,6 +232,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
             formData.append('_method', 'PUT');
             router.post(`/owner/schedules/${editingSchedule.id}`, formData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     resetForm();
                 },
@@ -240,6 +241,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
         } else {
             router.post('/owner/schedules', formData, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     resetForm();
                 },
@@ -257,6 +259,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
         if (scheduleToDelete) {
             router.delete(`/owner/schedules/${scheduleToDelete.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setDeleteDialogOpen(false);
                     setScheduleToDelete(null);
                 },
