@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Student;
 use App\Models\User;
 use App\Models\Teacher;
 use Illuminate\Database\Seeder;
@@ -46,49 +47,98 @@ class RoleBasedUserSeeder extends Seeder
             ]
         );
 
-        // Create Sample Students
+        // Create Sample Students — create actual Student records first, then link User
         $students = [
             [
-                'name' => 'John Michael Doe Jr.',
-                'email' => 'john.doe@gmail.com',
-                'student_id' => '2023-001',
-                'program' => 'BS Information Technology',
-                'year_level' => '3',
-                'department' => 'College of Computer Studies',
+                'name'       => 'John Michael Doe Jr.',
+                'first_name' => 'John',
+                'middle_name'=> 'Michael',
+                'last_name'  => 'Doe',
+                'suffix'     => 'Jr.',
+                'email'      => 'john.doe@gmail.com',
+                'lrn'        => '2023-001',
+                'program'    => 'BS Information Technology',
+                'year_level' => '3rd Year',
+                'classification' => 'College',
             ],
             [
-                'name' => 'Maria Cristina Santos',
-                'email' => 'student@gmail.com',
-                'student_id' => '2023-002',
-                'program' => 'BS Computer Science',
-                'year_level' => '2',
-                'department' => 'College of Computer Studies',
+                'name'       => 'Maria Cristina Santos',
+                'first_name' => 'Maria',
+                'middle_name'=> 'Cristina',
+                'last_name'  => 'Santos',
+                'suffix'     => null,
+                'email'      => 'student@gmail.com',
+                'lrn'        => '2023-002',
+                'program'    => 'BS Computer Science',
+                'year_level' => '2nd Year',
+                'classification' => 'College',
             ],
             [
-                'name' => 'Carlos Antonio Reyes',
-                'email' => 'carlos.reyes@gmail.com',
-                'student_id' => '2023-003',
-                'program' => 'BS Business Administration',
-                'year_level' => '4',
-                'department' => 'College of Business',
+                'name'       => 'Carlos Antonio Reyes',
+                'first_name' => 'Carlos',
+                'middle_name'=> 'Antonio',
+                'last_name'  => 'Reyes',
+                'suffix'     => null,
+                'email'      => 'carlos.reyes@gmail.com',
+                'lrn'        => '2023-003',
+                'program'    => 'BS Business Administration',
+                'year_level' => '4th Year',
+                'classification' => 'College',
             ],
             [
-                'name' => 'Ana Marie Cruz',
-                'email' => 'ana.cruz@gmail.com',
-                'student_id' => '2023-004',
-                'program' => 'BS Information Technology',
-                'year_level' => '1',
-                'department' => 'College of Computer Studies',
+                'name'       => 'Ana Marie Cruz',
+                'first_name' => 'Ana',
+                'middle_name'=> 'Marie',
+                'last_name'  => 'Cruz',
+                'suffix'     => null,
+                'email'      => 'ana.cruz@gmail.com',
+                'lrn'        => '2023-004',
+                'program'    => 'BS Information Technology',
+                'year_level' => '1st Year',
+                'classification' => 'College',
             ],
         ];
 
-        foreach ($students as $studentData) {
-            User::updateOrCreate(
-                ['email' => $studentData['email']],
+        foreach ($students as $data) {
+            // Create (or update) the Student record in the students table
+            $student = Student::updateOrCreate(
+                ['email' => $data['email']],
                 [
-                    ...$studentData,
-                    'password' => bcrypt('password'),
-                    'role' => User::ROLE_STUDENT,
+                    'first_name'            => $data['first_name'],
+                    'last_name'             => $data['last_name'],
+                    'middle_name'           => $data['middle_name'],
+                    'suffix'                => $data['suffix'],
+                    'lrn'                   => $data['lrn'],
+                    'phone'                 => '09000000000',
+                    'date_of_birth'         => '2000-01-01',
+                    'gender'                => 'male',
+                    'complete_address'      => 'Sample Address, Barangay Sample',
+                    'city_municipality'     => 'Sample City',
+                    'zip_code'              => '0000',
+                    'student_type'          => 'new',
+                    'school_year'           => '2024-2025',
+                    'program'               => $data['program'],
+                    'year_level'            => $data['year_level'],
+                    'section'               => 'A',
+                    'classification'        => $data['classification'],
+                    'enrollment_status'     => 'enrolled',
+                    'is_active'             => true,
+                    'requirements_status'   => 'complete',
+                    'requirements_percentage' => 100,
+                    'guardian_name'         => 'Sample Guardian',
+                    'guardian_relationship' => 'Parent',
+                    'guardian_contact'      => '09000000000',
+                ]
+            );
+
+            // Now create/link the User account using the Student's actual PK
+            User::updateOrCreate(
+                ['email' => $data['email']],
+                [
+                    'name'              => $data['name'],
+                    'password'          => bcrypt('password'),
+                    'role'              => User::ROLE_STUDENT,
+                    'student_id'        => $student->id,   // correct FK to students.id
                     'email_verified_at' => now(),
                 ]
             );
