@@ -182,7 +182,7 @@ class FeeManagementController extends Controller
             ->orderBy('school_year', 'desc')
             ->pluck('school_year');
 
-        return Inertia::render('accounting/fee-management/index', [
+        return Inertia::render($this->viewPrefix() . '/fee-management/index', [
             'categories' => $categories,
             'totals' => $totals,
             'departments' => $departments,
