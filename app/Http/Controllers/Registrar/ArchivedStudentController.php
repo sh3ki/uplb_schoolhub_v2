@@ -60,6 +60,7 @@ class ArchivedStudentController extends Controller
             'first_name'        => $student->first_name,
             'last_name'         => $student->last_name,
             'email'             => $student->email,
+            'student_photo_url' => $student->student_photo_url,
             'department'        => $student->department?->name,
             'classification'    => $student->department?->classification,
             'year_level'        => $student->year_level,
