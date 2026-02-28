@@ -101,6 +101,7 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
         if (editingProgram) {
             form.put(`/owner/programs/${editingProgram.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -108,6 +109,7 @@ export default function ProgramsIndex({ programs, departments, filters }: Props)
         } else {
             form.post('/owner/programs', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
