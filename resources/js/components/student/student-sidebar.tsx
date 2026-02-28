@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
     Calendar,
     GraduationCap,
     LayoutGrid,
@@ -12,8 +11,8 @@ import {
     FileSignature,
     FileText,
     CreditCard,
-    Lock,
     UserMinus,
+    ClipboardList,
 } from 'lucide-react';
 import {
     Sidebar,
@@ -41,18 +40,24 @@ interface AppSettings {
     app_name?: string;
     logo_url?: string | null;
     primary_color?: string;
+    college_enrollment_open?: boolean;
+    k12_enrollment_open?: boolean;
 }
 
 export function StudentSidebar() {
     const { announcementCount, auth, appSettings } = usePage<{ 
         announcementCount: number;
-        auth: { user: { student?: { enrollment_status?: string } } };
+        auth: { user: { student?: { enrollment_status?: string; department_classification?: string | null } } };
         appSettings?: AppSettings;
     }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     
     const isEnrolled = auth.user.student?.enrollment_status === 'enrolled';
+    const isCollegeDept = auth.user.student?.department_classification === 'College';
+
+    // Enrollment link: only for College students when college enrollment period is open
+    const showEnrollment = isCollegeDept && !!appSettings?.college_enrollment_open;
 
     const mainNavItems: NavItem[] = [
         {
@@ -66,6 +71,11 @@ export function StudentSidebar() {
             icon: Megaphone,
             badge: announcementCount || undefined,
         },
+        ...(showEnrollment ? [{
+            title: 'Enrollment',
+            href: '/student/enrollment',
+            icon: ClipboardList,
+        }] : []),
         {
             title: 'My Requirements',
             href: '/student/requirements',
