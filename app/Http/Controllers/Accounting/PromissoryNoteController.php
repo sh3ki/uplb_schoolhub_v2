@@ -28,7 +28,7 @@ class PromissoryNoteController extends Controller
         $notes = $query->paginate(15)->through(function ($note) {
             return [
                 'id' => $note->id,
-                'student_name' => $note->student->full_name ?? 'Unknown',
+                'student_name' => $note->student?->full_name ?? 'Unknown',
                 'student_id' => $note->student_id,
                 'submitted_date' => $note->submitted_date->format('Y-m-d'),
                 'due_date' => $note->due_date->format('Y-m-d'),
