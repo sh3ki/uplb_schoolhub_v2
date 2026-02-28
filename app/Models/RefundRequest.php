@@ -41,4 +41,9 @@ class RefundRequest extends Model
     {
         return $this->belongsTo(User::class, 'processed_by');
     }
+
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
 }
