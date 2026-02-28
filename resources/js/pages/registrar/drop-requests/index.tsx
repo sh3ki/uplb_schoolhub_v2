@@ -150,6 +150,8 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [search, setSearch] = useState(filters.search || '');
     const [selectedFeeItemIds, setSelectedFeeItemIds] = useState<number[]>([]);
+    const [applicableFeeItems, setApplicableFeeItems] = useState<DropFeeItem[]>([]);
+    const [loadingFeeItems, setLoadingFeeItems] = useState(false);
 
     const approveForm = useForm({ registrar_remarks: '', fee_item_ids: [] as number[] });
     const rejectForm = useForm({ registrar_remarks: '' });
