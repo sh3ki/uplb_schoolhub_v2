@@ -96,6 +96,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
         if (editingDepartment) {
             form.put(`/owner/departments/${editingDepartment.id}`, {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
@@ -103,6 +104,7 @@ export default function DepartmentsIndex({ departments, filters }: Props) {
         } else {
             form.post('/owner/departments', {
                 onSuccess: () => {
+                    toast.success('Changes saved successfully');
                     setIsModalOpen(false);
                     form.reset();
                 },
