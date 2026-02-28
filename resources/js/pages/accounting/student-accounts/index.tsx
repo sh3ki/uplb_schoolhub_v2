@@ -212,6 +212,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         e.preventDefault();
         overdueForm.post('/accounting/student-accounts/bulk-mark-overdue', {
             onSuccess: () => {
+                toast.success('Changes saved successfully');
                 setIsOverdueDialogOpen(false);
                 overdueForm.reset();
             },
