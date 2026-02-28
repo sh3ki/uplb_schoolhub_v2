@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Department;
 use App\Models\DocumentRequest;
+use App\Models\DropRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -360,11 +361,18 @@ class AccountingDashboardController extends Controller
             ->where('is_paid', true)
             ->whereBetween('created_at', [$periodStart, $periodEnd])
             ->get();
+        $dropRequests = DropRequest::whereIn('student_id', $studentIds)
+            ->where('accounting_status', 'approved')
+            ->where('is_paid', true)
+            ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd])
+            ->get();
 
         $feeCount    = $payments->count();
         $docCount    = $documents->count();
+        $dropCount   = $dropRequests->count();
         $feeSum      = (float) $payments->sum('amount');
         $docSum      = (float) $documents->sum('fee');
+        $dropSum     = (float) $dropRequests->sum('fee_amount');
         $overallPaid = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount');
         $feesBilled  = (float) StudentFee::whereIn('student_id', $studentIds)->sum('total_amount');
         $rate        = $feesBilled > 0
@@ -372,13 +380,15 @@ class AccountingDashboardController extends Controller
             : ($overallPaid > 0 ? 100 : 0);
 
         $stats = [
-            'total_transactions'       => $feeCount + $docCount,
+            'total_transactions'       => $feeCount + $docCount + $dropCount,
             'fee_transactions'         => $feeCount,
             'document_transactions'    => $docCount,
+            'drop_transactions'        => $dropCount,
             'collection_rate'          => $rate,
             'total_fees_processed'     => $feeSum,
             'total_document_processed' => $docSum,
-            'total_amount_processed'   => $feeSum + $docSum,
+            'total_drop_processed'     => $dropSum,
+            'total_amount_processed'   => $feeSum + $docSum + $dropSum,
             'overall_amount_processed' => $overallPaid,
         ];
 
@@ -435,6 +445,18 @@ class AccountingDashboardController extends Controller
                 'mode'      => 'CASH',
                 'reference' => $doc->document_type,
                 'amount'    => (float) $doc->fee,
+            ];
+        }
+        foreach ($dropRequests->take(10) as $drop) {
+            $transactions[] = [
+                'id'        => 'drop-' . $drop->id,
+                'date'      => Carbon::parse($drop->accounting_approved_at)->format('Y-m-d'),
+                'time'      => Carbon::parse($drop->accounting_approved_at)->format('h:i A'),
+                'type'      => 'Drop',
+                'or_number' => $drop->or_number ?? ('DRP' . str_pad($drop->id, 3, '0', STR_PAD_LEFT)),
+                'mode'      => 'CASH',
+                'reference' => 'Drop Request',
+                'amount'    => (float) $drop->fee_amount,
             ];
         }
         usort($transactions, fn($a, $b) => strcmp($b['date'] . $b['time'], $a['date'] . $a['time']));
