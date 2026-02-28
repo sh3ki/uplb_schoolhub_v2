@@ -485,15 +485,7 @@ export default function ArchivedStudentsIndex({ students, filters, schoolYears, 
                                 {/* Pagination */}
                                 {students.last_page > 1 && (
                                     <div className="mt-4 flex justify-center">
-                                        <Pagination
-                                            currentPage={students.current_page}
-                                            totalPages={students.last_page}
-                                            onPageChange={(page) => {
-                                                router.get('/registrar/archived', { ...filters, page }, {
-                                                    preserveState: true,
-                                                });
-                                            }}
-                                        />
+                                        <Pagination data={students} preserveState={true} />
                                     </div>
                                 )}
                             </>
