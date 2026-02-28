@@ -100,6 +100,11 @@ export function RegistrarSidebar() {
             icon: UserMinus,
         },
         {
+            title: 'Archived Students',
+            href: '/registrar/archived',
+            icon: Archive,
+        },
+        {
             title: 'Deadlines',
             href: '/registrar/deadlines',
             icon: Calendar,
