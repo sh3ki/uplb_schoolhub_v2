@@ -1816,7 +1816,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                             </div>
 
                             {/* Per-unit tuition toggle (College Tuition category) */}
-                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
+                            {/* <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-3">
                                 <div className="flex items-center gap-3">
                                     <Switch
                                         id="is_per_unit"
@@ -1843,7 +1843,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                         <p className="text-xs text-muted-foreground">Final amount = rate × number of enrolled subject units per student.</p>
                                     </div>
                                 )}
-                            </div>
+                            </div> */}
                             <div className="rounded-lg bg-muted p-4">
                                 <div className="flex justify-between items-center">
                                     <span className="text-sm text-muted-foreground">Calculated Profit:</span>
