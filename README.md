@@ -48,6 +48,7 @@ The system includes the following modules and user accounts:
 - [x] **Landing Page CMS** — Edit hero (title, subtitle, image gallery carousel), faculty section, principal's message (with author photo), alumni/notable graduates section, footer, and navigation links — all from a 4-tab settings editor
 - [x] **App Settings** — App name, academic structure type (K12/College), theme colors, logo/favicon upload
 - [x] **Active Semester Management** — Set the active semester (1st Semester, 2nd Semester, Summer) from the Enrollment Period settings; used globally for college subject enrollment
+- [x] **Audit Logs** — View all balance adjustments made by Super Accounting staff; filterable by student, school year, date range; shows amount, reason, adjuster, and timestamp with detail dialog
 
 #### **1.2 Registrar Account** ✅ `90% COMPLETE`
 
@@ -90,12 +91,13 @@ The system includes the following modules and user accounts:
 - [ ] Advanced financial auditing
 - [ ] Monitoring and approval of student wallet/load transactions
 
-#### **1.3.1 Super Accounting Account** ✅ `85% COMPLETE`
+#### **1.3.1 Super Accounting Account** ✅ `90% COMPLETE`
 
 - [x] All features from Accounting Account
 - [x] Full access to all accounting functions with elevated privileges
 - [x] Cross-department financial oversight
 - [x] Same dashboard and management pages as Accounting role
+- [x] **Add Balance** — Add balance to a student's fee record with mandatory reason; every adjustment is permanently logged in the `balance_adjustments` table and visible to the Owner in the Audit Logs page
 
 #### **1.4 Teacher Portal** 🔄 `55% COMPLETE`
 
