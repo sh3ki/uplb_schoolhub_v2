@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Models\DropRequest;
+use App\Models\FeeItem;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -98,11 +99,22 @@ class DropApprovalController extends Controller
             'rejected' => DropRequest::where('registrar_status', 'approved')->where('accounting_status', 'rejected')->count(),
         ];
 
+        // Available drop fee items accounting can assign to requests
+        $availableFeeItems = FeeItem::whereHas('category', fn ($q) => $q->where('name', 'like', '%Drop%'))
+            ->where('is_active', true)
+            ->get()
+            ->map(fn ($item) => [
+                'id'     => $item->id,
+                'name'   => $item->name,
+                'amount' => (float) $item->selling_price,
+            ]);
+
         return Inertia::render($this->viewPrefix() . '/drop-approvals/index', [
-            'requests' => $requests,
-            'stats' => $stats,
-            'tab' => $tab,
-            'filters' => $request->only(['search']),
+            'requests'           => $requests,
+            'stats'              => $stats,
+            'tab'                => $tab,
+            'filters'            => $request->only(['search']),
+            'availableFeeItems'  => $availableFeeItems,
         ]);
     }
 
@@ -131,6 +143,42 @@ class DropApprovalController extends Controller
         );
 
         return back()->with('success', 'Drop request approved. Student has been marked as dropped and deactivated.');
+    }
+
+    /**
+     * Set / update document fee items on a pending drop request (accounting stage).
+     */
+    public function setFees(Request $request, DropRequest $dropRequest): RedirectResponse
+    {
+        if ($dropRequest->registrar_status !== 'approved') {
+            return back()->with('error', 'Only registrar-approved requests can have fees set.');
+        }
+
+        if ($dropRequest->accounting_status !== 'pending') {
+            return back()->with('error', 'Can only update fees on pending requests.');
+        }
+
+        $validated = $request->validate([
+            'fee_item_ids'   => 'nullable|array',
+            'fee_item_ids.*' => 'exists:fee_items,id',
+        ]);
+
+        $feeItemsData = [];
+        $totalFee     = 0;
+
+        foreach ($validated['fee_item_ids'] ?? [] as $feeItemId) {
+            $feeItem = FeeItem::find($feeItemId);
+            if ($feeItem) {
+                $amount = (float) $feeItem->selling_price;
+                $feeItemsData[$feeItemId] = ['amount' => $amount];
+                $totalFee += $amount;
+            }
+        }
+
+        $dropRequest->feeItems()->sync($feeItemsData);
+        $dropRequest->update(['fee_amount' => $totalFee]);
+
+        return back()->with('success', 'Document fees updated successfully.');
     }
 
     /**
