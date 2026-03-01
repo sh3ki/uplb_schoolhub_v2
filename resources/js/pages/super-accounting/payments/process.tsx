@@ -103,8 +103,10 @@ interface Payment {
     or_number: string;
     amount: number;
     payment_for: string;
+    payment_mode: string | null;
     notes: string | null;
     recorded_by: string;
+    school_year: string | null;
     created_at: string;
 }
 
@@ -352,6 +354,22 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         : fees.filter(f => f.school_year === selectedSchoolYear);
 
     const schoolYears = [...new Set(fees.map(f => f.school_year))];
+
+    const syFilteredPayments = selectedSchoolYear === 'all'
+        ? payments
+        : payments.filter(p => p.school_year === selectedSchoolYear);
+
+    const syFilteredAdjustments = selectedSchoolYear === 'all'
+        ? balanceAdjustments
+        : balanceAdjustments.filter(a => a.school_year === selectedSchoolYear);
+
+    const syFilteredGrants = selectedSchoolYear === 'all'
+        ? grants
+        : grants.filter(g => g.school_year === selectedSchoolYear);
+
+    const syFilteredPromissoryNotes = selectedSchoolYear === 'all'
+        ? promissoryNotes
+        : promissoryNotes.filter(n => n.school_year === selectedSchoolYear);
 
     return (
         <SuperAccountingLayout>
@@ -1116,7 +1134,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         )}
                     </TabsContent>
 
-                    {/* Tab 2: School Year Details */}
+                    {/* Tab 2: School Year History */}
                     <TabsContent value="school-year" className="space-y-4">
                         {/* Previous Balance Rollover Banner */}
                         {summary.previous_balance > 0 && (
@@ -1155,31 +1173,51 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             </Card>
                         )}
 
+                        {/* School Year Tab Filter */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedSchoolYear('all')}
+                                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                                    selectedSchoolYear === 'all'
+                                        ? 'bg-primary text-primary-foreground border-primary'
+                                        : 'bg-background text-muted-foreground border-border hover:border-primary/60 hover:text-foreground'
+                                }`}
+                            >
+                                All Years
+                            </button>
+                            {schoolYears.map((sy) => (
+                                <button
+                                    key={sy}
+                                    type="button"
+                                    onClick={() => setSelectedSchoolYear(sy)}
+                                    className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
+                                        selectedSchoolYear === sy
+                                            ? 'bg-primary text-primary-foreground border-primary'
+                                            : 'bg-background text-muted-foreground border-border hover:border-primary/60 hover:text-foreground'
+                                    }`}
+                                >
+                                    {sy}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Fee Overview */}
                         <Card>
-                            <CardHeader>
-                                <div className="flex items-center justify-between">
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <Receipt className="h-5 w-5 text-primary" />
                                     <div>
-                                        <CardTitle>School Year Summary</CardTitle>
-                                        <CardDescription>
-                                            Fee status and payments per school year
-                                        </CardDescription>
+                                        <CardTitle className="text-base">
+                                            {selectedSchoolYear === 'all' ? 'All School Years — Fee Overview' : `${selectedSchoolYear} — Fee Overview`}
+                                        </CardTitle>
+                                        <CardDescription>Fee totals, discounts, and balance summary</CardDescription>
                                     </div>
-                                    <Select value={selectedSchoolYear} onValueChange={setSelectedSchoolYear}>
-                                        <SelectTrigger className="w-48">
-                                            <SelectValue placeholder="Filter by school year" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">All School Years</SelectItem>
-                                            {schoolYears.map((sy) => (
-                                                <SelectItem key={sy} value={sy}>{sy}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             </CardHeader>
                             <CardContent>
                                 {filteredFees.length === 0 ? (
-                                    <p className="text-center py-8 text-muted-foreground">No school year data found.</p>
+                                    <p className="text-center py-6 text-muted-foreground text-sm">No fee records found.</p>
                                 ) : (
                                     <Table>
                                         <TableHeader>
@@ -1200,9 +1238,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableCell className="font-medium">
                                                         <div>{fee.school_year}</div>
                                                         {fee.carried_forward_from && (
-                                                            <div className="text-xs text-amber-600">
-                                                                ↩ From {fee.carried_forward_from}
-                                                            </div>
+                                                            <div className="text-xs text-amber-600">↩ From {fee.carried_forward_from}</div>
                                                         )}
                                                     </TableCell>
                                                     <TableCell className="text-right">{formatCurrency(fee.total_amount)}</TableCell>
@@ -1213,13 +1249,260 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         {fee.carried_forward_balance > 0 ? formatCurrency(fee.carried_forward_balance) : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right text-blue-600">{formatCurrency(fee.total_paid)}</TableCell>
-                                                    <TableCell className="text-right font-medium text-red-600">
-                                                        {formatCurrency(fee.balance)}
-                                                    </TableCell>
+                                                    <TableCell className="text-right font-medium text-red-600">{formatCurrency(fee.balance)}</TableCell>
                                                     <TableCell>{getStatusBadge(fee.status)}</TableCell>
-                                                    <TableCell>
-                                                        {fee.due_date ? formatDate(fee.due_date) : '-'}
+                                                    <TableCell>{fee.due_date ? formatDate(fee.due_date) : '-'}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                        {filteredFees.length > 1 && (
+                                            <tfoot>
+                                                <TableRow className="font-semibold bg-muted/50 border-t-2">
+                                                    <TableCell>Total</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_amount, 0))}</TableCell>
+                                                    <TableCell className="text-right text-green-600">-{formatCurrency(filteredFees.reduce((s, f) => s + f.grant_discount, 0))}</TableCell>
+                                                    <TableCell className="text-right text-amber-600">
+                                                        {filteredFees.reduce((s, f) => s + f.carried_forward_balance, 0) > 0
+                                                            ? formatCurrency(filteredFees.reduce((s, f) => s + f.carried_forward_balance, 0))
+                                                            : '-'}
                                                     </TableCell>
+                                                    <TableCell className="text-right text-blue-600">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_paid, 0))}</TableCell>
+                                                    <TableCell className="text-right text-red-600">{formatCurrency(filteredFees.reduce((s, f) => s + f.balance, 0))}</TableCell>
+                                                    <TableCell colSpan={2} />
+                                                </TableRow>
+                                            </tfoot>
+                                        )}
+                                    </Table>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Payments Received */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <CreditCard className="h-5 w-5 text-blue-600" />
+                                    <div>
+                                        <CardTitle className="text-base">Payments Received</CardTitle>
+                                        <CardDescription>All payment transactions on record</CardDescription>
+                                    </div>
+                                    {syFilteredPayments.length > 0 && (
+                                        <Badge className="ml-auto bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                            {syFilteredPayments.length} record{syFilteredPayments.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {syFilteredPayments.length === 0 ? (
+                                    <p className="text-center py-6 text-muted-foreground text-sm">No payments recorded.</p>
+                                ) : (
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    <TableHead>OR Number</TableHead>
+                                                    {selectedSchoolYear === 'all' && <TableHead>School Year</TableHead>}
+                                                    <TableHead>Payment For</TableHead>
+                                                    <TableHead>Mode</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead>Notes</TableHead>
+                                                    <TableHead>Recorded By</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {syFilteredPayments.map((payment) => (
+                                                    <TableRow key={payment.id}>
+                                                        <TableCell className="text-sm">{formatDate(payment.payment_date)}</TableCell>
+                                                        <TableCell className="font-mono text-xs">{payment.or_number || '-'}</TableCell>
+                                                        {selectedSchoolYear === 'all' && (
+                                                            <TableCell className="text-xs text-muted-foreground">{payment.school_year || '-'}</TableCell>
+                                                        )}
+                                                        <TableCell>
+                                                            <Badge variant="outline" className="capitalize text-xs">{payment.payment_for || 'General'}</Badge>
+                                                        </TableCell>
+                                                        <TableCell className="text-xs uppercase">{payment.payment_mode || 'CASH'}</TableCell>
+                                                        <TableCell className="text-right font-medium text-green-600">+{formatCurrency(payment.amount)}</TableCell>
+                                                        <TableCell className="max-w-[140px] truncate text-xs text-muted-foreground">{payment.notes || '-'}</TableCell>
+                                                        <TableCell className="text-xs">{payment.recorded_by}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <div className="flex justify-end pt-3 border-t mt-3">
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Total Paid</p>
+                                                <p className="text-lg font-semibold text-green-600">
+                                                    +{formatCurrency(syFilteredPayments.reduce((s, p) => s + p.amount, 0))}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Balance Adjustments */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <Scale className="h-5 w-5 text-amber-600" />
+                                    <div>
+                                        <CardTitle className="text-base">Balance Adjustments</CardTitle>
+                                        <CardDescription>Manual balance additions applied to this account</CardDescription>
+                                    </div>
+                                    {syFilteredAdjustments.length > 0 && (
+                                        <Badge className="ml-auto bg-amber-100 text-amber-700 hover:bg-amber-100">
+                                            {syFilteredAdjustments.length} record{syFilteredAdjustments.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {syFilteredAdjustments.length === 0 ? (
+                                    <p className="text-center py-6 text-muted-foreground text-sm">No balance adjustments recorded.</p>
+                                ) : (
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Date</TableHead>
+                                                    {selectedSchoolYear === 'all' && <TableHead>School Year</TableHead>}
+                                                    <TableHead>Reason</TableHead>
+                                                    <TableHead className="text-right">Amount</TableHead>
+                                                    <TableHead>Notes</TableHead>
+                                                    <TableHead>Adjusted By</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {syFilteredAdjustments.map((adj) => (
+                                                    <TableRow key={adj.id}>
+                                                        <TableCell className="text-xs whitespace-nowrap">{adj.created_at}</TableCell>
+                                                        {selectedSchoolYear === 'all' && (
+                                                            <TableCell className="text-xs text-muted-foreground">{adj.school_year || '-'}</TableCell>
+                                                        )}
+                                                        <TableCell className="text-sm">{adj.reason}</TableCell>
+                                                        <TableCell className="text-right font-medium text-amber-600">{formatCurrency(adj.amount)}</TableCell>
+                                                        <TableCell className="max-w-[140px] truncate text-xs text-muted-foreground">{adj.notes || '-'}</TableCell>
+                                                        <TableCell className="text-xs">{adj.adjusted_by}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <div className="flex justify-end pt-3 border-t mt-3">
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Total Adjustments</p>
+                                                <p className="text-lg font-semibold text-amber-600">
+                                                    {formatCurrency(syFilteredAdjustments.reduce((s, a) => s + a.amount, 0))}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Grants & Discounts Applied */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <GraduationCap className="h-5 w-5 text-green-600" />
+                                    <div>
+                                        <CardTitle className="text-base">Grants & Discounts Applied</CardTitle>
+                                        <CardDescription>Scholarships and discounts credited to this account</CardDescription>
+                                    </div>
+                                    {syFilteredGrants.length > 0 && (
+                                        <Badge className="ml-auto bg-green-100 text-green-700 hover:bg-green-100">
+                                            {syFilteredGrants.length} record{syFilteredGrants.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {syFilteredGrants.length === 0 ? (
+                                    <p className="text-center py-6 text-muted-foreground text-sm">No grants or discounts applied.</p>
+                                ) : (
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Grant / Scholarship</TableHead>
+                                                    {selectedSchoolYear === 'all' && <TableHead>School Year</TableHead>}
+                                                    <TableHead>Status</TableHead>
+                                                    <TableHead className="text-right">Discount Amount</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {syFilteredGrants.map((grant) => (
+                                                    <TableRow key={grant.id}>
+                                                        <TableCell className="font-medium">{grant.name}</TableCell>
+                                                        {selectedSchoolYear === 'all' && (
+                                                            <TableCell className="text-xs text-muted-foreground">{grant.school_year || '-'}</TableCell>
+                                                        )}
+                                                        <TableCell>{getStatusBadge(grant.status)}</TableCell>
+                                                        <TableCell className="text-right font-medium text-green-600">-{formatCurrency(grant.discount_amount)}</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        <div className="flex justify-end pt-3 border-t mt-3">
+                                            <div className="text-right">
+                                                <p className="text-xs text-muted-foreground">Total Discounts</p>
+                                                <p className="text-lg font-semibold text-green-600">
+                                                    -{formatCurrency(syFilteredGrants.reduce((s, g) => s + g.discount_amount, 0))}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* Promissory Notes */}
+                        <Card>
+                            <CardHeader className="pb-3">
+                                <div className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5 text-purple-600" />
+                                    <div>
+                                        <CardTitle className="text-base">Promissory Notes</CardTitle>
+                                        <CardDescription>Payment commitment agreements from this student</CardDescription>
+                                    </div>
+                                    {syFilteredPromissoryNotes.length > 0 && (
+                                        <Badge className="ml-auto bg-purple-100 text-purple-700 hover:bg-purple-100">
+                                            {syFilteredPromissoryNotes.length} record{syFilteredPromissoryNotes.length !== 1 ? 's' : ''}
+                                        </Badge>
+                                    )}
+                                </div>
+                            </CardHeader>
+                            <CardContent>
+                                {syFilteredPromissoryNotes.length === 0 ? (
+                                    <p className="text-center py-6 text-muted-foreground text-sm">No promissory notes on record.</p>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Submitted</TableHead>
+                                                {selectedSchoolYear === 'all' && <TableHead>School Year</TableHead>}
+                                                <TableHead>Due Date</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                                <TableHead>Reason</TableHead>
+                                                <TableHead>Status</TableHead>
+                                                <TableHead>Reviewed By</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {syFilteredPromissoryNotes.map((note) => (
+                                                <TableRow key={note.id}>
+                                                    <TableCell className="text-xs whitespace-nowrap">{formatDate(note.submitted_date)}</TableCell>
+                                                    {selectedSchoolYear === 'all' && (
+                                                        <TableCell className="text-xs text-muted-foreground">{note.school_year || '-'}</TableCell>
+                                                    )}
+                                                    <TableCell className="text-xs whitespace-nowrap">{formatDate(note.due_date)}</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(note.amount)}</TableCell>
+                                                    <TableCell className="max-w-[150px] truncate text-xs">{note.reason}</TableCell>
+                                                    <TableCell>{getStatusBadge(note.status)}</TableCell>
+                                                    <TableCell className="text-xs">{note.reviewed_by || '-'}</TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
