@@ -23,20 +23,31 @@ class DropRequestController extends Controller
         $settings = AppSetting::current();
 
         $requests = DropRequest::where('student_id', $student->id)
-            ->with('processedBy:id,name')
+            ->with(['processedBy:id,name', 'feeItems'])
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($r) {
                 return [
-                    'id' => $r->id,
-                    'reason' => $r->reason,
-                    'status' => $r->status,
-                    'semester' => $r->semester,
-                    'school_year' => $r->school_year,
-                    'registrar_notes' => $r->registrar_notes,
-                    'processed_by' => $r->processedBy?->name,
-                    'processed_at' => $r->processed_at?->format('M d, Y h:i A'),
-                    'created_at' => $r->created_at->format('M d, Y h:i A'),
+                    'id'               => $r->id,
+                    'reason'           => $r->reason,
+                    'status'           => $r->status,
+                    'registrar_status' => $r->registrar_status,
+                    'accounting_status'=> $r->accounting_status,
+                    'semester'         => $r->semester,
+                    'school_year'      => $r->school_year,
+                    'registrar_notes'  => $r->registrar_notes,
+                    'accounting_remarks'=> $r->accounting_remarks,
+                    'fee_amount'       => (float) $r->fee_amount,
+                    'is_paid'          => $r->is_paid,
+                    'or_number'        => $r->or_number,
+                    'processed_by'     => $r->processedBy?->name,
+                    'processed_at'     => $r->processed_at?->format('M d, Y h:i A'),
+                    'created_at'       => $r->created_at->format('M d, Y h:i A'),
+                    'fee_items'        => $r->feeItems->map(fn ($fi) => [
+                        'id'     => $fi->id,
+                        'name'   => $fi->name,
+                        'amount' => (float) $fi->pivot->amount,
+                    ]),
                 ];
             });
 
