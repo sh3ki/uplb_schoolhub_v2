@@ -162,12 +162,12 @@ class AppSettingsController extends Controller
         $settings->has_college    = $request->input('has_college') === '1';
 
         if ($request->hasFile('logo')) {
-            if ($settings->logo_path) Storage::delete($settings->logo_path);
+            if ($settings->logo_path) Storage::disk('public')->delete($settings->logo_path);
             $settings->logo_path = $request->file('logo')->store('app', 'public');
         }
 
         if ($request->hasFile('favicon')) {
-            if ($settings->favicon_path) Storage::delete($settings->favicon_path);
+            if ($settings->favicon_path) Storage::disk('public')->delete($settings->favicon_path);
             $settings->favicon_path = $request->file('favicon')->store('app', 'public');
         }
 
@@ -238,7 +238,7 @@ class AppSettingsController extends Controller
         if (!empty($removeIndices)) {
             foreach ($removeIndices as $idx) {
                 if (isset($heroImages[$idx])) {
-                    Storage::delete($heroImages[$idx]);
+                    Storage::disk('public')->delete($heroImages[$idx]);
                 }
             }
             $heroImages = array_values(array_filter($heroImages, fn ($_, $i) => !in_array($i, $removeIndices), ARRAY_FILTER_USE_BOTH));
@@ -253,7 +253,7 @@ class AppSettingsController extends Controller
         // Handle message author photo
         if ($request->hasFile('message_author_photo')) {
             if ($settings->message_author_photo) {
-                Storage::delete($settings->message_author_photo);
+                Storage::disk('public')->delete($settings->message_author_photo);
             }
             $settings->message_author_photo = $request->file('message_author_photo')->store('landing/message', 'public');
         }
@@ -307,7 +307,7 @@ class AppSettingsController extends Controller
 
         // Delete old photo
         if (!empty($items[$idx]['photo_path'])) {
-            Storage::delete($items[$idx]['photo_path']);
+            Storage::disk('public')->delete($items[$idx]['photo_path']);
         }
         $items[$idx]['photo_path'] = $request->file('photo')->store('landing/alumni', 'public');
 
