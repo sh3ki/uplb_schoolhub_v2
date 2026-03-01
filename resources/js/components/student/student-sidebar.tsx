@@ -56,7 +56,8 @@ export function StudentSidebar() {
     const isEnrolled = auth.user.student?.enrollment_status === 'enrolled';
     const isCollegeDept = auth.user.student?.department_classification === 'College';
 
-    // Enrollment link: only for College students when college enrollment period is open
+    // Show Enrollment link for College students when college enrollment period is open
+    // This covers both re-enrollment (not-enrolled/dropped) and subject enrollment (enrolled)
     const showEnrollment = isCollegeDept && !!appSettings?.college_enrollment_open;
 
     const mainNavItems: NavItem[] = [
