@@ -1,6 +1,7 @@
-import { Head, router } from '@inertiajs/react';
-import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, UserX, MailCheck, MailWarning, RotateCcw, Archive, Trash2, CalendarDays } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, UserX, MailCheck, MailWarning, RotateCcw, Archive, Trash2, CalendarDays, BookOpen } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { show as showStudent, destroy as destroyStudent } from '@/routes/registrar/students';
 import { StudentFilters } from '@/components/registrar/student-filters';
 import { StudentFormModal } from '@/components/registrar/student-form-modal';
@@ -9,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Table,
@@ -178,6 +180,21 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, s
     useEffect(() => {
         localStorage.setItem('registrar_sy_start', syStart.toString());
     }, [syStart]);
+
+    // ── Active Semester ─────────────────────────────────────────────────────────────
+    const { props: sharedProps } = usePage<{ appSettings?: { active_semester?: number } }>();
+    const [activeSemester, setActiveSemester] = useState<string>(
+        String(sharedProps.appSettings?.active_semester ?? 1)
+    );
+
+    const handleSemesterChange = (value: string) => {
+        setActiveSemester(value);
+        router.patch('/registrar/active-semester', { active_semester: Number(value) }, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Active semester updated.'),
+            onError: () => toast.error('Failed to update active semester.'),
+        });
+    };
 
     // Clear selection when page changes
     useEffect(() => {
@@ -358,8 +375,8 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, s
                     </div>
                 </div>
 
-                {/* ── Active School Year Banner ─────────────────────────────── */}
-                <div className="flex items-center gap-3 rounded-lg border bg-primary/5 px-4 py-3">
+                {/* ── Active School Year & Semester Banner ─────────────────────────────── */}
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-primary/5 px-4 py-3">
                     <GraduationCap className="h-4 w-4 text-primary shrink-0" />
                     <span className="text-sm font-semibold text-primary">Active School Year:</span>
                     <div className="flex items-center gap-1.5">
@@ -378,6 +395,24 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, s
                             className="w-[4.5rem] rounded border border-input bg-muted px-2 py-1 text-center text-sm font-bold text-muted-foreground"
                         />
                     </div>
+
+                    <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
+
+                    <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                        <span className="text-sm font-semibold text-primary">Semester:</span>
+                        <Select value={activeSemester} onValueChange={handleSemesterChange}>
+                            <SelectTrigger className="h-8 w-[9rem] text-sm font-bold bg-background">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1">1st Semester</SelectItem>
+                                <SelectItem value="2">2nd Semester</SelectItem>
+                                <SelectItem value="3">Summer</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     <span className="text-xs text-muted-foreground ml-1">New students will be assigned to <strong>{activeSchoolYear}</strong> automatically.</span>
                 </div>
 
