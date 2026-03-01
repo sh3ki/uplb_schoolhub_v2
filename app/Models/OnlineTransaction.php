@@ -117,7 +117,7 @@ class OnlineTransaction extends Model
             return null;
         }
         
-        return Storage::url($this->payment_proof);
+        return Storage::disk('public')->url($this->payment_proof);
     }
 
     /**
