@@ -43,14 +43,22 @@ class HandleInertiaRequests extends Middleware
         $studentData = null;
         if ($user && $user->role === 'student' && $user->student_id) {
             $student = \App\Models\Student::with('department:id,name,classification')
-                ->select('id', 'enrollment_status', 'school_year', 'department_id')
+                ->select('id', 'enrollment_status', 'school_year', 'department_id', 'program')
                 ->find($user->student_id);
             if ($student) {
+                // Resolve department classification: prefer direct relation, fall back to program lookup
+                $classification = $student->department?->classification;
+                if (!$classification && $student->program) {
+                    $classification = \App\Models\Program::where('name', $student->program)
+                        ->join('departments', 'programs.department_id', '=', 'departments.id')
+                        ->value('departments.classification');
+                }
+
                 $studentData = [
                     'id' => $student->id,
                     'enrollment_status' => $student->enrollment_status,
                     'school_year' => $student->school_year,
-                    'department_classification' => $student->department?->classification,
+                    'department_classification' => $classification,
                 ];
             }
         }
