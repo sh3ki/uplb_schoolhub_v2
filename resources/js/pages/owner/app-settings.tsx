@@ -1,4 +1,6 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Form, Head, router } from '@inertiajs/react';
+import AppSettingsController from '@/actions/App/Http/Controllers/Owner/AppSettingsController';
+import { Transition } from '@headlessui/react';
 import {
     Building2, Calendar, Camera, ChevronDown, ChevronRight,
     GraduationCap, GripVertical, Globe, Image as ImageIcon,
@@ -142,14 +144,9 @@ interface Props {
 
 export default function AppSettings({ settings, departments }: Props) {
     // ── General / branding ────────────────────────────────
-    const { data, setData, post, processing, errors } = useForm({
-        app_name:        settings.app_name || '',
-        school_year:     settings.school_year || '2024-2025',
-        primary_color:   settings.primary_color || '#2563eb',
-        secondary_color: settings.secondary_color || '#64748b',
-        logo:    null as File | null,
-        favicon: null as File | null,
-    });
+    // local state only for live color preview swatches
+    const [primaryColor, setPrimaryColor]     = useState(settings.primary_color || '#2563eb');
+    const [secondaryColor, setSecondaryColor] = useState(settings.secondary_color || '#64748b');
 
     const [hasK12, setHasK12]          = useState<boolean>(settings.has_k12);
     const [hasCollege, setHasCollege]  = useState<boolean>(settings.has_college);
@@ -169,7 +166,7 @@ export default function AppSettings({ settings, departments }: Props) {
         const next = { has_k12: hasK12, has_college: hasCollege, [field]: value };
         if (field === 'has_k12') setHasK12(value); else setHasCollege(value);
         setAcademicSaving(true);
-        router.patch('/owner/app-settings/academic-structure', next, {
+        router.patch(AppSettingsController.updateAcademicStructure.url(), next, {
             preserveScroll: true,
             onSuccess: () => { toast.success('Academic structure saved'); setAcademicSaving(false); },
             onError:   () => { toast.error('Failed to save');              setAcademicSaving(false); },
@@ -178,7 +175,7 @@ export default function AppSettings({ settings, departments }: Props) {
 
     const handleEnrollmentPeriodSave = () => {
         setEnrollmentSaving(true);
-        router.patch('/owner/app-settings/enrollment-period', {
+        router.patch(AppSettingsController.updateEnrollmentPeriod.url(), {
             active_semester: activeSemester,
             k12_enrollment_open: k12EnrollmentOpen,
             k12_enrollment_start: k12EnrollmentStart || null,
@@ -202,16 +199,6 @@ export default function AppSettings({ settings, departments }: Props) {
         const reader = new FileReader();
         reader.onload = ev => { if (type === 'logo') setLogoPreview(ev.target?.result as string); else setFaviconPreview(ev.target?.result as string); };
         reader.readAsDataURL(file);
-        setData(type, file);
-    };
-
-    const handleGeneralSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        post('/owner/app-settings', {
-            forceFormData: true,
-            onSuccess: () => toast.success('App settings saved'),
-            onError:   () => toast.error('Failed to save settings'),
-        });
     };
 
     // ── Landing page ──────────────────────────────────────
@@ -311,7 +298,7 @@ export default function AppSettings({ settings, departments }: Props) {
         fd.append('features_items', JSON.stringify(featuresItems));
 
         setLandingSaving(true);
-        router.post('/owner/app-settings/landing-page', fd, {
+        router.post(AppSettingsController.updateLandingPage.url(), fd, {
             forceFormData: true, preserveScroll: true,
             onSuccess: () => { toast.success('Landing page saved'); setHeroNewFiles([]); setHeroRemoveIdx([]); setMsgAuthorFile(null); setLandingSaving(false); },
             onError:   () => { toast.error('Failed to save'); setLandingSaving(false); },
@@ -320,7 +307,7 @@ export default function AppSettings({ settings, departments }: Props) {
 
     const handleAlumniSave = () => {
         setAlumniSaving(true);
-        router.post('/owner/app-settings/alumni', { alumni: JSON.stringify(alumniItems) }, {
+        router.post(AppSettingsController.updateAlumni.url(), { alumni: JSON.stringify(alumniItems) }, {
             preserveScroll: true,
             onSuccess: () => {
                 const pending = Object.entries(alumniPhotoFiles);
@@ -335,7 +322,7 @@ export default function AppSettings({ settings, departments }: Props) {
                     const fd = new FormData();
                     fd.append('photo', file);
                     fd.append('index', idxStr);
-                    router.post('/owner/app-settings/alumni-photo', fd, {
+                    router.post(AppSettingsController.uploadAlumniPhoto.url(), fd, {
                         forceFormData: true,
                         preserveScroll: true,
                         onSuccess: () => {
@@ -373,7 +360,7 @@ export default function AppSettings({ settings, departments }: Props) {
 
     const handleNavSave = () => {
         setNavSaving(true);
-        router.post('/owner/app-settings/nav-links', { nav_links: JSON.stringify(navLinks) }, {
+        router.post(AppSettingsController.updateNavLinks.url(), { nav_links: JSON.stringify(navLinks) }, {
             preserveScroll: true,
             onSuccess: () => { toast.success('Nav links saved'); setNavSaving(false); },
             onError:   () => { toast.error('Failed');             setNavSaving(false); },
@@ -506,7 +493,14 @@ export default function AppSettings({ settings, departments }: Props) {
 
                     {/* ══ GENERAL ══════════════════════════════════════════ */}
                     <TabsContent value="general">
-                        <form onSubmit={handleGeneralSubmit} className="space-y-6">
+                        <Form
+                            {...AppSettingsController.update.form()}
+                            options={{
+                                preserveScroll: true,
+                            }}
+                            className="space-y-6"
+                        >
+                        {({ processing, recentlySuccessful, errors }) => (<>
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2"><Globe className="h-5 w-5" /> General</CardTitle>
@@ -515,7 +509,7 @@ export default function AppSettings({ settings, departments }: Props) {
                                 <CardContent className="space-y-4">
                                     <div className="grid gap-2">
                                         <Label htmlFor="app_name">Application Name</Label>
-                                        <Input id="app_name" value={data.app_name} onChange={e => setData('app_name', e.target.value)}
+                                        <Input id="app_name" name="app_name" defaultValue={settings.app_name}
                                             placeholder="e.g., St. Mary's School" maxLength={100} />
                                         {errors.app_name && <p className="text-sm text-destructive">{errors.app_name}</p>}
                                         <p className="text-xs text-muted-foreground">
@@ -524,7 +518,7 @@ export default function AppSettings({ settings, departments }: Props) {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="school_year">Current School Year</Label>
-                                        <Input id="school_year" value={data.school_year} onChange={e => setData('school_year', e.target.value)}
+                                        <Input id="school_year" name="school_year" defaultValue={settings.school_year}
                                             placeholder="e.g., 2025-2026" maxLength={20} />
                                         {errors.school_year && <p className="text-sm text-destructive">{errors.school_year}</p>}
                                         <p className="text-xs text-muted-foreground">
@@ -683,23 +677,23 @@ export default function AppSettings({ settings, departments }: Props) {
                                         <div className="grid gap-2">
                                             <Label>Primary Color</Label>
                                             <div className="flex items-center gap-3">
-                                                <input type="color" value={data.primary_color} onChange={e => setData('primary_color', e.target.value)} className="h-10 w-16 cursor-pointer rounded border p-1" />
-                                                <Input value={data.primary_color} onChange={e => setData('primary_color', e.target.value)} placeholder="#2563eb" className="font-mono uppercase" maxLength={7} />
+                                                <input type="color" defaultValue={settings.primary_color} value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-10 w-16 cursor-pointer rounded border p-1" />
+                                                <Input name="primary_color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} placeholder="#2563eb" className="font-mono uppercase" maxLength={7} />
                                             </div>
                                         </div>
                                         <div className="grid gap-2">
                                             <Label>Secondary Color</Label>
                                             <div className="flex items-center gap-3">
-                                                <input type="color" value={data.secondary_color} onChange={e => setData('secondary_color', e.target.value)} className="h-10 w-16 cursor-pointer rounded border p-1" />
-                                                <Input value={data.secondary_color} onChange={e => setData('secondary_color', e.target.value)} placeholder="#64748b" className="font-mono uppercase" maxLength={7} />
+                                                <input type="color" defaultValue={settings.secondary_color} value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-10 w-16 cursor-pointer rounded border p-1" />
+                                                <Input name="secondary_color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} placeholder="#64748b" className="font-mono uppercase" maxLength={7} />
                                             </div>
                                         </div>
                                     </div>
                                     <div className="rounded-lg border p-4 space-y-2">
                                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Preview</p>
                                         <div className="flex gap-3">
-                                            <div className="h-10 w-32 rounded flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: data.primary_color }}>Primary</div>
-                                            <div className="h-10 w-32 rounded flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: data.secondary_color }}>Secondary</div>
+                                            <div className="h-10 w-32 rounded flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: primaryColor }}>Primary</div>
+                                            <div className="h-10 w-32 rounded flex items-center justify-center text-white text-xs font-medium" style={{ backgroundColor: secondaryColor }}>Secondary</div>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -712,20 +706,30 @@ export default function AppSettings({ settings, departments }: Props) {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <UploadZone label="School Logo" preview={logoPreview} hint="PNG, JPG, SVG — max 2 MB" accept="image/*" inputId="logo-upload" onChange={e => handleBrandingFileChange(e, 'logo')} />
-                                        <UploadZone label="Favicon" preview={faviconPreview} hint="PNG, ICO — max 512 KB" accept="image/png,image/x-icon,.ico" inputId="favicon-upload" onChange={e => handleBrandingFileChange(e, 'favicon')} />
+                                        <UploadZone name="logo" label="School Logo" preview={logoPreview} hint="PNG, JPG, SVG — max 2 MB" accept="image/*" inputId="logo-upload" onChange={e => handleBrandingFileChange(e, 'logo')} />
+                                        <UploadZone name="favicon" label="Favicon" preview={faviconPreview} hint="PNG, ICO — max 512 KB" accept="image/png,image/x-icon,.ico" inputId="favicon-upload" onChange={e => handleBrandingFileChange(e, 'favicon')} />
                                     </div>
                                 </CardContent>
                             </Card>
 
                             <Separator />
-                            <div className="flex justify-end">
+                            <div className="flex items-center gap-4 justify-end">
                                 <Button type="submit" disabled={processing} size="lg">
                                     <Save className="mr-2 h-4 w-4" />
                                     {processing ? 'Saving…' : 'Save Settings'}
                                 </Button>
+                                <Transition
+                                    show={recentlySuccessful}
+                                    enter="transition ease-in-out"
+                                    enterFrom="opacity-0"
+                                    leave="transition ease-in-out"
+                                    leaveTo="opacity-0"
+                                >
+                                    <p className="text-sm text-green-600 font-medium">Saved!</p>
+                                </Transition>
                             </div>
-                        </form>
+                        </>)}
+                        </Form>
                     </TabsContent>
 
                     {/* ══ LANDING PAGE ═════════════════════════════════════ */}
@@ -1424,8 +1428,8 @@ export default function AppSettings({ settings, departments }: Props) {
 }
 
 // ── Shared UploadZone ─────────────────────────────────────────────
-function UploadZone({ label, preview, hint, accept, inputId, onChange }: {
-    label: string; preview: string | null; hint: string; accept: string; inputId: string;
+function UploadZone({ name, label, preview, hint, accept, inputId, onChange }: {
+    name: string; label: string; preview: string | null; hint: string; accept: string; inputId: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
     return (
@@ -1442,7 +1446,7 @@ function UploadZone({ label, preview, hint, accept, inputId, onChange }: {
                     </Label>
                     <p className="text-xs text-muted-foreground mt-1">{hint}</p>
                 </div>
-                <input id={inputId} type="file" accept={accept} className="hidden" onChange={onChange} />
+                <input id={inputId} name={name} type="file" accept={accept} className="hidden" onChange={onChange} />
             </div>
         </div>
     );
