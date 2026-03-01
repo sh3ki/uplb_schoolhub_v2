@@ -373,7 +373,7 @@ class StudentPaymentController extends Controller
 
         // Get all payments
         $payments = StudentPayment::where('student_id', $student->id)
-            ->with(['recordedBy'])
+            ->with(['recordedBy', 'studentFee'])
             ->orderBy('payment_date', 'desc')
             ->get()
             ->map(function ($payment) {
@@ -383,8 +383,10 @@ class StudentPaymentController extends Controller
                     'or_number' => $payment->or_number,
                     'amount' => (float) $payment->amount,
                     'payment_for' => $payment->payment_for,
+                    'payment_mode' => $payment->payment_mode ?? $payment->payment_method ?? 'CASH',
                     'notes' => $payment->notes,
                     'recorded_by' => $payment->recordedBy?->name,
+                    'school_year' => $payment->studentFee?->school_year,
                     'created_at' => $payment->created_at->format('Y-m-d H:i'),
                 ];
             });
