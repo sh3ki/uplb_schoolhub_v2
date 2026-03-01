@@ -1,25 +1,26 @@
 import { Head, router, useForm } from '@inertiajs/react';
+import {
+    Building2, Calendar, Camera, ChevronDown, ChevronRight,
+    GraduationCap, GripVertical, Globe, Image as ImageIcon,
+    Layout, MessageSquare, Navigation, Palette, Pencil,
+    Plus, Save, Trophy, Trash2, Upload, UserPlus, Users, X,
+    Footprints,
+} from 'lucide-react';
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import {
-    Upload, Save, Palette, Globe, Image as ImageIcon, GraduationCap,
-    Layout, Users, MessageSquare, Trophy, Footprints, Navigation,
-    Plus, Trash2, GripVertical, X, Camera, Calendar,
-    Pencil, Building2, ChevronDown, ChevronRight, UserPlus,
-} from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import OwnerLayout from '@/layouts/owner/owner-layout';
 import { PageHeader } from '@/components/page-header';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
+import OwnerLayout from '@/layouts/owner/owner-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -399,7 +400,7 @@ export default function AppSettings({ settings, departments }: Props) {
 
     const toggleDeptExpand = (id: number) => setExpandedDepts(prev => {
         const next = new Set(prev);
-        next.has(id) ? next.delete(id) : next.add(id);
+        if (next.has(id)) { next.delete(id); } else { next.add(id); }
         return next;
     });
 
