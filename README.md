@@ -47,6 +47,7 @@ The system includes the following modules and user accounts:
 - [x] Financial reports and exports
 - [x] **Landing Page CMS** — Edit hero (title, subtitle, image gallery carousel), faculty section, principal's message (with author photo), alumni/notable graduates section, footer, and navigation links — all from a 4-tab settings editor
 - [x] **App Settings** — App name, academic structure type (K12/College), theme colors, logo/favicon upload
+- [x] **Active Semester Management** — Set the active semester (1st Semester, 2nd Semester, Summer) from the Enrollment Period settings; used globally for college subject enrollment
 
 #### **1.2 Registrar Account** ✅ `90% COMPLETE`
 
@@ -64,6 +65,7 @@ The system includes the following modules and user accounts:
 - [ ] Academic record and transcript generation
 - [x] Archived students page — View/filter dropped/withdrawn/graduated students by classification (K-12/College), school year, semester, department; restore or permanently delete
 - [x] **Drop Request Management** — Review student drop requests with dual-approval workflow (registrar → accounting); attach fee items for accounting to collect
+- [x] **Active Semester Selector** — Quick-toggle semester (1st/2nd/Summer) directly from the Students management page alongside the Active School Year banner; persists to `app_settings`
 - [ ] Integration with e-LMS for student academic tracking
 
 #### **1.3 Accounting Account** ✅ `85% COMPLETE`
@@ -130,6 +132,7 @@ The system includes the following modules and user accounts:
 - [x] **Promissory Note Submission** — Submit promissory notes for fee deferral
 - [x] **Document Request Submission** — Request official documents (transcripts, certificates, etc.) with fee tracking
 - [x] **Online Payment Submission** — Submit online payment proofs (GCash, bank transfer) for verification
+- [x] **College Subject Enrollment** — Enrolled college students can select subjects for the active semester; shows available subjects grouped by year level with prerequisite validation, unit counter (min 15 / ideal 21 / max 24 per Philippine standards), search/filter, drop functionality, and confirmation dialogs; `CollegeEnrollmentController` enforces prerequisite completion, duplicate prevention, and unit limits in a DB transaction with action logging
 - [ ] Viewing grades and report cards
 - [ ] Attendance records using RFID Portal
 - [ ] Enrollment fees viewing (no dedicated student fee summary page)
