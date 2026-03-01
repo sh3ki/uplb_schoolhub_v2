@@ -187,9 +187,10 @@ function formatDate(dateString: string): string {
     });
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
+    const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('all');
     const [printReceipt, setPrintReceipt] = useState(true);
     const [amountReceived, setAmountReceived] = useState<string>('');
@@ -250,6 +251,27 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         due_date: '',
         reason: '',
     });
+
+    const balanceForm = useForm({
+        student_fee_id: feesWithBalance.length > 0 ? feesWithBalance[0].id.toString() : (fees.length > 0 ? fees[0].id.toString() : ''),
+        amount: '',
+        reason: '',
+        notes: '',
+    });
+
+    const handleAddBalanceSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        balanceForm.post(`/super-accounting/payments/process/${student.id}/add-balance`, {
+            onSuccess: () => {
+                setIsAddBalanceDialogOpen(false);
+                balanceForm.reset();
+                toast.success('Balance added successfully');
+            },
+            onError: () => {
+                toast.error('Failed to add balance');
+            },
+        });
+    };
 
     const handlePaymentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -351,6 +373,110 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 Process payments and manage account for {student.full_name}
                             </p>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Dialog open={isAddBalanceDialogOpen} onOpenChange={setIsAddBalanceDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100">
+                                    <Scale className="h-4 w-4 mr-2" />
+                                    Add Balance
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[500px]">
+                                <form onSubmit={handleAddBalanceSubmit}>
+                                    <DialogHeader>
+                                        <DialogTitle>Add Balance to Student Account</DialogTitle>
+                                        <DialogDescription>
+                                            Add additional balance to {student.full_name}'s account. This action is logged and auditable by the Owner.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid gap-2">
+                                            <Label>Fee / School Year *</Label>
+                                            {fees.length > 0 ? (
+                                                <Select
+                                                    value={balanceForm.data.student_fee_id}
+                                                    onValueChange={(val) => balanceForm.setData('student_fee_id', val)}
+                                                >
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Select school year" />
+                                                    </SelectTrigger>
+                                                    <SelectContent position="popper">
+                                                        {fees.map((fee) => (
+                                                            <SelectItem key={fee.id} value={fee.id.toString()}>
+                                                                {fee.school_year} — Current Balance: {formatCurrency(fee.balance)}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            ) : (
+                                                <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                                                    No fee records found
+                                                </div>
+                                            )}
+                                            {balanceForm.errors.student_fee_id && (
+                                                <p className="text-sm text-red-500">{balanceForm.errors.student_fee_id}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Amount to Add (₱) *</Label>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                min="0.01"
+                                                value={balanceForm.data.amount}
+                                                onChange={(e) => balanceForm.setData('amount', e.target.value)}
+                                                placeholder="0.00"
+                                                className="text-lg font-semibold"
+                                            />
+                                            {balanceForm.errors.amount && (
+                                                <p className="text-sm text-red-500">{balanceForm.errors.amount}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Reason *</Label>
+                                            <Textarea
+                                                value={balanceForm.data.reason}
+                                                onChange={(e) => balanceForm.setData('reason', e.target.value)}
+                                                placeholder="e.g. Late enrollment fee, Additional lab fee, Penalty..."
+                                                rows={2}
+                                            />
+                                            {balanceForm.errors.reason && (
+                                                <p className="text-sm text-red-500">{balanceForm.errors.reason}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Notes (Optional)</Label>
+                                            <Textarea
+                                                value={balanceForm.data.notes}
+                                                onChange={(e) => balanceForm.setData('notes', e.target.value)}
+                                                placeholder="Additional notes..."
+                                                rows={2}
+                                            />
+                                        </div>
+                                        <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
+                                            <div className="flex items-center gap-2 text-amber-700">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <span className="text-sm font-medium">This action is permanently logged and visible to the Owner.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="button" variant="outline" onClick={() => setIsAddBalanceDialogOpen(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={balanceForm.processing || !balanceForm.data.amount || !balanceForm.data.reason || !balanceForm.data.student_fee_id}
+                                            className="bg-amber-600 hover:bg-amber-700"
+                                        >
+                                            <Scale className="h-4 w-4 mr-2" />
+                                            Add Balance
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                     </div>
                     <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
                         <DialogTrigger asChild>
@@ -826,6 +952,35 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             </div>
                                         </CardContent>
                                     </Card>
+
+                                    {/* Balance Adjustments History */}
+                                    {balanceAdjustments.length > 0 && (
+                                        <Card>
+                                            <CardHeader className="pb-3">
+                                                <CardTitle className="flex items-center gap-2 text-base">
+                                                    <History className="h-4 w-4 text-amber-600" />
+                                                    Balance Adjustments
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="space-y-3 max-h-48 overflow-y-auto">
+                                                    {balanceAdjustments.map((adj) => (
+                                                        <div key={adj.id} className="border rounded-md p-2.5 bg-amber-50/50">
+                                                            <div className="flex justify-between items-start">
+                                                                <span className="text-sm font-medium text-amber-800">+{formatCurrency(adj.amount)}</span>
+                                                                <span className="text-xs text-muted-foreground">{adj.school_year}</span>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-1">{adj.reason}</p>
+                                                            <div className="flex justify-between items-center mt-1.5">
+                                                                <span className="text-xs text-muted-foreground">by {adj.adjusted_by}</span>
+                                                                <span className="text-xs text-muted-foreground">{adj.created_at}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    )}
 
                                     {/* Action Button */}
                                     <Button 
