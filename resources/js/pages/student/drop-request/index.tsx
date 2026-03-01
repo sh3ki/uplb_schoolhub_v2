@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     CheckCircle2,
     Clock,
+    DollarSign,
     FileText,
     Info,
     Plus,
@@ -41,16 +42,28 @@ import {
 import StudentLayout from '@/layouts/student/student-layout';
 import { toast } from 'sonner';
 
+type FeeItem = {
+    id: number;
+    name: string;
+    amount: number;
+};
+
 type DropRequestType = {
     id: number;
     reason: string;
     status: 'pending' | 'approved' | 'rejected';
+    registrar_status: string;
+    accounting_status: string;
     semester: string | null;
     school_year: string | null;
     registrar_notes: string | null;
     processed_by: string | null;
     processed_at: string | null;
     created_at: string;
+    fee_amount: number;
+    is_paid: boolean;
+    or_number: string | null;
+    fee_items: FeeItem[];
 };
 
 type Props = {
@@ -321,6 +334,7 @@ export default function DropRequestIndex({
                                         <TableHead>Semester</TableHead>
                                         <TableHead>Reason</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead>Document Fees</TableHead>
                                         <TableHead>Registrar Notes</TableHead>
                                         <TableHead>Processed</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -337,6 +351,28 @@ export default function DropRequestIndex({
                                             </TableCell>
                                             <TableCell>
                                                 <StatusBadge status={req.status} />
+                                            </TableCell>
+                                            <TableCell>
+                                                {req.fee_items && req.fee_items.length > 0 ? (
+                                                    <div className="space-y-0.5">
+                                                        {req.fee_items.map((fi) => (
+                                                            <div key={fi.id} className="text-xs">
+                                                                {fi.name} — ₱{fi.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                                            </div>
+                                                        ))}
+                                                        <div className="text-xs font-semibold border-t pt-0.5 mt-0.5">
+                                                            Total: ₱{req.fee_amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                                        </div>
+                                                        {req.is_paid && (
+                                                            <div className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                                                                <DollarSign className="h-3 w-3" /> Paid
+                                                                {req.or_number && <span>(OR: {req.or_number})</span>}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">—</span>
+                                                )}
                                             </TableCell>
                                             <TableCell className="max-w-[150px] truncate" title={req.registrar_notes || ''}>
                                                 {req.registrar_notes || '—'}

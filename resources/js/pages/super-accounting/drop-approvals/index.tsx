@@ -6,6 +6,7 @@ import {
     Clock,
     DollarSign,
     Search,
+    Settings2,
     ThumbsDown,
     ThumbsUp,
     UserMinus,
@@ -16,6 +17,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -101,6 +103,12 @@ type Stats = {
     rejected: number;
 };
 
+type FeeItemAvailable = {
+    id: number;
+    name: string;
+    amount: number;
+};
+
 type Props = {
     requests: PaginatedRequests;
     stats: Stats;
@@ -108,6 +116,7 @@ type Props = {
     filters: {
         search?: string;
     };
+    availableFeeItems: FeeItemAvailable[];
 };
 
 const formatCurrency = (amount: number) =>
@@ -119,12 +128,14 @@ const statusConfig: Record<string, { color: string; icon: typeof CheckCircle2 }>
     rejected: { color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
-export default function DropApprovals({ requests, stats, tab, filters }: Props) {
+export default function DropApprovals({ requests, stats, tab, filters, availableFeeItems }: Props) {
     const [activeTab, setActiveTab] = useState(tab);
     const [selectedRequest, setSelectedRequest] = useState<DropRequest | null>(null);
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
+    const [showSetFeesModal, setShowSetFeesModal] = useState(false);
     const [search, setSearch] = useState(filters.search || '');
+    const [selectedFeeIds, setSelectedFeeIds] = useState<number[]>([]);
 
     const approveForm = useForm({
         accounting_remarks: '',
@@ -133,6 +144,10 @@ export default function DropApprovals({ requests, stats, tab, filters }: Props) 
 
     const rejectForm = useForm({
         accounting_remarks: '',
+    });
+
+    const setFeesForm = useForm({
+        fee_item_ids: [] as number[],
     });
 
     const handleTabChange = (newTab: string) => {
@@ -175,6 +190,30 @@ export default function DropApprovals({ requests, stats, tab, filters }: Props) 
             },
         });
     };
+
+    const handleSetFees = () => {
+        if (!selectedRequest) return;
+        setFeesForm.setData('fee_item_ids', selectedFeeIds);
+        setFeesForm.post(`/super-accounting/drop-approvals/${selectedRequest.id}/set-fees`, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowSetFeesModal(false);
+                setSelectedRequest(null);
+                setSelectedFeeIds([]);
+                setFeesForm.reset();
+            },
+        });
+    };
+
+    const toggleFeeItem = (id: number) => {
+        setSelectedFeeIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+        );
+    };
+
+    const selectedFeeTotal = availableFeeItems
+        .filter((fi) => selectedFeeIds.includes(fi.id))
+        .reduce((sum, fi) => sum + fi.amount, 0);
 
     const getInitials = (name: string) =>
         name
@@ -370,7 +409,20 @@ export default function DropApprovals({ requests, stats, tab, filters }: Props) 
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             {req.accounting_status === 'pending' ? (
-                                                                <div className="flex justify-end gap-2">
+                                                                <div className="flex justify-end gap-2 flex-wrap">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="text-blue-600 hover:text-blue-700"
+                                                                        onClick={() => {
+                                                                            setSelectedRequest(req);
+                                                                            setSelectedFeeIds(req.fee_items.map((fi) => fi.id));
+                                                                            setShowSetFeesModal(true);
+                                                                        }}
+                                                                    >
+                                                                        <Settings2 className="h-4 w-4 mr-1" />
+                                                                        Set Fees
+                                                                    </Button>
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
@@ -434,6 +486,79 @@ export default function DropApprovals({ requests, stats, tab, filters }: Props) 
                         </Tabs>
                     </CardContent>
                 </Card>
+
+                {/* Set Fees Modal */}
+                <Dialog open={showSetFeesModal} onOpenChange={setShowSetFeesModal}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Settings2 className="h-5 w-5 text-blue-500" />
+                                Set Document Fees
+                            </DialogTitle>
+                            <DialogDescription>
+                                Select the applicable fee items for this drop request.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selectedRequest && (
+                            <div className="space-y-4">
+                                <div className="bg-muted p-3 rounded-lg">
+                                    <p className="font-medium">{selectedRequest.student.full_name}</p>
+                                    <p className="text-sm text-muted-foreground">{selectedRequest.student.lrn}</p>
+                                </div>
+                                {availableFeeItems.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground text-center py-4">
+                                        No fee items with "Drop" category found. Please configure them in Fee Management.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">Available Fee Items</Label>
+                                        <div className="space-y-2 max-h-56 overflow-y-auto border rounded-md p-3">
+                                            {availableFeeItems.map((fi) => (
+                                                <div key={fi.id} className="flex items-center justify-between gap-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <Checkbox
+                                                            id={`fee-${fi.id}`}
+                                                            checked={selectedFeeIds.includes(fi.id)}
+                                                            onCheckedChange={() => toggleFeeItem(fi.id)}
+                                                        />
+                                                        <Label htmlFor={`fee-${fi.id}`} className="cursor-pointer text-sm font-normal">
+                                                            {fi.name}
+                                                        </Label>
+                                                    </div>
+                                                    <span className="text-sm font-medium tabular-nums">
+                                                        {formatCurrency(fi.amount)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex justify-between items-center pt-2 border-t font-semibold">
+                                            <span>Total</span>
+                                            <span>{formatCurrency(selectedFeeTotal)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        <DialogFooter>
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setShowSetFeesModal(false);
+                                    setSelectedFeeIds([]);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSetFees}
+                                disabled={setFeesForm.processing}
+                            >
+                                <DollarSign className="h-4 w-4 mr-2" />
+                                Save Fees
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
 
                 {/* Approve Modal */}
                 <Dialog open={showApproveModal} onOpenChange={setShowApproveModal}>
