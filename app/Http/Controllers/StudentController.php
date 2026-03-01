@@ -665,6 +665,21 @@ class StudentController extends Controller
     }
 
     /**
+     * Update the active semester (accessible by registrar).
+     */
+    public function updateActiveSemester(Request $request)
+    {
+        $validated = $request->validate([
+            'active_semester' => 'required|integer|in:1,2,3',
+        ]);
+
+        $settings = AppSetting::current();
+        $settings->update(['active_semester' => $validated['active_semester']]);
+
+        return back()->with('success', 'Active semester updated.');
+    }
+
+    /**
      * Bulk archive selected students (soft delete).
      */
     public function bulkArchive(Request $request)
