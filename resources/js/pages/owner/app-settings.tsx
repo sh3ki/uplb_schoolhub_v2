@@ -71,6 +71,7 @@ interface AppSettingsData {
     has_k12: boolean;
     has_college: boolean;
     // Enrollment period settings
+    active_semester: number;
     k12_enrollment_open: boolean;
     k12_enrollment_start: string | null;
     k12_enrollment_end: string | null;
@@ -125,6 +126,7 @@ export default function AppSettings({ settings }: Props) {
     const [academicSaving, setAcademicSaving] = useState(false);
 
     // Enrollment period state
+    const [activeSemester, setActiveSemester] = useState<number>(settings.active_semester || 1);
     const [k12EnrollmentOpen, setK12EnrollmentOpen] = useState<boolean>(settings.k12_enrollment_open);
     const [k12EnrollmentStart, setK12EnrollmentStart] = useState<string>(settings.k12_enrollment_start || '');
     const [k12EnrollmentEnd, setK12EnrollmentEnd] = useState<string>(settings.k12_enrollment_end || '');
@@ -147,6 +149,7 @@ export default function AppSettings({ settings }: Props) {
     const handleEnrollmentPeriodSave = () => {
         setEnrollmentSaving(true);
         router.patch('/owner/app-settings/enrollment-period', {
+            active_semester: activeSemester,
             k12_enrollment_open: k12EnrollmentOpen,
             k12_enrollment_start: k12EnrollmentStart || null,
             k12_enrollment_end: k12EnrollmentEnd || null,
@@ -413,13 +416,33 @@ export default function AppSettings({ settings }: Props) {
                                 </CardContent>
                             </Card>
 
-                            {/* Enrollment Period Settings */}
+                            {/* Active Semester & Enrollment Period Settings */}
                             <Card>
                                 <CardHeader>
-                                    <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Enrollment Period</CardTitle>
-                                    <CardDescription>Control when students can enroll. K-12 and College can have different enrollment periods.</CardDescription>
+                                    <CardTitle className="flex items-center gap-2"><Calendar className="h-5 w-5" /> Active Semester & Enrollment Period</CardTitle>
+                                    <CardDescription>Set the current active semester and control when students can enroll. K-12 and College can have different enrollment periods.</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-6">
+                                    {/* Active Semester Selector */}
+                                    <div className="rounded-lg border p-4 space-y-3">
+                                        <div>
+                                            <p className="font-medium">Active Semester</p>
+                                            <p className="text-sm text-muted-foreground">Set the current semester for subject enrollment. College students can only enroll in subjects offered in the active semester.</p>
+                                        </div>
+                                        <Select
+                                            value={activeSemester.toString()}
+                                            onValueChange={(val) => setActiveSemester(parseInt(val))}
+                                        >
+                                            <SelectTrigger className="w-[240px]">
+                                                <SelectValue placeholder="Select active semester" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="1">1st Semester</SelectItem>
+                                                <SelectItem value="2">2nd Semester</SelectItem>
+                                                <SelectItem value="3">Summer / Midyear</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
                                     {/* K-12 Enrollment */}
                                     {hasK12 && (
                                         <div className="rounded-lg border p-4 space-y-4">
