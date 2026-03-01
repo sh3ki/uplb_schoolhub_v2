@@ -30,7 +30,7 @@ class FacultyController extends Controller
         $photoUrl = null;
         if ($request->hasFile('photo')) {
             $path     = $request->file('photo')->store('faculty/photos', 'public');
-            $photoUrl = Storage::url($path);
+            $photoUrl = '/storage/' . $path;
         }
 
         Teacher::create([
@@ -89,7 +89,7 @@ class FacultyController extends Controller
                 Storage::disk('public')->delete($oldPath);
             }
             $path = $request->file('photo')->store('faculty/photos', 'public');
-            $updateData['photo_url'] = Storage::url($path);
+            $updateData['photo_url'] = '/storage/' . $path;
         }
 
         $teacher->update($updateData);
