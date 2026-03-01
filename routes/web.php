@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -219,7 +219,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::delete('archived/{id}', [App\Http\Controllers\Registrar\ArchivedStudentController::class, 'forceDelete'])->name('archived.destroy');
     Route::post('archived/bulk-restore', [App\Http\Controllers\Registrar\ArchivedStudentController::class, 'bulkRestore'])->name('archived.bulk-restore');
 
-    // Inactive Students (deactivated — is_active = false, not soft-deleted)
+    // Inactive Students (deactivated â€” is_active = false, not soft-deleted)
     Route::get('inactive-students', [App\Http\Controllers\Registrar\InactiveStudentController::class, 'index'])->name('inactive-students');
 
     // Deactivate / Activate individual student
