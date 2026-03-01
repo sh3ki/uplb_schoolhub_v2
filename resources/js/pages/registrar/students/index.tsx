@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, UserX, MailCheck, MailWarning, RotateCcw, Archive, Trash2, CalendarDays, BookOpen } from 'lucide-react';
+import { Plus, CheckCircle2, Circle, Users, List, GraduationCap, UserCheck, UserX, MailCheck, MailWarning, RotateCcw, Archive, Trash2, CalendarDays, BookOpen, ArrowUpCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { RegistrarMessages, showSuccess, showError } from '@/components/registrar/registrar-messages';
@@ -354,6 +354,14 @@ export default function StudentsIndex({ students, stats, programs, yearLevels, s
                                 </Button>
                             </>
                         )}
+                        <Button
+                            variant="outline"
+                            onClick={() => router.get('/registrar/promote-students')}
+                            className="border-indigo-300 text-indigo-700 hover:bg-indigo-50"
+                        >
+                            <ArrowUpCircle className="mr-2 h-4 w-4" />
+                            Promote Students
+                        </Button>
                         <Button
                             variant={viewMode === 'classlist' ? 'default' : 'outline'}
                             onClick={() => setViewMode(viewMode === 'list' ? 'classlist' : 'list')}
