@@ -76,7 +76,7 @@ class ProfileController extends Controller
         }
 
         $path = $request->file('photo')->store('teacher-photos', 'public');
-        $teacher->photo_url = Storage::url($path);
+        $teacher->photo_url = '/storage/' . $path;
         $teacher->save();
 
         return redirect()->back()->with('success', 'Photo updated successfully.');
