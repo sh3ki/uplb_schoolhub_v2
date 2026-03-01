@@ -14,6 +14,7 @@ class AppSetting extends Model
         'primary_color',
         'secondary_color',
         'school_year',
+        'active_semester',
         'drop_request_deadline',
         'has_k12',
         'has_college',
@@ -64,6 +65,7 @@ class AppSetting extends Model
         'alumni_items'             => 'array',
         'features_items'           => 'array',
         'nav_links'                => 'array',
+        'active_semester'           => 'integer',
         'drop_request_deadline'    => 'date',
     ];
 
@@ -73,9 +75,10 @@ class AppSetting extends Model
             'app_name'      => 'School Management System',
             'primary_color' => '#1d4ed8',
             'secondary_color' => '#64748b',
-            'school_year'   => '2024-2025',
-            'has_k12'       => true,
-            'has_college'   => true,
+            'school_year'      => '2024-2025',
+            'active_semester'  => 1,
+            'has_k12'          => true,
+            'has_college'      => true,
         ]);
     }
 
