@@ -14,7 +14,8 @@ class StudentListController extends Controller
         $query = Student::query()
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix',
                      'lrn', 'gender', 'program', 'year_level', 'section',
-                     'enrollment_status', 'school_year', 'student_photo_url')
+                     'enrollment_status', 'school_year', 'student_photo_url', 'department_id')
+            ->with('department:id,name,classification')
             ->whereNull('deleted_at');
 
         if ($request->filled('search')) {
@@ -42,6 +43,14 @@ class StudentListController extends Controller
             $query->where('school_year', $request->input('school_year'));
         }
 
+        // Classification filter (K-12 / College)
+        if ($request->filled('classification') && $request->input('classification') !== 'all') {
+            $classification = $request->input('classification');
+            $query->whereHas('department', function ($q) use ($classification) {
+                $q->where('classification', $classification);
+            });
+        }
+
         // Always sort A-Z by last name within gender groups
         $all = $query->orderBy('last_name')->orderBy('first_name')->get();
 
@@ -58,14 +67,19 @@ class StudentListController extends Controller
         $yearLevels  = Student::whereNotNull('year_level')->distinct()->pluck('year_level')->sort()->values();
         $schoolYears = Student::whereNotNull('school_year')->distinct()->pluck('school_year')->sort()->values();
 
+        // Available classifications from departments
+        $classifications = \App\Models\Department::distinct()->whereNotNull('classification')
+            ->pluck('classification')->sort()->values();
+
         return Inertia::render('owner/students/index', [
-            'male'        => $male,
-            'female'      => $female,
-            'stats'       => $stats,
-            'programs'    => $programs,
-            'yearLevels'  => $yearLevels,
-            'schoolYears' => $schoolYears,
-            'filters'     => $request->only(['search', 'program', 'year_level', 'enrollment_status', 'school_year']),
+            'male'            => $male,
+            'female'          => $female,
+            'stats'           => $stats,
+            'programs'        => $programs,
+            'yearLevels'      => $yearLevels,
+            'schoolYears'     => $schoolYears,
+            'classifications' => $classifications,
+            'filters'         => $request->only(['search', 'program', 'year_level', 'enrollment_status', 'school_year', 'classification']),
         ]);
     }
 }

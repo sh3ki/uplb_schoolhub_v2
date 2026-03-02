@@ -73,6 +73,119 @@ class RequirementSeeder extends Seeder
             ]);
         }
 
+        // ─────────────────────────────────────────────────────────────────
+        // K-12 Requirements Category
+        // ─────────────────────────────────────────────────────────────────
+        $k12Category = RequirementCategory::create([
+            'name' => 'K-12 Requirements',
+            'slug' => 'k12-requirements',
+            'description' => 'Requirements specific to K-12 students (Grades 7–12)',
+            'order' => 2,
+            'is_active' => true,
+        ]);
+
+        $k12Requirements = [
+            [
+                'name' => 'Form 138 / Report Card (K-12)',
+                'description' => 'Original or certified true copy of Form 138 from previous level',
+                'order' => 1,
+            ],
+            [
+                'name' => 'PSA Birth Certificate',
+                'description' => 'Philippine Statistics Authority (PSA) authenticated Birth Certificate',
+                'order' => 2,
+            ],
+            [
+                'name' => 'Barangay Certificate',
+                'description' => 'Certificate of residency from the student\'s barangay',
+                'order' => 3,
+            ],
+            [
+                'name' => 'ESC / SHS Voucher Application',
+                'description' => 'Educational Service Contracting (ESC) certificate or SHS Voucher form (if applicable)',
+                'order' => 4,
+            ],
+            [
+                'name' => 'Parent/Guardian Authorization Letter',
+                'description' => 'Signed authorization letter from parent or guardian (for minor students)',
+                'order' => 5,
+            ],
+        ];
+
+        foreach ($k12Requirements as $req) {
+            Requirement::create([
+                'requirement_category_id' => $k12Category->id,
+                'name' => $req['name'],
+                'description' => $req['description'],
+                'deadline_type' => 'during_enrollment',
+                'applies_to_new_enrollee' => true,
+                'applies_to_transferee' => true,
+                'applies_to_returning' => true,
+                'is_required' => true,
+                'order' => $req['order'],
+                'is_active' => true,
+            ]);
+        }
+
+        // ─────────────────────────────────────────────────────────────────
+        // College Requirements Category
+        // ─────────────────────────────────────────────────────────────────
+        $collegeCategory = RequirementCategory::create([
+            'name' => 'College Requirements',
+            'slug' => 'college-requirements',
+            'description' => 'Requirements specific to college-level students',
+            'order' => 3,
+            'is_active' => true,
+        ]);
+
+        $collegeRequirements = [
+            [
+                'name' => 'Official Transcript of Records (TOR)',
+                'description' => 'Official Transcript of Records from previous school or college',
+                'order' => 1,
+            ],
+            [
+                'name' => 'Honorable Dismissal',
+                'description' => 'Honorable Dismissal or Transfer Credentials from previous institution',
+                'order' => 2,
+            ],
+            [
+                'name' => 'High School Diploma / Senior High Completion',
+                'description' => 'Diploma or certificate of completion from Senior High School',
+                'order' => 3,
+            ],
+            [
+                'name' => 'NCAE / NSAT Results',
+                'description' => 'National Career Assessment Examination or National Secondary Achievement Test results',
+                'order' => 4,
+            ],
+            [
+                'name' => 'Certificate of Good Moral Character (College)',
+                'description' => 'Certificate of Good Moral Character from previous school signed by principal/registrar',
+                'order' => 5,
+            ],
+            [
+                'name' => 'College Entrance Test (CET) Result',
+                'description' => 'Copy of Western Colleges entrance exam results or equivalent',
+                'order' => 6,
+            ],
+        ];
+
+        foreach ($collegeRequirements as $req) {
+            Requirement::create([
+                'requirement_category_id' => $collegeCategory->id,
+                'name' => $req['name'],
+                'description' => $req['description'],
+                'deadline_type' => 'during_enrollment',
+                'applies_to_new_enrollee' => true,
+                'applies_to_transferee' => true,
+                'applies_to_returning' => false,
+                'is_required' => true,
+                'order' => $req['order'],
+                'is_active' => true,
+            ]);
+        }
+
         // Assign requirements to all existing students
         $allRequirements = Requirement::all();
         $students = Student::all();

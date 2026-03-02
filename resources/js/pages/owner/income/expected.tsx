@@ -1,10 +1,21 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { TrendingUp, Calendar, Building2, Users } from 'lucide-react';
 import { IncomeCard } from '@/components/owner/income-card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -53,6 +64,9 @@ interface ExpectedIncomeProps {
     last3Months: MonthEntry[];
     byDepartment: DeptEntry[];
     studentCount: number;
+    schoolYears: string[];
+    selectedYear: string;
+    filters: { school_year?: string; date_from?: string; date_to?: string };
 }
 
 const formatCurrency = (value: number) =>
@@ -73,7 +87,22 @@ export default function ExpectedIncome({
     last3Months,
     byDepartment,
     studentCount,
+    schoolYears,
+    selectedYear,
+    filters,
 }: ExpectedIncomeProps) {
+    const [schoolYear, setSchoolYear] = useState(filters.school_year || selectedYear);
+    const [dateFrom, setDateFrom] = useState(filters.date_from || '');
+    const [dateTo, setDateTo] = useState(filters.date_to || '');
+
+    const handleApply = () => {
+        router.get('/owner/income/expected', {
+            school_year: schoolYear,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined,
+        }, { preserveState: true });
+    };
+
     const collectionProgress = totalBilled > 0 ? (totalCollected / totalBilled) * 100 : 0;
     const remainingProgress = totalBilled > 0 ? (totalBalance / totalBilled) * 100 : 0;
 
@@ -82,10 +111,36 @@ export default function ExpectedIncome({
             <Head title="Expected Income" />
 
             <div className="space-y-6 p-4 md:p-6">
-                {/* Header */}
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">Expected Income</h1>
-                    <p className="text-muted-foreground text-sm">Projected collection based on outstanding balances</p>
+                {/* Header + Filter */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">Expected Income</h1>
+                        <p className="text-muted-foreground text-sm">Projected collection based on outstanding balances</p>
+                    </div>
+                    <div className="flex flex-wrap items-end gap-3">
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">School Year</Label>
+                            <Select value={schoolYear} onValueChange={setSchoolYear}>
+                                <SelectTrigger className="w-36">
+                                    <SelectValue placeholder="School Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {schoolYears.map(sy => (
+                                        <SelectItem key={sy} value={sy}>{sy}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">Date From</Label>
+                            <Input type="date" className="w-36" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">Date To</Label>
+                            <Input type="date" className="w-36" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+                        </div>
+                        <Button onClick={handleApply}>Apply</Button>
+                    </div>
                 </div>
 
                 {/* Main card + summary */}

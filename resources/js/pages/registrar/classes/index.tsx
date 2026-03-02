@@ -134,6 +134,7 @@ export default function RegistrarClassesIndex({
     const [targetSection, setTargetSection] = useState<string>('');
     const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
     const [unassignedGenderFilter, setUnassignedGenderFilter] = useState<'all' | 'Male' | 'Female'>('all');
+    const [sectionSearch, setSectionSearch] = useState('');
     const [assigning, setAssigning] = useState(false);
     const [draggedStudentId, setDraggedStudentId] = useState<number | null>(null);
     const [dragOverSectionId, setDragOverSectionId] = useState<number | null>(null);
@@ -149,6 +150,17 @@ export default function RegistrarClassesIndex({
         if (unassignedGenderFilter === 'all') return unassignedStudents;
         return unassignedStudents.filter(s => s.gender === unassignedGenderFilter);
     }, [unassignedStudents, unassignedGenderFilter]);
+
+    // Filter sections by name search
+    const displayedSections = useMemo(() => {
+        if (!sectionSearch.trim()) return sections;
+        const q = sectionSearch.toLowerCase();
+        return sections.filter(sec =>
+            sec.name.toLowerCase().includes(q) ||
+            (sec.department?.name?.toLowerCase().includes(q)) ||
+            (sec.year_level?.name?.toLowerCase().includes(q))
+        );
+    }, [sections, sectionSearch]);
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -563,8 +575,17 @@ export default function RegistrarClassesIndex({
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <UserCheck className="h-5 w-5 text-green-500" />
                                 Assigned to Sections
-                                <Badge variant="secondary">{sections.length} sections</Badge>
+                                <Badge variant="secondary">{displayedSections.length} of {sections.length}</Badge>
                             </CardTitle>
+                            <div className="mt-2">
+                                <input
+                                    type="text"
+                                    value={sectionSearch}
+                                    onChange={(e) => setSectionSearch(e.target.value)}
+                                    placeholder="Filter by section name..."
+                                    className="w-full h-8 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                />
+                            </div>
                         </CardHeader>
 
                         <CardContent className="flex-1 overflow-y-auto p-4 pt-0">
@@ -573,9 +594,14 @@ export default function RegistrarClassesIndex({
                                     <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-50" />
                                     <p>No sections found</p>
                                 </div>
+                            ) : displayedSections.length === 0 ? (
+                                <div className="text-center py-12 text-muted-foreground">
+                                    <GraduationCap className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                                    <p>No sections match your filter</p>
+                                </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {sections.map((section) => {
+                                    {displayedSections.map((section) => {
                                         const sectionMale   = section.assigned_students.filter(s => s.gender === 'Male').length;
                                         const sectionFemale = section.assigned_students.filter(s => s.gender === 'Female').length;
                                         const isDragTarget  = dragOverSectionId === section.id && draggedStudentId !== null;

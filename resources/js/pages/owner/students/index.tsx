@@ -32,12 +32,14 @@ interface Props {
     programs: string[];
     yearLevels: string[];
     schoolYears: string[];
+    classifications: string[];
     filters: {
         search?: string;
         program?: string;
         year_level?: string;
         enrollment_status?: string;
         school_year?: string;
+        classification?: string;
     };
 }
 
@@ -120,37 +122,34 @@ function GenderTable({ title, students, color }: { title: string; students: Stud
     );
 }
 
-export default function OwnerStudentsIndex({ male, female, stats, programs, yearLevels, schoolYears, filters }: Props) {
+export default function OwnerStudentsIndex({ male, female, stats, programs, yearLevels, schoolYears, classifications = [], filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [program, setProgram] = useState(filters.program || 'all');
     const [yearLevel, setYearLevel] = useState(filters.year_level || 'all');
     const [enrollmentStatus, setEnrollmentStatus] = useState(filters.enrollment_status || 'all');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
+    const [classification, setClassification] = useState(filters.classification || 'all');
 
     const navigate = (params: Record<string, string>) => {
         router.get('/owner/students', params, { preserveState: true, replace: true });
     };
 
-    const handleSearch = (val: string) => {
-        setSearch(val);
-        navigate({ search: val, program, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: schoolYear });
-    };
-    const handleProgram = (val: string) => {
-        setProgram(val);
-        navigate({ search, program: val, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: schoolYear });
-    };
-    const handleYearLevel = (val: string) => {
-        setYearLevel(val);
-        navigate({ search, program, year_level: val, enrollment_status: enrollmentStatus, school_year: schoolYear });
-    };
-    const handleStatus = (val: string) => {
-        setEnrollmentStatus(val);
-        navigate({ search, program, year_level: yearLevel, enrollment_status: val, school_year: schoolYear });
-    };
-    const handleSchoolYear = (val: string) => {
-        setSchoolYear(val);
-        navigate({ search, program, year_level: yearLevel, enrollment_status: enrollmentStatus, school_year: val });
-    };
+    const buildParams = (overrides: Record<string, string> = {}) => ({
+        search,
+        program,
+        year_level: yearLevel,
+        enrollment_status: enrollmentStatus,
+        school_year: schoolYear,
+        classification,
+        ...overrides,
+    });
+
+    const handleSearch = (val: string) => { setSearch(val); navigate(buildParams({ search: val })); };
+    const handleProgram = (val: string) => { setProgram(val); navigate(buildParams({ program: val })); };
+    const handleYearLevel = (val: string) => { setYearLevel(val); navigate(buildParams({ year_level: val })); };
+    const handleStatus = (val: string) => { setEnrollmentStatus(val); navigate(buildParams({ enrollment_status: val })); };
+    const handleSchoolYear = (val: string) => { setSchoolYear(val); navigate(buildParams({ school_year: val })); };
+    const handleClassification = (val: string) => { setClassification(val); navigate(buildParams({ classification: val })); };
 
     return (
         <OwnerLayout>
@@ -207,6 +206,17 @@ export default function OwnerStudentsIndex({ male, female, stats, programs, year
                             { value: 'dropped', label: 'Dropped' },
                         ]}
                     />
+                    {classifications.length > 0 && (
+                        <FilterDropdown
+                            label="Classification"
+                            value={classification}
+                            onChange={handleClassification}
+                            options={[
+                                { value: 'all', label: 'All Classifications' },
+                                ...classifications.map(c => ({ value: c, label: c })),
+                            ]}
+                        />
+                    )}
                 </FilterBar>
 
                 {/* School Year Tabs */}

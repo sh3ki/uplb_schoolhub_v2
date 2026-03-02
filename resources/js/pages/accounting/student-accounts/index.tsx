@@ -157,7 +157,7 @@ interface Props {
 }
 
 export default function StudentAccounts({ accounts, schoolYears, stats, departments = [], classifications = [], yearLevels = [], filters, classListMale = [], classListFemale = [] }: Props) {
-    const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>('accounts');
+    const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>('classlist');
     const [search, setSearch] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.status || 'overdue');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
@@ -534,9 +534,14 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListMale.length === 0 ? (
                                             <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No male students.</TableCell></TableRow>
                                         ) : classListMale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/student-accounts/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
-                                                <TableCell className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <StudentPhoto src={s.student_photo_url ?? null} firstName={s.first_name} lastName={s.last_name} size="sm" />
+                                                        <span className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</span>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="font-mono text-sm">{s.lrn}</TableCell>
                                                 <TableCell className="text-sm">{s.program || '—'}</TableCell>
                                                 <TableCell className="text-sm">{[s.year_level, s.section].filter(Boolean).join(' · ') || '—'}</TableCell>
@@ -565,9 +570,14 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListFemale.length === 0 ? (
                                             <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No female students.</TableCell></TableRow>
                                         ) : classListFemale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/student-accounts/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
-                                                <TableCell className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</TableCell>
+                                                <TableCell>
+                                                    <div className="flex items-center gap-2">
+                                                        <StudentPhoto src={s.student_photo_url ?? null} firstName={s.first_name} lastName={s.last_name} size="sm" />
+                                                        <span className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</span>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell className="font-mono text-sm">{s.lrn}</TableCell>
                                                 <TableCell className="text-sm">{s.program || '—'}</TableCell>
                                                 <TableCell className="text-sm">{[s.year_level, s.section].filter(Boolean).join(' · ') || '—'}</TableCell>

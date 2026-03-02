@@ -1,8 +1,11 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { IncomeCard } from '@/components/owner/income-card';
 import { RevenueChart } from '@/components/owner/revenue-chart';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
@@ -48,6 +51,8 @@ interface DashboardProps {
     totalStudents: number;
     totalPayments: number;
     schoolYear: string;
+    schoolYears: string[];
+    filters: { school_year?: string; date_from?: string; date_to?: string };
 }
 
 export default function OwnerDashboard({
@@ -65,14 +70,28 @@ export default function OwnerDashboard({
     totalStudents,
     totalPayments,
     schoolYear,
+    schoolYears,
+    filters,
 }: DashboardProps) {
+    const [selectedSchoolYear, setSelectedSchoolYear] = useState(filters.school_year || schoolYear);
+    const [dateFrom, setDateFrom] = useState(filters.date_from || '');
+    const [dateTo, setDateTo] = useState(filters.date_to || '');
+
+    const handleApply = () => {
+        router.get('/owner/dashboard', {
+            school_year: selectedSchoolYear,
+            date_from: dateFrom || undefined,
+            date_to: dateTo || undefined,
+        }, { preserveState: true });
+    };
+
     return (
         <OwnerLayout breadcrumbs={breadcrumbs}>
             <Head title="Financial Dashboard" />
 
             <div className="space-y-6 p-6">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">
                             Financial Dashboard
@@ -81,20 +100,32 @@ export default function OwnerDashboard({
                             Real-time financial overview and analytics
                         </p>
                     </div>
-                    <div className="flex items-center space-x-3">
-                        <Select defaultValue="month">
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="Select period" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="month">This Month</SelectItem>
-                                <SelectItem value="quarter">
-                                    This Quarter
-                                </SelectItem>
-                                <SelectItem value="year">This Year</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Button>Apply</Button>
+                    {/* School Year + Date Filter */}
+                    <div className="flex flex-wrap items-end gap-3">
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">School Year</Label>
+                            <Select value={selectedSchoolYear} onValueChange={setSelectedSchoolYear}>
+                                <SelectTrigger className="w-36">
+                                    <SelectValue placeholder="School Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {schoolYears.map(sy => (
+                                        <SelectItem key={sy} value={sy}>{sy}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">Date From</Label>
+                            <Input type="date" className="w-36" value={dateFrom}
+                                onChange={e => setDateFrom(e.target.value)} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <Label className="text-xs text-muted-foreground">Date To</Label>
+                            <Input type="date" className="w-36" value={dateTo}
+                                onChange={e => setDateTo(e.target.value)} />
+                        </div>
+                        <Button onClick={handleApply}>Apply</Button>
                     </div>
                 </div>
 

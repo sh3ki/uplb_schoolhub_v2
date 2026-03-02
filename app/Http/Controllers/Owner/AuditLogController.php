@@ -3,7 +3,8 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
-use App\Models\BalanceAdjustment;
+use App\Models\StudentPayment;
+use App\Models\StudentFee;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -11,17 +12,17 @@ use Inertia\Response;
 class AuditLogController extends Controller
 {
     /**
-     * Display the balance adjustment audit logs.
+     * Display all cashier payment transaction logs.
      */
     public function index(Request $request): Response
     {
-        $query = BalanceAdjustment::with([
+        $query = StudentPayment::with([
             'student:id,first_name,last_name,lrn,program,year_level',
-            'adjuster:id,name,role',
-            'studentFee:id,school_year,total_amount,balance',
-        ])->orderByDesc('created_at');
+            'recordedBy:id,name,role',
+            'studentFee:id,school_year',
+        ])->orderByDesc('payment_date')->orderByDesc('created_at');
 
-        // Search by student name, LRN, or adjuster name
+        // Search by student name, LRN, OR number, or cashier name
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
                 $q->whereHas('student', function ($sq) use ($search) {
@@ -29,75 +30,79 @@ class AuditLogController extends Controller
                        ->orWhere('last_name', 'like', "%{$search}%")
                        ->orWhere('lrn', 'like', "%{$search}%");
                 })
-                ->orWhereHas('adjuster', function ($sq) use ($search) {
+                ->orWhereHas('recordedBy', function ($sq) use ($search) {
                     $sq->where('name', 'like', "%{$search}%");
                 })
-                ->orWhere('reason', 'like', "%{$search}%");
+                ->orWhere('or_number', 'like', "%{$search}%");
             });
         }
 
-        // Filter by school year
+        // Filter by school year (via studentFee)
         if ($schoolYear = $request->input('school_year')) {
-            $query->where('school_year', $schoolYear);
+            $query->whereHas('studentFee', function ($q) use ($schoolYear) {
+                $q->where('school_year', $schoolYear);
+            });
         }
 
         // Filter by date range
         if ($dateFrom = $request->input('date_from')) {
-            $query->whereDate('created_at', '>=', $dateFrom);
+            $query->whereDate('payment_date', '>=', $dateFrom);
         }
         if ($dateTo = $request->input('date_to')) {
-            $query->whereDate('created_at', '<=', $dateTo);
+            $query->whereDate('payment_date', '<=', $dateTo);
         }
 
-        $adjustments = $query->paginate(25)->withQueryString();
+        $payments = $query->paginate(25)->withQueryString();
 
         // Transform for frontend
-        $adjustments->through(function ($adj) {
+        $payments->through(function ($payment) {
             return [
-                'id' => $adj->id,
-                'student' => $adj->student ? [
-                    'id' => $adj->student->id,
-                    'full_name' => $adj->student->first_name . ' ' . $adj->student->last_name,
-                    'lrn' => $adj->student->lrn,
-                    'program' => $adj->student->program,
-                    'year_level' => $adj->student->year_level,
+                'id' => $payment->id,
+                'student' => $payment->student ? [
+                    'id'         => $payment->student->id,
+                    'full_name'  => $payment->student->first_name . ' ' . $payment->student->last_name,
+                    'lrn'        => $payment->student->lrn,
+                    'program'    => $payment->student->program,
+                    'year_level' => $payment->student->year_level,
                 ] : null,
-                'adjuster' => $adj->adjuster ? [
-                    'name' => $adj->adjuster->name,
-                    'role' => $adj->adjuster->role,
+                'cashier' => $payment->recordedBy ? [
+                    'name' => $payment->recordedBy->name,
+                    'role' => $payment->recordedBy->role,
                 ] : null,
-                'amount' => (float) $adj->amount,
-                'reason' => $adj->reason,
-                'notes' => $adj->notes,
-                'school_year' => $adj->school_year,
-                'fee_total_after' => $adj->studentFee ? (float) $adj->studentFee->total_amount : null,
-                'fee_balance_after' => $adj->studentFee ? (float) $adj->studentFee->balance : null,
-                'created_at' => $adj->created_at->format('M d, Y h:i A'),
-                'created_at_raw' => $adj->created_at->toISOString(),
+                'amount'           => (float) $payment->amount,
+                'or_number'        => $payment->or_number,
+                'payment_method'   => $payment->payment_method,
+                'payment_mode'     => $payment->payment_mode,
+                'payment_for'      => $payment->payment_for,
+                'reference_number' => $payment->reference_number,
+                'notes'            => $payment->notes,
+                'school_year'      => $payment->studentFee?->school_year,
+                'payment_date'     => $payment->payment_date?->format('M d, Y'),
+                'created_at'       => $payment->created_at->format('M d, Y h:i A'),
             ];
         });
 
         // Get available school years for filter
-        $schoolYears = BalanceAdjustment::distinct()
+        $schoolYears = StudentFee::distinct()
             ->whereNotNull('school_year')
             ->orderBy('school_year', 'desc')
             ->pluck('school_year');
 
         // Summary stats
-        $totalAdjustments = BalanceAdjustment::count();
-        $totalAmountAdded = BalanceAdjustment::sum('amount');
-        $adjustersCount = BalanceAdjustment::distinct('adjusted_by')->count('adjusted_by');
-        $todayCount = BalanceAdjustment::whereDate('created_at', today())->count();
+        $totalPayments  = StudentPayment::count();
+        $totalCollected = StudentPayment::sum('amount');
+        $cashiersCount  = StudentPayment::distinct('recorded_by')->count('recorded_by');
+        $todayCount     = StudentPayment::whereDate('payment_date', today())->count();
 
         return Inertia::render('owner/audit-logs', [
-            'adjustments' => $adjustments,
-            'filters' => $request->only(['search', 'school_year', 'date_from', 'date_to']),
+            'payments'    => $payments,
+            'filters'     => $request->only(['search', 'school_year', 'date_from', 'date_to']),
             'schoolYears' => $schoolYears,
-            'stats' => [
-                'total_adjustments' => $totalAdjustments,
-                'total_amount_added' => (float) $totalAmountAdded,
-                'adjusters_count' => $adjustersCount,
-                'today_count' => $todayCount,
+            'stats'       => [
+                'total_payments'  => $totalPayments,
+                'total_collected' => (float) $totalCollected,
+                'cashiers_count'  => $cashiersCount,
+                'today_count'     => $todayCount,
             ],
         ]);
     }
