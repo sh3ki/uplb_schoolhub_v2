@@ -16,13 +16,15 @@ class RequirementSeeder extends Seeder
     public function run(): void
     {
         // Create Common Requirements Category
-        $commonCategory = RequirementCategory::create([
-            'name' => 'Common Requirements',
-            'slug' => 'common-requirements',
-            'description' => 'Standard requirements for all students',
-            'order' => 1,
-            'is_active' => true,
-        ]);
+        $commonCategory = RequirementCategory::firstOrCreate(
+            ['slug' => 'common-requirements'],
+            [
+                'name' => 'Common Requirements',
+                'description' => 'Standard requirements for all students',
+                'order' => 1,
+                'is_active' => true,
+            ]
+        );
 
         // Create the 6 standard requirements
         $requirements = [
@@ -59,30 +61,33 @@ class RequirementSeeder extends Seeder
         ];
 
         foreach ($requirements as $req) {
-            Requirement::create([
-                'requirement_category_id' => $commonCategory->id,
-                'name' => $req['name'],
-                'description' => $req['description'],
-                'deadline_type' => 'during_enrollment',
-                'applies_to_new_enrollee' => true,
-                'applies_to_transferee' => true,
-                'applies_to_returning' => true,
-                'is_required' => true,
-                'order' => $req['order'],
-                'is_active' => true,
-            ]);
+            Requirement::firstOrCreate(
+                ['requirement_category_id' => $commonCategory->id, 'name' => $req['name']],
+                [
+                    'description' => $req['description'],
+                    'deadline_type' => 'during_enrollment',
+                    'applies_to_new_enrollee' => true,
+                    'applies_to_transferee' => true,
+                    'applies_to_returning' => true,
+                    'is_required' => true,
+                    'order' => $req['order'],
+                    'is_active' => true,
+                ]
+            );
         }
 
         // ─────────────────────────────────────────────────────────────────
         // K-12 Requirements Category
         // ─────────────────────────────────────────────────────────────────
-        $k12Category = RequirementCategory::create([
-            'name' => 'K-12 Requirements',
-            'slug' => 'k12-requirements',
-            'description' => 'Requirements specific to K-12 students (Grades 7–12)',
-            'order' => 2,
-            'is_active' => true,
-        ]);
+        $k12Category = RequirementCategory::firstOrCreate(
+            ['slug' => 'k12-requirements'],
+            [
+                'name' => 'K-12 Requirements',
+                'description' => 'Requirements specific to K-12 students (Grades 7-12)',
+                'order' => 2,
+                'is_active' => true,
+            ]
+        );
 
         $k12Requirements = [
             [
@@ -113,30 +118,33 @@ class RequirementSeeder extends Seeder
         ];
 
         foreach ($k12Requirements as $req) {
-            Requirement::create([
-                'requirement_category_id' => $k12Category->id,
-                'name' => $req['name'],
-                'description' => $req['description'],
-                'deadline_type' => 'during_enrollment',
-                'applies_to_new_enrollee' => true,
-                'applies_to_transferee' => true,
-                'applies_to_returning' => true,
-                'is_required' => true,
-                'order' => $req['order'],
-                'is_active' => true,
-            ]);
+            Requirement::firstOrCreate(
+                ['requirement_category_id' => $k12Category->id, 'name' => $req['name']],
+                [
+                    'description' => $req['description'],
+                    'deadline_type' => 'during_enrollment',
+                    'applies_to_new_enrollee' => true,
+                    'applies_to_transferee' => true,
+                    'applies_to_returning' => true,
+                    'is_required' => true,
+                    'order' => $req['order'],
+                    'is_active' => true,
+                ]
+            );
         }
 
         // ─────────────────────────────────────────────────────────────────
         // College Requirements Category
         // ─────────────────────────────────────────────────────────────────
-        $collegeCategory = RequirementCategory::create([
-            'name' => 'College Requirements',
-            'slug' => 'college-requirements',
-            'description' => 'Requirements specific to college-level students',
-            'order' => 3,
-            'is_active' => true,
-        ]);
+        $collegeCategory = RequirementCategory::firstOrCreate(
+            ['slug' => 'college-requirements'],
+            [
+                'name' => 'College Requirements',
+                'description' => 'Requirements specific to college-level students',
+                'order' => 3,
+                'is_active' => true,
+            ]
+        );
 
         $collegeRequirements = [
             [
@@ -172,18 +180,19 @@ class RequirementSeeder extends Seeder
         ];
 
         foreach ($collegeRequirements as $req) {
-            Requirement::create([
-                'requirement_category_id' => $collegeCategory->id,
-                'name' => $req['name'],
-                'description' => $req['description'],
-                'deadline_type' => 'during_enrollment',
-                'applies_to_new_enrollee' => true,
-                'applies_to_transferee' => true,
-                'applies_to_returning' => false,
-                'is_required' => true,
-                'order' => $req['order'],
-                'is_active' => true,
-            ]);
+            Requirement::firstOrCreate(
+                ['requirement_category_id' => $collegeCategory->id, 'name' => $req['name']],
+                [
+                    'description' => $req['description'],
+                    'deadline_type' => 'during_enrollment',
+                    'applies_to_new_enrollee' => true,
+                    'applies_to_transferee' => true,
+                    'applies_to_returning' => false,
+                    'is_required' => true,
+                    'order' => $req['order'],
+                    'is_active' => true,
+                ]
+            );
         }
 
         // Assign requirements to all existing students

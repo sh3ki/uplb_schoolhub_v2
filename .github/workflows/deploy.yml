@@ -1,171 +1,74 @@
 name: Deploy to Production
 
+# ── How this works ───────────────────────────────────────────────────────
+# Your local workflow:
+#   1. Make code changes
+#   2. npm run build  (builds public/build locally)
+#   3. git add -A && git commit -m "..." && git push
+#   4. This Action fires automatically and deploys to production ✅
+#
+# Required GitHub Secrets (repo Settings → Secrets and variables → Actions):
+#   SSH_HOST          → 72.61.121.165
+#   SSH_PORT          → 65002
+#   SSH_USER          → u866511543
+#   SSH_PRIVATE_KEY   → contents of your SSH private key (e.g. hostinger_deploy)
+#   GH_PAT            → GitHub Personal Access Token with repo:read scope
+#
+# One-time server setup (run these once via SSH):
+#   cd /home/u866511543/westerncollege
+#   git init
+#   git remote add origin https://github.com/LeeDev428/uplb_schoolhub.git
+#   git branch -M master
+#   git fetch origin master
+#   git reset --hard origin/master
+# ─────────────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches:
       - master
 
 jobs:
-  build-and-deploy:
+  deploy:
+    name: Deploy to Hostinger
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          php-version: '8.4'
-          extensions: mbstring, xml, bcmath, curl, zip, gd, mysql
-          tools: composer:v2
-          coverage: none
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            cd /home/u866511543/westerncollege
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
+            # Initialize git on very first deployment (only runs once)
+            if [ ! -d ".git" ]; then
+              echo "[deploy] First-time init..."
+              git init
+              git remote add origin https://github.com/LeeDev428/uplb_schoolhub.git
+              git branch -M master
+            fi
 
-      - name: Install Composer dependencies
+            # Pull latest code using PAT (not stored permanently on server)
+            echo "[deploy] Pulling latest code..."
+            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/LeeDev428/uplb_schoolhub.git
+            git fetch origin master --quiet
+            git reset --hard origin/master
+            git remote set-url origin https://github.com/LeeDev428/uplb_schoolhub.git
+
+            # Refresh Laravel caches
+            echo "[deploy] Refreshing caches..."
+            php artisan config:clear
+            php artisan route:clear
+            php artisan view:clear
+            php artisan optimize
+
+            echo "[deploy] Done!"
+
+      - name: Summary
         run: |
-          composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader
-
-      - name: Install NPM dependencies
-        run: npm ci
-
-      - name: Generate .env for build
-        run: |
-          cp .env.example .env
-          php artisan key:generate
-
-      - name: Build Vite assets
-        run: |
-          php artisan wayfinder:generate --with-form
-          npm run build
-
-      - name: Prepare .env for deployment
-        run: |
-          cat > .env << EOF
-          APP_NAME="Western Colleges Inc"
-          APP_ENV=production
-          APP_KEY=${{ secrets.APP_KEY }}
-          APP_DEBUG=false
-          APP_URL=https://westerncollegesinc.ph
-
-          APP_LOCALE=en
-          APP_FALLBACK_LOCALE=en
-          APP_FAKER_LOCALE=en_US
-
-          APP_MAINTENANCE_DRIVER=file
-
-          BCRYPT_ROUNDS=12
-
-          LOG_CHANNEL=stack
-          LOG_STACK=single
-          LOG_DEPRECATIONS_CHANNEL=null
-          LOG_LEVEL=error
-
-          DB_CONNECTION=mysql
-          DB_HOST=localhost
-          DB_PORT=3306
-          DB_DATABASE=${{ secrets.PROD_DB_DATABASE }}
-          DB_USERNAME=${{ secrets.PROD_DB_USERNAME }}
-          DB_PASSWORD=${{ secrets.PROD_DB_PASSWORD }}
-
-          SESSION_DRIVER=database
-          SESSION_LIFETIME=120
-          SESSION_ENCRYPT=false
-          SESSION_PATH=/
-          SESSION_DOMAIN=
-
-          BROADCAST_CONNECTION=log
-          FILESYSTEM_DISK=local
-          QUEUE_CONNECTION=database
-
-          CACHE_STORE=database
-
-          MAIL_MAILER=log
-          MAIL_HOST=smtp.hostinger.com
-          MAIL_PORT=465
-          MAIL_USERNAME=
-          MAIL_PASSWORD=
-          MAIL_ENCRYPTION=ssl
-          MAIL_FROM_ADDRESS="noreply@westerncollegesinc.ph"
-          MAIL_FROM_NAME="\${APP_NAME}"
-
-          VITE_APP_NAME="\${APP_NAME}"
-          EOF
-
-      - name: Setup SSH key
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
-
-      - name: Deploy via rsync
-        run: |
-          rsync -avz --delete \
-            --exclude='.git' \
-            --exclude='node_modules' \
-            --exclude='tests' \
-            --exclude='storage/app/*' \
-            --exclude='storage/framework/cache/*' \
-            --exclude='storage/framework/sessions/*' \
-            --exclude='storage/framework/views/*' \
-            --exclude='storage/logs/*' \
-            --exclude='public/storage' \
-            --exclude='.env' \
-            --exclude='.env.example' \
-            --exclude='.env.production.example' \
-            --exclude='.env.staging.example' \
-            --exclude='phpunit.xml' \
-            --exclude='pint.json' \
-            --exclude='*.md' \
-            -e "ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }}" \
-            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.PROD_DEPLOY_PATH }}/
-
-      - name: Run post-deploy commands
-        run: |
-          ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
-          cd ${{ secrets.PROD_DEPLOY_PATH }}
-          
-          # Ensure storage directories exist with proper permissions
-          mkdir -p storage/app/public
-          mkdir -p storage/framework/cache/data
-          mkdir -p storage/framework/sessions
-          mkdir -p storage/framework/views
-          mkdir -p storage/logs
-          mkdir -p bootstrap/cache
-          
-          chmod -R 775 storage bootstrap/cache
-          
-          # Create storage symlink (public/storage -> storage/app/public)
-          # NOTE: php artisan storage:link uses exec() which is disabled on shared hosting
-          # Use shell ln -s directly instead
-          if [ ! -L public/storage ]; then
-            ln -s "$(realpath storage/app/public)" public/storage
-            echo "Storage symlink created."
-          else
-            echo "Storage symlink already exists."
-          fi
-          
-          # Run Laravel optimization commands
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
-          php artisan event:cache
-          
-          # Run migrations
-          php artisan migrate --force
-          
-          echo "✅ Deployment to production completed successfully!"
-          ENDSSH
-
-      - name: Deployment summary
-        run: |
-          echo "🚀 Deployed to production"
-          echo "📍 URL: https://westerncollegesinc.ph"
-          echo "🌿 Branch: ${{ github.ref_name }}"
-          echo "📝 Commit: ${{ github.sha }}"
+          echo "Deployed commit ${{ github.sha }} to https://westerncollegesinc.ph"

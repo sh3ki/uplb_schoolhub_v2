@@ -222,7 +222,7 @@ export default function OverallIncome({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <BarChart3 className="h-4 w-4" /> Monthly Collections ({year})
+                            <BarChart3 className="h-4 w-4" /> Monthly Collections ({selectedYear})
                         </CardTitle>
                         <CardDescription>Tuition payments received per month</CardDescription>
                     </CardHeader>
