@@ -219,6 +219,8 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
     const [showEnrollmentHistoryModal, setShowEnrollmentHistoryModal] = useState(false);
     const [activeTab, setActiveTab] = useState('requirements');
     const [histSyFilter, setHistSyFilter] = useState<string>('all');
+    const [studentNotesText, setStudentNotesText] = useState(student.remarks ?? '');
+    const [notesSaving, setNotesSaving] = useState(false);
 
     // Unique school years from enrollment history + current student school year
     const historySchoolYears = useMemo(() => {
@@ -272,6 +274,15 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
     };
     
 
+
+    const handleSaveNotes = () => {
+        setNotesSaving(true);
+        router.patch(`/registrar/students/${student.id}/notes`, { remarks: studentNotesText }, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Notes saved.'); setNotesSaving(false); },
+            onError:   () => { toast.error('Failed to save notes.'); setNotesSaving(false); },
+        });
+    };
 
     const fullName = `${student.first_name}${student.middle_name ? ' ' + student.middle_name : ''} ${student.last_name}${student.suffix ? ' ' + student.suffix : ''}`;
     const initials = `${student.first_name[0]}${student.last_name[0]}`;
@@ -523,7 +534,7 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
 
                 {/* Tabs Section */}
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className={`grid w-full ${collegeSubjects ? 'grid-cols-5' : 'grid-cols-4'}`}>
+                    <TabsList className={`grid w-full ${collegeSubjects ? 'grid-cols-6' : 'grid-cols-5'}`}>
                         <TabsTrigger value="requirements">Submitted Requirements</TabsTrigger>
                         <TabsTrigger value="information">Student Information</TabsTrigger>
                         <TabsTrigger value="schedules">Schedules & Grades</TabsTrigger>
@@ -534,6 +545,7 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                             </TabsTrigger>
                         )}
                         <TabsTrigger value="history">Transaction History</TabsTrigger>
+                        <TabsTrigger value="notes">Notes</TabsTrigger>
                     </TabsList>
 
                     {/* Requirements Tab */}
@@ -887,6 +899,30 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                             </div>
                         </div>
                         <UpdateHistory logs={filteredActionLogs} />
+                    </TabsContent>
+
+                    {/* Notes Tab */}
+                    <TabsContent value="notes" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Student Notes</CardTitle>
+                                <CardDescription>Internal notes and remarks about this student. Only visible to staff.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Textarea
+                                    value={studentNotesText}
+                                    onChange={(e) => setStudentNotesText(e.target.value)}
+                                    placeholder="Add notes about this student..."
+                                    rows={8}
+                                    className="resize-y"
+                                />
+                                <div className="flex justify-end">
+                                    <Button onClick={handleSaveNotes} disabled={notesSaving}>
+                                        {notesSaving ? 'Saving...' : 'Save Notes'}
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
                 </Tabs>
             </div>
