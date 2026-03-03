@@ -357,7 +357,7 @@ class StudentPaymentController extends Controller
     public function process(Request $request, Student $student): Response
     {
         // Load student with department for classification matching
-        $student->load('department');
+        $student->load(['department', 'enrollmentClearance']);
 
         // Get unique school years from fee_items that apply to this student
         $schoolYears = $this->getApplicableSchoolYears($student);
@@ -488,6 +488,12 @@ class StudentPaymentController extends Controller
             'summary' => $summary,
             'cashiers' => $cashiers,
             'balanceAdjustments' => $balanceAdjustments,
+            'enrollmentClearance' => $student->enrollmentClearance ? [
+                'id' => $student->enrollmentClearance->id,
+                'accounting_clearance' => (bool) $student->enrollmentClearance->accounting_clearance,
+                'accounting_cleared_at' => $student->enrollmentClearance->accounting_cleared_at?->format('Y-m-d H:i'),
+                'accounting_notes' => $student->enrollmentClearance->accounting_notes,
+            ] : null,
             'currentUser' => [
                 'id' => $currentUser->id,
                 'name' => $currentUser->name,
