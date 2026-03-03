@@ -145,23 +145,27 @@ class AppSettingsController extends Controller
     public function update(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'app_name'       => 'required|string|max:100',
-            'primary_color'  => 'required|string|max:20',
-            'secondary_color' => 'nullable|string|max:20',
-            'school_year'    => 'nullable|string|max:20|regex:/^\d{4}-\d{4}$/',
-            'has_k12'        => 'nullable|in:0,1',
-            'has_college'    => 'nullable|in:0,1',
-            'logo'           => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
-            'favicon'        => 'nullable|mimes:png,jpg,jpeg,ico,x-icon|max:512',
+            'app_name'          => 'required|string|max:100',
+            'primary_color'     => 'required|string|max:20',
+            'secondary_color'   => 'nullable|string|max:20',
+            'sidebar_color'     => 'nullable|string|max:20',
+            'sidebar_font_size' => 'nullable|string|max:5',
+            'school_year'       => 'nullable|string|max:20|regex:/^\d{4}-\d{4}$/',
+            'has_k12'           => 'nullable|in:0,1',
+            'has_college'       => 'nullable|in:0,1',
+            'logo'              => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
+            'favicon'           => 'nullable|mimes:png,jpg,jpeg,ico,x-icon|max:512',
         ]);
 
         $settings = AppSetting::current();
-        $settings->app_name       = $validated['app_name'];
-        $settings->primary_color  = $validated['primary_color'];
-        $settings->secondary_color = $validated['secondary_color'] ?? $settings->secondary_color;
-        $settings->school_year    = $validated['school_year'] ?? $settings->school_year;
-        $settings->has_k12        = $request->input('has_k12') === '1';
-        $settings->has_college    = $request->input('has_college') === '1';
+        $settings->app_name          = $validated['app_name'];
+        $settings->primary_color     = $validated['primary_color'];
+        $settings->secondary_color   = $validated['secondary_color'] ?? $settings->secondary_color;
+        $settings->sidebar_color     = $validated['sidebar_color'] ?? $settings->sidebar_color;
+        $settings->sidebar_font_size = $validated['sidebar_font_size'] ?? $settings->sidebar_font_size;
+        $settings->school_year       = $validated['school_year'] ?? $settings->school_year;
+        $settings->has_k12           = $request->input('has_k12') === '1';
+        $settings->has_college       = $request->input('has_college') === '1';
 
         if ($request->hasFile('logo')) {
             if ($settings->logo_path) Storage::disk('public')->delete($settings->logo_path);
