@@ -29,6 +29,7 @@ interface Department {
     id: number;
     name: string;
     level: string;
+    classification: string;
 }
 
 interface Program {
@@ -80,6 +81,7 @@ export function StudentFormModal({
     schoolYear,
 }: StudentFormModalProps) {
     const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
+    const [selectedClassification, setSelectedClassification] = useState<string>('');
     const [selectedProgramId, setSelectedProgramId] = useState<string>('');
     const [selectedYearLevelId, setSelectedYearLevelId] = useState<string>('');
     const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -102,12 +104,18 @@ export function StudentFormModal({
             // Find program ID by name if program exists
             const matchedProgram = programs.find(p => p.name === student.program);
             setSelectedProgramId(matchedProgram?.id?.toString() || '');
+            // Initialize classification from the student's department
+            if (student.department_id) {
+                const dept = departments.find(d => d.id.toString() === student.department_id?.toString());
+                if (dept) setSelectedClassification(dept.classification || '');
+            }
         } else {
             setSelectedDepartmentId('');
             setSelectedYearLevelId('');
             setSelectedProgramId('');
+            setSelectedClassification('');
         }
-    }, [student, programs]);
+    }, [student, programs, departments]);
 
     const { data, setData, post, put, processing, errors, reset } = useForm({
         first_name: student?.first_name || '',
@@ -152,6 +160,12 @@ export function StudentFormModal({
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, mode, schoolYear]);
+
+    // Filter departments based on selected classification
+    const filteredDepartments = useMemo(() => {
+        if (!selectedClassification || selectedClassification === 'all') return departments;
+        return departments.filter(d => d.classification === selectedClassification);
+    }, [selectedClassification, departments]);
 
     // Filter programs based on selected department
     const filteredPrograms = useMemo(() => {
@@ -418,7 +432,36 @@ export function StudentFormModal({
                                 </AlertDescription>
                             </Alert>
                         )}
-                        
+
+                        {/* Classification Filter */}
+                        <div className="space-y-2">
+                            <Label htmlFor="classification">Classification</Label>
+                            <Select
+                                value={selectedClassification}
+                                onValueChange={(value) => {
+                                    setSelectedClassification(value);
+                                    setSelectedDepartmentId('');
+                                    setSelectedProgramId('');
+                                    setSelectedYearLevelId('');
+                                    setData('department_id', '');
+                                    setData('program', '');
+                                    setData('year_level', '');
+                                    setData('year_level_id', '');
+                                    setData('section', '');
+                                    setData('section_id', '');
+                                }}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All classifications" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="K-12">K-12</SelectItem>
+                                    <SelectItem value="College">College</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div className="grid gap-4 md:grid-cols-2">
                             {/* School year: hidden in create mode (auto from global banner); visible in edit mode */}
                             {mode === 'edit' ? (
@@ -464,7 +507,7 @@ export function StudentFormModal({
                                         <SelectValue placeholder="Select department" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {departments.map((dept) => (
+                                        {filteredDepartments.map((dept) => (
                                             <SelectItem key={dept.id} value={dept.id.toString()}>
                                                 {dept.name}
                                             </SelectItem>
