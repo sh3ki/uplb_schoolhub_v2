@@ -11,16 +11,17 @@ name: Deploy to Production
 #   SSH_HOST          → 72.61.121.165
 #   SSH_PORT          → 65002
 #   SSH_USER          → u866511543
-#   SSH_PRIVATE_KEY   → contents of your SSH private key (e.g. hostinger_deploy)
-#   GH_PAT            → GitHub Personal Access Token with repo:read scope
+#   SSH_PRIVATE_KEY   → contents of your SSH private key (hostinger_deploy)
+#   GH_PAT            → GitHub Personal Access Token (classic) with "repo" scope
+#                       Generate at: https://github.com/settings/tokens
+#                       ⚠️ If deploy fails with "Invalid username or token",
+#                          your PAT is expired — regenerate it and update this secret.
 #
-# One-time server setup (run these once via SSH):
+# One-time server setup (if git was never initialized on the server):
+#   ssh -i ~/.ssh/hostinger_deploy -p 65002 u866511543@72.61.121.165
 #   cd /home/u866511543/westerncollege
-#   git init
-#   git remote add origin https://github.com/LeeDev428/uplb_schoolhub.git
-#   git branch -M master
-#   git fetch origin master
-#   git reset --hard origin/master
+#   git init && git remote add origin https://github.com/LeeDev428/uplb_schoolhub.git
+#   git branch -M master && git fetch origin master && git reset --hard origin/master
 # ─────────────────────────────────────────────────────────────────────────
 
 on:
@@ -47,15 +48,23 @@ jobs:
 
             # Initialize git on very first deployment (only runs once)
             if [ ! -d ".git" ]; then
-              echo "[deploy] First-time init..."
+              echo "[deploy] First-time git init..."
               git init
               git remote add origin https://github.com/LeeDev428/uplb_schoolhub.git
               git branch -M master
             fi
 
-            # Pull latest code using PAT (not stored permanently on server)
+            # Validate PAT is set
+            if [ -z "$GH_PAT_VALUE" ]; then
+              echo "[deploy] ERROR: GH_PAT secret is empty or not set!"
+              echo "[deploy] Go to: https://github.com/LeeDev428/uplb_schoolhub/settings/secrets/actions"
+              echo "[deploy] Add secret 'GH_PAT' = a GitHub Personal Access Token (classic) with repo scope"
+              exit 1
+            fi
+
+            # Pull latest code using PAT
             echo "[deploy] Pulling latest code..."
-            git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/LeeDev428/uplb_schoolhub.git
+            git remote set-url origin "https://x-access-token:${GH_PAT_VALUE}@github.com/LeeDev428/uplb_schoolhub.git"
             git fetch origin master --quiet
             git reset --hard origin/master
             git remote set-url origin https://github.com/LeeDev428/uplb_schoolhub.git
@@ -67,8 +76,10 @@ jobs:
             php artisan view:clear
             php artisan optimize
 
-            echo "[deploy] Done!"
+            echo "[deploy] Done! Deployed commit: $(git log -1 --format='%h %s')"
+        env:
+          GH_PAT_VALUE: ${{ secrets.GH_PAT }}
 
       - name: Summary
         run: |
-          echo "Deployed commit ${{ github.sha }} to https://westerncollegesinc.ph"
+          echo "✅ Deployed commit ${{ github.sha }} to https://westerncollegesinc.ph"

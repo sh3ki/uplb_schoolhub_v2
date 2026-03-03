@@ -2,23 +2,13 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     BadgeDollarSign,
     BookOpen,
-    Calculator,
-    ClipboardCheck,
-    CreditCard,
-    FileCheck,
-    FileText,
-    Gift,
     Globe,
     LayoutDashboard,
     LayoutGrid,
     Megaphone,
-    Receipt,
     RotateCcw,
     Settings,
-    UserMinus,
-    Users,
 } from 'lucide-react';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -61,42 +51,8 @@ export function SuperAccountingSidebar() {
             badge: announcementCount || undefined,
         },
         {
-            title: 'Student Accounts',
-            href: '/super-accounting/student-accounts',
-            icon: Users,
-        },
-        {
-            title: 'Document Request',
-            href: '/super-accounting/document-approvals',
-            icon: FileCheck,
-        },
-        {
-            title: 'Drop Request',
-            href: '/super-accounting/drop-approvals',
-            icon: UserMinus,
-        },
-        {
-            title: 'Payment Processing',
-            href: '/super-accounting/payments',
-            icon: CreditCard,
-        },
-        {
-            title: 'Student Grants',
-            href: '/super-accounting/grants',
-            icon: Gift,
-        },
-        {
-            title: 'Exam Approval',
-            href: '/super-accounting/exam-approval',
-            icon: FileCheck,
-        },
-        {
-            title: 'Student Clearance',
-            href: '/super-accounting/clearance',
-            icon: ClipboardCheck,
-        },
-        {
-            title: 'Refunds',
+            // Physical refund requests — super-accounting exclusive
+            title: 'Refund Requests',
             href: '/super-accounting/refunds',
             icon: RotateCcw,
         },
@@ -105,19 +61,14 @@ export function SuperAccountingSidebar() {
             href: '/super-accounting/reports',
             icon: BookOpen,
         },
-    ];
-
-    const adminNavItems: NavItem[] = [
-        {
-            title: 'Fee Management',
-            href: '/super-accounting/fee-management',
-            icon: Calculator,
-        },
         {
             title: 'Online Transactions',
             href: '/super-accounting/online-transactions',
             icon: Globe,
         },
+    ];
+
+    const adminNavItems: NavItem[] = [
         {
             title: 'Settings',
             href: '/super-accounting/settings',

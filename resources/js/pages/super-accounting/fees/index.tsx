@@ -32,7 +32,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
-import { index as feesIndex, store as storeFor, update as updateFee, destroy as destroyFee } from '@/routes/super-accounting/fees';
+import { index as feesIndex, store as storeFor, update as updateFee, destroy as destroyFee } from '@/routes/accounting/fees';
 
 interface Student {
     id: number;
