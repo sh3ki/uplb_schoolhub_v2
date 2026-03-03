@@ -172,6 +172,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     // Email verification management by registrar
     Route::post('students/{student}/resend-verification', [App\Http\Controllers\StudentController::class, 'resendVerification'])->name('students.resend-verification');
     Route::patch('students/{student}/email', [App\Http\Controllers\StudentController::class, 'updateEmail'])->name('students.update-email');
+    Route::patch('students/{student}/notes', [App\Http\Controllers\StudentController::class, 'updateNotes'])->name('students.update-notes');
 
     // Requirements Tracking (view student requirements status)
     Route::get('requirements', [App\Http\Controllers\RequirementTrackingController::class, 'index'])->name('requirements.index');
@@ -540,6 +541,14 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     // Reports
     Route::get('reports', [App\Http\Controllers\Accounting\ReportsController::class, 'index'])->name('reports');
     Route::get('reports/export', [App\Http\Controllers\Accounting\ReportsController::class, 'export'])->name('reports.export');
+
+    // Student Accounts (read + detail view)
+    Route::get('student-accounts', [App\Http\Controllers\Accounting\StudentAccountController::class, 'index'])->name('student-accounts.index');
+    Route::get('student-accounts/{fee}', [App\Http\Controllers\Accounting\StudentAccountController::class, 'show'])->name('student-accounts.show');
+
+    // Payment Processing (view-only + carry-forward)
+    Route::get('payments/process/{student}', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'process'])->name('payments.process');
+    Route::post('payments/process/{student}/carry-forward', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'carryForwardBalance'])->name('payments.carry-forward');
 
     // Refund / Void Requests Management (super-accounting exclusive — only super-accounting can approve/reject)
     Route::get('refunds', [App\Http\Controllers\Accounting\RefundController::class, 'index'])->name('refunds.index');
