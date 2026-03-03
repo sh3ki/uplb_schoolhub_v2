@@ -35,12 +35,16 @@ interface AppSettings {
     primary_color?: string;
     has_k12?: boolean;
     has_college?: boolean;
+    sidebar_color?: string;
+    sidebar_font_size?: string;
 }
 
 export function OwnerSidebar() {
     const { appSettings } = usePage<{ appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
+    const sidebarColor = appSettings?.sidebar_color || undefined;
+    const sidebarFontSize = appSettings?.sidebar_font_size ? `${appSettings.sidebar_font_size}px` : undefined;
     const hasK12 = appSettings?.has_k12 !== false;
     const hasCollege = appSettings?.has_college !== false;
 
@@ -126,7 +130,10 @@ export function OwnerSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" style={{
+            ...(sidebarColor ? { '--sidebar': sidebarColor } as React.CSSProperties : {}),
+            ...(sidebarFontSize ? { fontSize: sidebarFontSize } : {}),
+        }}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
