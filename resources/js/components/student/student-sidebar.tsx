@@ -42,6 +42,8 @@ interface AppSettings {
     primary_color?: string;
     college_enrollment_open?: boolean;
     k12_enrollment_open?: boolean;
+    sidebar_color?: string;
+    sidebar_font_size?: string;
 }
 
 export function StudentSidebar() {
@@ -52,6 +54,8 @@ export function StudentSidebar() {
     }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
+    const sidebarColor = appSettings?.sidebar_color || undefined;
+    const sidebarFontSize = appSettings?.sidebar_font_size ? `${appSettings.sidebar_font_size}px` : undefined;
     
     const isEnrolled = auth.user.student?.enrollment_status === 'enrolled';
     const isCollegeDept = auth.user.student?.department_classification === 'College';
@@ -125,7 +129,10 @@ export function StudentSidebar() {
     ];
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" style={{
+            ...(sidebarColor ? { '--sidebar': sidebarColor } as React.CSSProperties : {}),
+            ...(sidebarFontSize ? { fontSize: sidebarFontSize } : {}),
+        }}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
