@@ -40,11 +40,12 @@ class StudentAccountController extends Controller
 
         $selectedSchoolYear = $request->input('school_year', $schoolYears->first());
 
-        // Get students with enrollment clearance
+        // Get students with enrollment clearance (registrar-cleared, in accounting queue or beyond)
         $studentsQuery = Student::with(['department'])
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
-            });
+            })
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar']);
 
         // Search
         if ($search = $request->input('search')) {
@@ -122,7 +123,9 @@ class StudentAccountController extends Controller
         // Calculate stats dynamically
         $allStudentIds = Student::whereHas('enrollmentClearance', function ($q) {
             $q->where('registrar_clearance', true);
-        })->pluck('id');
+        })
+        ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
+        ->pluck('id');
 
         $stats = $this->calculateStats($allStudentIds, $selectedSchoolYear);
 
