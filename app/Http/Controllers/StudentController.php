@@ -582,12 +582,26 @@ class StudentController extends Controller
         $reqTotal    = $student->requirements()->count();
         $reqApproved = $student->requirements()->where('status', 'approved')->count();
         $reqPct      = $reqTotal > 0 ? (int) round(($reqApproved / $reqTotal) * 100) : 0;
+        $reqComplete = $reqPct >= 100;
+
+        // Dependency checks: prevent advancing without prerequisites
+        if ($clearanceType === 'registrar_clearance' && $status === true) {
+            if (!$reqComplete) {
+                return redirect()->back()->withErrors(['status' => 'All requirements must be approved before granting registrar clearance.']);
+            }
+        }
+
+        if ($clearanceType === 'official_enrollment' && $status === true) {
+            if (!($clearance->registrar_clearance && $clearance->accounting_clearance)) {
+                return redirect()->back()->withErrors(['status' => 'Both registrar and accounting clearance must be completed before official enrollment.']);
+            }
+        }
 
         // Build update array dynamically
         $updateData = [
             $clearanceType => $status,
             // Always keep requirements_complete in sync with actual approvals
-            'requirements_complete'            => $reqPct >= 100,
+            'requirements_complete'            => $reqComplete,
             'requirements_complete_percentage' => $reqPct,
         ];
         

@@ -171,16 +171,23 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student }: P
     const reqPct = clearance?.requirements_complete_percentage || 0;
     const reqDone = clearance?.requirements_complete || false;
 
+    const registrarBlocked = !reqDone;
+    const officialBlocked = !(clearance?.registrar_clearance && clearance?.accounting_clearance);
+
     const clearanceSteps = [
         {
             id: 1,
             title: 'Registrar Clearance',
-            description: clearance?.registrar_clearance ? 'Completed' : 'Pending',
+            description: clearance?.registrar_clearance
+                ? 'Completed'
+                : reqDone ? 'Pending' : 'Requirements not yet complete',
             completed: clearance?.registrar_clearance || false,
             percentage: clearance?.registrar_clearance ? 100 : 0,
             color: 'bg-blue-500',
             key: 'registrar_clearance',
             canToggle: true,
+            blocked: !clearance?.registrar_clearance && registrarBlocked,
+            blockedReason: 'All requirements must be approved first.',
         },
         {
             id: 2,
@@ -191,16 +198,22 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student }: P
             color: 'bg-orange-500',
             key: 'accounting_clearance',
             canToggle: false, // Only accounting department can toggle this
+            blocked: false,
+            blockedReason: '',
         },
         {
             id: 3,
             title: 'Official Enrollment',
-            description: clearance?.official_enrollment ? 'Completed' : 'Pending',
+            description: clearance?.official_enrollment
+                ? 'Completed'
+                : officialBlocked ? 'Waiting for registrar & accounting clearance' : 'Pending',
             completed: clearance?.official_enrollment || false,
             percentage: clearance?.official_enrollment ? 100 : 0,
             color: 'bg-purple-500',
             key: 'official_enrollment',
             canToggle: true,
+            blocked: !clearance?.official_enrollment && officialBlocked,
+            blockedReason: 'Both registrar and accounting clearance must be completed first.',
         },
     ];
 
@@ -298,23 +311,41 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student }: P
                             {/* Toggle Button */}
                             {step.canToggle && (
                                 <div className="ml-4 flex flex-col gap-2">
-                                    <Button
-                                        variant={step.completed ? "outline" : "default"}
-                                        size="sm"
-                                        onClick={() => handleToggleClearance(step.key, step.completed)}
-                                    >
-                                        {step.completed ? 'Mark Incomplete' : 'Mark Complete'}
-                                    </Button>
-                                    {step.id === 3 && step.completed && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="text-blue-600 border-blue-300 hover:bg-blue-50"
-                                            onClick={handlePrintCoe}
-                                        >
-                                            <Printer className="h-4 w-4 mr-1" />
-                                            Print COE
-                                        </Button>
+                                    {step.blocked ? (
+                                        <div className="text-right">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                disabled
+                                                className="opacity-50 cursor-not-allowed"
+                                            >
+                                                Mark Complete
+                                            </Button>
+                                            <p className="text-xs text-amber-600 mt-1 max-w-[140px] text-right">
+                                                {step.blockedReason}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Button
+                                                variant={step.completed ? "outline" : "default"}
+                                                size="sm"
+                                                onClick={() => handleToggleClearance(step.key, step.completed)}
+                                            >
+                                                {step.completed ? 'Mark Incomplete' : 'Mark Complete'}
+                                            </Button>
+                                            {step.id === 3 && step.completed && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                                    onClick={handlePrintCoe}
+                                                >
+                                                    <Printer className="h-4 w-4 mr-1" />
+                                                    Print COE
+                                                </Button>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             )}

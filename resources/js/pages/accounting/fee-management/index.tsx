@@ -50,6 +50,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountingLayout from '@/layouts/accounting-layout';
+import { cn } from '@/lib/utils';
 
 interface FeeItem {
     id: number;
@@ -558,37 +559,37 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
 
     const toggleCategorySelection = (categoryId: number) => {
         const categoryItems = categories.find(c => c.id === categoryId)?.items || [];
-        const categoryItemIds = categoryItems.filter(item => item.is_active).map(item => item.id);
-        const allSelected = categoryItemIds.every(id => selectedFeeItemIds.includes(id));
+        // Exclude 'all'-scope items — they can't be individually toggled
+        const toggleableIds = categoryItems
+            .filter(item => item.is_active && item.assignment_scope !== 'all')
+            .map(item => item.id);
+        const allSelected = toggleableIds.length > 0 && toggleableIds.every(id => selectedFeeItemIds.includes(id));
         
         if (allSelected) {
-            // Deselect all items in this category
-            setSelectedFeeItemIds(prev => prev.filter(id => !categoryItemIds.includes(id)));
+            setSelectedFeeItemIds(prev => prev.filter(id => !toggleableIds.includes(id)));
         } else {
-            // Select all items in this category
-            setSelectedFeeItemIds(prev => [...new Set([...prev, ...categoryItemIds])]);
+            setSelectedFeeItemIds(prev => [...new Set([...prev, ...toggleableIds])]);
         }
     };
 
     const handleSaveAssignments = () => {
         if (!assignClassification || !assignDepartmentId || !assignYearLevelId) return;
         
+        const schoolYear = studentSchoolYears[0] ?? `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
         setSavingAssignments(true);
         router.post('/accounting/fee-management/assignments', {
             classification: assignClassification,
             department_id: assignDepartmentId,
             year_level_id: assignYearLevelId,
             fee_item_ids: selectedFeeItemIds,
-            school_year: '2024-2025',
+            school_year: schoolYear,
         }, {
             onSuccess: () => {
-                toast.success('Changes saved successfully');
-                toast.success('Changes saved successfully');
-                toast.success('Changes saved successfully');
-                toast.success('Changes saved successfully');
+                toast.success('Fee assignments saved successfully.');
                 setSavingAssignments(false);
             },
             onError: () => {
+                toast.error('Failed to save assignments.');
                 setSavingAssignments(false);
             },
         });
@@ -1081,9 +1082,13 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                         <div className="space-y-4">
                                             {categories.map(category => {
                                                 const activeItems = category.items.filter(item => item.is_active);
-                                                const categoryItemIds = activeItems.map(item => item.id);
-                                                const allSelected = categoryItemIds.length > 0 && categoryItemIds.every(id => selectedFeeItemIds.includes(id));
-                                                const someSelected = categoryItemIds.some(id => selectedFeeItemIds.includes(id));
+                                                // Toggleable items (specific scope only)
+                                                const toggleableItems = activeItems.filter(item => item.assignment_scope !== 'all');
+                                                const toggleableIds = toggleableItems.map(item => item.id);
+                                                const globalItems = activeItems.filter(item => item.assignment_scope === 'all');
+                                                const allSelected = toggleableIds.length > 0 && toggleableIds.every(id => selectedFeeItemIds.includes(id));
+                                                const someSelected = toggleableIds.some(id => selectedFeeItemIds.includes(id));
+                                                const selectedCount = toggleableIds.filter(id => selectedFeeItemIds.includes(id)).length + globalItems.length;
                                                 
                                                 if (activeItems.length === 0) return null;
                                                 
@@ -1092,9 +1097,10 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                         <CardHeader className="py-3">
                                                             <div className="flex items-center gap-3">
                                                                 <Checkbox
-                                                                    checked={allSelected}
+                                                                    checked={allSelected && toggleableIds.length > 0}
                                                                     className={someSelected && !allSelected ? 'opacity-50' : ''}
                                                                     onCheckedChange={() => toggleCategorySelection(category.id)}
+                                                                    disabled={toggleableIds.length === 0}
                                                                 />
                                                                 <div>
                                                                     <CardTitle className="text-base">{category.name}</CardTitle>
@@ -1103,7 +1109,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                                     )}
                                                                 </div>
                                                                 <Badge variant="secondary" className="ml-auto">
-                                                                    {categoryItemIds.filter(id => selectedFeeItemIds.includes(id)).length} / {activeItems.length} selected
+                                                                    {selectedCount} / {activeItems.length} selected
                                                                 </Badge>
                                                             </div>
                                                         </CardHeader>
@@ -1112,15 +1118,26 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                                 {activeItems.map(item => (
                                                                     <div
                                                                         key={item.id}
-                                                                        className="flex items-center gap-3 p-2 rounded border hover:bg-muted/50 cursor-pointer"
-                                                                        onClick={() => toggleFeeItemSelection(item.id)}
+                                                                        className={cn(
+                                                                            "flex items-center gap-3 p-2 rounded border hover:bg-muted/50 cursor-pointer",
+                                                                            item.assignment_scope === 'all' && "border-amber-200 bg-amber-50/40"
+                                                                        )}
+                                                                        onClick={() => item.assignment_scope !== 'all' && toggleFeeItemSelection(item.id)}
                                                                     >
                                                                         <Checkbox
-                                                                            checked={selectedFeeItemIds.includes(item.id)}
-                                                                            onCheckedChange={() => toggleFeeItemSelection(item.id)}
+                                                                            checked={selectedFeeItemIds.includes(item.id) || item.assignment_scope === 'all'}
+                                                                            disabled={item.assignment_scope === 'all'}
+                                                                            onCheckedChange={() => item.assignment_scope !== 'all' && toggleFeeItemSelection(item.id)}
                                                                         />
                                                                         <div className="flex-1 min-w-0">
-                                                                            <p className="text-sm font-medium truncate">{item.name}</p>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <p className="text-sm font-medium truncate">{item.name}</p>
+                                                                                {item.assignment_scope === 'all' && (
+                                                                                    <Badge variant="outline" className="text-xs text-amber-700 border-amber-300 bg-amber-50 shrink-0">
+                                                                                        Global
+                                                                                    </Badge>
+                                                                                )}
+                                                                            </div>
                                                                             <p className="text-xs text-muted-foreground">{formatCurrency(item.selling_price)}</p>
                                                                         </div>
                                                                     </div>
@@ -1131,6 +1148,94 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                 );
                                             })}
                                             
+                                            {/* Selected Items Summary / Reference */}
+                                            {(() => {
+                                                const explicitCategories = categories
+                                                    .map(cat => ({
+                                                        ...cat,
+                                                        selectedItems: cat.items.filter(item => selectedFeeItemIds.includes(item.id) && item.assignment_scope !== 'all'),
+                                                    }))
+                                                    .filter(cat => cat.selectedItems.length > 0);
+                                                const globalCategories = categories
+                                                    .map(cat => ({
+                                                        ...cat,
+                                                        globalItems: cat.items.filter(item => item.assignment_scope === 'all' && item.is_active),
+                                                    }))
+                                                    .filter(cat => cat.globalItems.length > 0);
+                                                const hasContent = explicitCategories.length > 0 || globalCategories.length > 0;
+                                                if (!hasContent) return null;
+                                                const explicitTotal = explicitCategories.reduce(
+                                                    (sum, cat) => sum + cat.selectedItems.reduce((s, item) => s + parseFloat(item.selling_price || '0'), 0),
+                                                    0
+                                                );
+                                                const globalTotal = globalCategories.reduce(
+                                                    (sum, cat) => sum + cat.globalItems.reduce((s, item) => s + parseFloat(item.selling_price || '0'), 0),
+                                                    0
+                                                );
+                                                return (
+                                                    <Card className="border-blue-200 bg-blue-50/50">
+                                                        <CardHeader className="py-3">
+                                                            <CardTitle className="text-sm text-blue-800 flex items-center gap-2">
+                                                                <CheckSquare className="h-4 w-4" />
+                                                                Assigned Fees Summary — {assignClassification} &gt; {selectedDepartment?.name} &gt; {selectedYearLevel?.name}
+                                                            </CardTitle>
+                                                        </CardHeader>
+                                                        <CardContent className="pt-0 space-y-4">
+                                                            {explicitCategories.length > 0 && (
+                                                                <div className="space-y-3">
+                                                                    <p className="text-xs font-bold uppercase tracking-wide text-blue-700">Specifically Assigned to This Group</p>
+                                                                    {explicitCategories.map(cat => (
+                                                                        <div key={cat.id}>
+                                                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{cat.name}</p>
+                                                                            <div className="space-y-1">
+                                                                                {cat.selectedItems.map(item => (
+                                                                                    <div key={item.id} className="flex justify-between text-sm">
+                                                                                        <span>{item.name}</span>
+                                                                                        <span className="font-medium">{formatCurrency(item.selling_price)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="flex justify-between text-sm font-semibold border-t pt-1">
+                                                                        <span>Subtotal</span>
+                                                                        <span className="text-blue-700">{formatCurrency(explicitTotal)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {globalCategories.length > 0 && (
+                                                                <div className="space-y-3">
+                                                                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Global Fees (applies to all students)</p>
+                                                                    {globalCategories.map(cat => (
+                                                                        <div key={cat.id}>
+                                                                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{cat.name}</p>
+                                                                            <div className="space-y-1">
+                                                                                {cat.globalItems.map(item => (
+                                                                                    <div key={item.id} className="flex justify-between text-sm">
+                                                                                        <span>{item.name}</span>
+                                                                                        <span className="font-medium">{formatCurrency(item.selling_price)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="flex justify-between text-sm font-semibold border-t pt-1">
+                                                                        <span>Subtotal</span>
+                                                                        <span className="text-amber-700">{formatCurrency(globalTotal)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {(explicitCategories.length > 0 || globalCategories.length > 0) && (
+                                                                <div className="border-t pt-2 flex justify-between font-bold text-base">
+                                                                    <span>Total Fees for This Group</span>
+                                                                    <span className="text-blue-800">{formatCurrency(explicitTotal + globalTotal)}</span>
+                                                                </div>
+                                                            )}
+                                                        </CardContent>
+                                                    </Card>
+                                                );
+                                            })()}
+
                                             {/* Save Button */}
                                             <div className="flex justify-end pt-4">
                                                 <Button onClick={handleSaveAssignments} disabled={savingAssignments}>
