@@ -58,7 +58,7 @@ class UpdateStudentRequest extends FormRequest
             'guardian_contact' => ['required', 'string', 'max:20'],
             'guardian_email' => ['nullable', 'email', 'max:255'],
             'student_photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif,webp', 'max:2048'],
-            'remarks' => ['nullable', 'string', 'max:500'],
+            'remarks' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

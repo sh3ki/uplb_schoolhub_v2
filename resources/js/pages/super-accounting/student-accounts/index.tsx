@@ -522,6 +522,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 <Table>
                                     <TableHeader><TableRow>
                                         <TableHead className="w-8">#</TableHead>
+                                        <TableHead className="w-12">Photo</TableHead>
                                         <TableHead>Name (Last, First)</TableHead>
                                         <TableHead>Student No.</TableHead>
                                         <TableHead>Program</TableHead>
@@ -530,10 +531,18 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     </TableRow></TableHeader>
                                     <TableBody>
                                         {classListMale.length === 0 ? (
-                                            <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No male students.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No male students.</TableCell></TableRow>
                                         ) : classListMale.map((s, i) => (
                                             <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/student-accounts/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
+                                                <TableCell>
+                                                    <StudentPhoto
+                                                        src={s.student_photo_url}
+                                                        firstName={s.first_name}
+                                                        lastName={s.last_name}
+                                                        size="sm"
+                                                    />
+                                                </TableCell>
                                                 <TableCell className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</TableCell>
                                                 <TableCell className="font-mono text-sm">{s.lrn}</TableCell>
                                                 <TableCell className="text-sm">{s.program || '—'}</TableCell>
@@ -553,6 +562,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 <Table>
                                     <TableHeader><TableRow>
                                         <TableHead className="w-8">#</TableHead>
+                                        <TableHead className="w-12">Photo</TableHead>
                                         <TableHead>Name (Last, First)</TableHead>
                                         <TableHead>Student No.</TableHead>
                                         <TableHead>Program</TableHead>
@@ -561,10 +571,18 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     </TableRow></TableHeader>
                                     <TableBody>
                                         {classListFemale.length === 0 ? (
-                                            <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No female students.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No female students.</TableCell></TableRow>
                                         ) : classListFemale.map((s, i) => (
                                             <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/student-accounts/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
+                                                <TableCell>
+                                                    <StudentPhoto
+                                                        src={s.student_photo_url}
+                                                        firstName={s.first_name}
+                                                        lastName={s.last_name}
+                                                        size="sm"
+                                                    />
+                                                </TableCell>
                                                 <TableCell className="font-medium">{s.last_name}, {s.first_name}{s.middle_name ? ` ${s.middle_name}` : ''}{s.suffix ? ` ${s.suffix}` : ''}</TableCell>
                                                 <TableCell className="font-mono text-sm">{s.lrn}</TableCell>
                                                 <TableCell className="text-sm">{s.program || '—'}</TableCell>
