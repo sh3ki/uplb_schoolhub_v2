@@ -457,11 +457,11 @@ class StudentAccountController extends Controller
      * Get detailed account information.
      * Redirect to payment processing page which has full details.
      */
-    public function show(StudentFee $fee): RedirectResponse
+    public function show(Student $student): RedirectResponse
     {
         $prefix = str_starts_with(request()->route()->getName(), 'super-accounting.')
             ? 'super-accounting'
             : 'accounting';
-        return redirect()->route("{$prefix}.payments.process", ['student' => $fee->student_id]);
+        return redirect()->route("{$prefix}.payments.process", ['student' => $student->id]);
     }
 }
