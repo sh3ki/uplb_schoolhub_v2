@@ -74,6 +74,7 @@ const getEnrollmentStatusBadge = (status: string) => {
         enrolled: { label: 'Enrolled', variant: 'default' },
         'pending-registrar': { label: 'Pending', variant: 'secondary' },
         'pending-accounting': { label: 'Pending', variant: 'secondary' },
+        'pending-enrollment': { label: 'Enrollment Pending', variant: 'secondary' },
         'not-enrolled': { label: 'Not Enrolled', variant: 'outline' },
         graduated: { label: 'Graduated', variant: 'default' },
         dropped: { label: 'Dropped', variant: 'destructive' },
