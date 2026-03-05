@@ -508,6 +508,84 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
+                        <Dialog open={isAddSchoolYearDialogOpen} onOpenChange={setIsAddSchoolYearDialogOpen}>
+                            <DialogTrigger asChild>
+                                <Button variant="outline" className="border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100">
+                                    <Plus className="h-4 w-4 mr-2" />
+                                    Add School Year
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[460px]">
+                                <form onSubmit={handleAddSchoolYearSubmit}>
+                                    <DialogHeader>
+                                        <DialogTitle>Add School Year Fee Record</DialogTitle>
+                                        <DialogDescription>
+                                            Manually create a fee record for a specific school year for {student.full_name}.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4">
+                                        <div className="grid gap-2">
+                                            <Label>School Year *</Label>
+                                            <Input
+                                                value={addSchoolYearForm.data.school_year}
+                                                onChange={(e) => addSchoolYearForm.setData('school_year', e.target.value)}
+                                                placeholder="e.g. 2024-2025"
+                                            />
+                                            {addSchoolYearForm.errors.school_year && (
+                                                <p className="text-sm text-red-500">{addSchoolYearForm.errors.school_year}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Total Amount (₱) *</Label>
+                                            <Input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={addSchoolYearForm.data.total_amount}
+                                                onChange={(e) => addSchoolYearForm.setData('total_amount', e.target.value)}
+                                                placeholder="0.00"
+                                                className="text-lg font-semibold"
+                                            />
+                                            {addSchoolYearForm.errors.total_amount && (
+                                                <p className="text-sm text-red-500">{addSchoolYearForm.errors.total_amount}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Reason *</Label>
+                                            <Textarea
+                                                value={addSchoolYearForm.data.reason}
+                                                onChange={(e) => addSchoolYearForm.setData('reason', e.target.value)}
+                                                placeholder="e.g. Manual fee entry for previous school year..."
+                                                rows={2}
+                                                required
+                                            />
+                                            {addSchoolYearForm.errors.reason && (
+                                                <p className="text-sm text-red-500">{addSchoolYearForm.errors.reason}</p>
+                                            )}
+                                        </div>
+                                        <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
+                                            <div className="flex items-center gap-2 text-blue-700">
+                                                <AlertTriangle className="h-4 w-4" />
+                                                <span className="text-sm font-medium">This action is permanently logged and visible to the Owner.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <DialogFooter>
+                                        <Button type="button" variant="outline" onClick={() => setIsAddSchoolYearDialogOpen(false)}>
+                                            Cancel
+                                        </Button>
+                                        <Button
+                                            type="submit"
+                                            disabled={addSchoolYearForm.processing || !addSchoolYearForm.data.school_year || !addSchoolYearForm.data.total_amount || !addSchoolYearForm.data.reason}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Create Record
+                                        </Button>
+                                    </DialogFooter>
+                                </form>
+                            </DialogContent>
+                        </Dialog>
                         <Dialog open={isAddBalanceDialogOpen} onOpenChange={setIsAddBalanceDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100">
