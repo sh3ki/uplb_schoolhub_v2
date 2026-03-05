@@ -8,7 +8,7 @@ This document describes the CI/CD deployment setup for the SchoolHub Laravel app
 
 | Environment | Branch | URL | Database |
 |-------------|--------|-----|----------|
-| **Production** | `master` | https://westerncollegesinc.ph | `u866511543_westerncollege` |
+
 
 ## Architecture
 
@@ -29,15 +29,15 @@ Local Development
 ## Server Structure
 
 ```
-/home/u866511543/
-├── westerncollege/                    # Production app
+/home/-----------/
+├── ------------/                    # Production app
 │   ├── public/                        # Laravel public (symlinked to domain)
 │   │   └── storage -> ../storage/app/public
 │   ├── storage/
 │   └── ...
 └── domains/
-    └── westerncollegesinc.ph/
-        └── public_html -> /home/u866511543/westerncollege/public
+    └── ------------------/
+        └── public_html ->
 ```
 
 ## Workflow for Development
@@ -54,12 +54,12 @@ git push origin master
 
 | Secret | Description |
 |--------|-------------|
-| `SSH_HOST` | Hostinger IP: `72.61.121.165` |
-| `SSH_PORT` | SSH Port: `65002` |
-| `SSH_USER` | Username: `u866511543` |
+| `SSH_HOST` | Hostinger IP: `` |
+| `SSH_PORT` | SSH Port: `` |
+| `SSH_USER` | Username: `` |
 | `SSH_PRIVATE_KEY` | Ed25519 private key for deployment |
 | `APP_KEY` | Laravel application key |
-| `PROD_DEPLOY_PATH` | `/home/u866511543/westerncollege` |
+| `PROD_DEPLOY_PATH` | `` |
 | `PROD_DB_DATABASE` | Production database name |
 | `PROD_DB_USERNAME` | Production database username |
 | `PROD_DB_PASSWORD` | Production database password |
@@ -71,17 +71,16 @@ git push origin master
 - Private key stored in GitHub Secrets: `SSH_PRIVATE_KEY`
 
 ### 2. Domain Configuration
-- Main domain points to: `/home/u866511543/westerncollege/public`
+- Main domain points to: ``
 
 ### 3. Storage Symlink (manual, exec() is disabled)
 ```bash
-ln -sfn ~/westerncollege/storage/app/public ~/westerncollege/public/storage
+
 ```
 
 ### 4. Database Seeding (first-time only)
 ```bash
-ssh -p 65002 u866511543@72.61.121.165
-cd ~/westerncollege
+
 php artisan db:seed --class=AdminSeeder --force
 ```
 
@@ -92,7 +91,7 @@ Go to: https://github.com/LeeDev428/uplb_schoolhub/actions
 
 ### SSH into server manually
 ```bash
-ssh -i ~/.ssh/hostinger_deploy -p 65002 u866511543@72.61.121.165
+
 ```
 
 ### Clear Laravel caches
