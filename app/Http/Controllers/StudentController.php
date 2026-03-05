@@ -358,6 +358,27 @@ class StudentController extends Controller
     }
 
     /**
+     * Add a staff note to the student's action log.
+     */
+    public function addNote(Request $request, Student $student)
+    {
+        $request->validate([
+            'text' => ['required', 'string', 'max:1000'],
+        ]);
+
+        StudentActionLog::create([
+            'student_id'   => $student->id,
+            'performed_by' => auth()->id(),
+            'action'       => 'Staff Note',
+            'action_type'  => 'note',
+            'details'      => $request->text,
+            'notes'        => null,
+        ]);
+
+        return back()->with('success', 'Note added.');
+    }
+
+    /**
      * Generate unique username for student
      */
     private function generateUniqueUsername(Student $student): string
@@ -594,7 +615,7 @@ class StudentController extends Controller
         $updateData = [
             $clearanceType => $status,
             // Always keep requirements_complete in sync with actual approvals
-            'requirements_complete'            => $reqComplete,
+            'requirements_complete'            => $reqPct >= 100,
             'requirements_complete_percentage' => $reqPct,
         ];
         
