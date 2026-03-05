@@ -235,11 +235,19 @@ class DropRequestController extends Controller
         })
             ->where('is_active', true)
             ->where(function ($query) use ($student) {
-                // Include items with assignment_scope = 'all' or NULL (default = all students)
+                // Items for ALL students
                 $query->where('assignment_scope', 'all')
                     ->orWhereNull('assignment_scope')
+                    // Items with 'specific' scope that have at least one filter set and match this student
                     ->orWhere(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
                         $this->applyStudentFilters($q, $student);
                     })
                     ->orWhereHas('assignments', function ($q) use ($student) {
