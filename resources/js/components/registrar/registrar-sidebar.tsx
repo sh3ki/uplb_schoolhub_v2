@@ -51,7 +51,7 @@ interface AppSettings {
 }
 
 export function RegistrarSidebar() {
-    const { announcementCount, appSettings } = usePage<{ announcementCount: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -97,6 +97,7 @@ export function RegistrarSidebar() {
         {
             title: 'Document Requests',
             href: '/registrar/document-approvals',
+            badge: pendingDocumentCount || undefined,
             icon: ClipboardCheck,
         },
         {
