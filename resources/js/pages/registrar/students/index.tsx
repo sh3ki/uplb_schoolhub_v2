@@ -726,7 +726,11 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                     const s = student as any;
                                     const fullName = `${s.first_name}${s.middle_name ? ' ' + s.middle_name : ''} ${s.last_name}${s.suffix ? ' ' + s.suffix : ''}`;
                                     return (
-                                        <TableRow key={s.id}>
+                                        <TableRow
+                                            key={s.id}
+                                            className={activeTab === 'dropped' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                            onClick={activeTab === 'dropped' ? () => router.visit(`/registrar/students/${s.id}`) : undefined}
+                                        >
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
                                                     <Avatar>
@@ -761,7 +765,7 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                                                 size="sm"
                                                                 variant="outline"
                                                                 className="border-green-400 text-green-700 hover:bg-green-50"
-                                                                onClick={() => openReEnrollDialog(s.id, fullName)}
+                                                                onClick={(e) => { e.stopPropagation(); openReEnrollDialog(s.id, fullName); }}
                                                             >
                                                                 <RefreshCcw className="mr-1 h-3 w-3" />
                                                                 Re-Enroll
@@ -769,7 +773,7 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
-                                                                onClick={() => router.visit(`/registrar/students/${s.id}`)}
+                                                                onClick={(e) => { e.stopPropagation(); router.visit(`/registrar/students/${s.id}`); }}
                                                             >
                                                                 Edit
                                                             </Button>
