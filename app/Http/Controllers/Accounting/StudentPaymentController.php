@@ -509,9 +509,18 @@ class StudentPaymentController extends Controller
         return \App\Models\FeeItem::where('is_active', true)
             ->whereNotNull('school_year')
             ->where(function ($query) use ($student) {
-                // Items with 'specific' scope that match this student's C/D/YL
-                $query->where(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
+                // Items for ALL students
+                $query->where('assignment_scope', 'all')
+                    // Items with 'specific' scope that have at least one filter set and match this student
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
                         $this->applyStudentFilters($q, $student);
                     })
                     // Or items explicitly assigned via the Assignments tab
@@ -539,8 +548,16 @@ class StudentPaymentController extends Controller
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student) {
-                $query->where(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
+                $query->where('assignment_scope', 'all')
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
                         $this->applyStudentFilters($q, $student);
                     })
                     // Or items explicitly assigned via the Assignments tab
@@ -749,8 +766,16 @@ class StudentPaymentController extends Controller
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student) {
-                $query->where(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
+                $query->where('assignment_scope', 'all')
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
                         $this->applyStudentFilters($q, $student);
                     })
                     // Or items explicitly assigned via the Assignments tab
@@ -831,5 +856,91 @@ class StudentPaymentController extends Controller
         );
 
         return redirect()->back()->with('success', "Balance of ₱" . number_format($validated['amount'], 2) . " added successfully.");
+    }
+
+    /**
+     * Edit a StudentFee record's discount and/or due date.
+     * Only available for accounting roles. Always logged.
+     */
+    public function editFee(Request $request, Student $student, StudentFee $fee): RedirectResponse
+    {
+        // Ensure the fee belongs to this student
+        if ((int) $fee->student_id !== (int) $student->id) {
+            return redirect()->back()->with('error', 'Fee record does not belong to this student.');
+        }
+
+        $validated = $request->validate([
+            'grant_discount' => 'nullable|numeric|min:0',
+            'due_date'       => 'nullable|date',
+            'reason'         => 'required|string|max:500',
+        ]);
+
+        $oldDiscount = (float) $fee->grant_discount;
+        $oldDueDate  = $fee->due_date;
+
+        if (isset($validated['grant_discount'])) {
+            $fee->grant_discount = (float) $validated['grant_discount'];
+        }
+        if (array_key_exists('due_date', $validated)) {
+            $fee->due_date = $validated['due_date'];
+        }
+
+        // Recalculate balance
+        $fee->balance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid);
+        $fee->save();
+
+        // Log the change
+        StudentActionLog::log(
+            studentId: $student->id,
+            action: "Fee record edited for {$fee->school_year} — {$validated['reason']}",
+            actionType: 'fee_edit',
+            details: "Updated {$fee->school_year}: discount {$oldDiscount} → {$fee->grant_discount}; due date {$oldDueDate} → {$fee->due_date}",
+            notes: null,
+            changes: [
+                'school_year'      => $fee->school_year,
+                'old_discount'     => $oldDiscount,
+                'new_discount'     => (float) $fee->grant_discount,
+                'old_due_date'     => $oldDueDate,
+                'new_due_date'     => $fee->due_date,
+                'reason'           => $validated['reason'],
+                'new_balance'      => (float) $fee->balance,
+            ],
+            performedBy: $request->user()->id,
+        );
+
+        return redirect()->back()->with('success', "Fee record for {$fee->school_year} updated.");
+    }
+
+    /**
+     * Delete a StudentFee record (removes tracking record; fees recalculate next visit).
+     * Only available for accounting roles. Always logged.
+     */
+    public function deleteFee(Request $request, Student $student, StudentFee $fee): RedirectResponse
+    {
+        // Ensure the fee belongs to this student
+        if ((int) $fee->student_id !== (int) $student->id) {
+            return redirect()->back()->with('error', 'Fee record does not belong to this student.');
+        }
+
+        // Prevent deletion if payments have been made
+        if ((float) $fee->total_paid > 0) {
+            return redirect()->back()->with('error', "Cannot delete fee record for {$fee->school_year} — payments of ₱" . number_format($fee->total_paid, 2) . " already recorded.");
+        }
+
+        $schoolYear = $fee->school_year;
+
+        StudentActionLog::log(
+            studentId: $student->id,
+            action: "Fee record deleted for {$schoolYear}",
+            actionType: 'fee_delete',
+            details: "Deleted StudentFee #{$fee->id} for {$schoolYear}",
+            notes: null,
+            changes: ['school_year' => $schoolYear, 'fee_id' => $fee->id],
+            performedBy: $request->user()->id,
+        );
+
+        $fee->delete();
+
+        return redirect()->back()->with('success', "Fee record for {$schoolYear} deleted.");
     }
 }
