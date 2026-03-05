@@ -236,6 +236,9 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     // Inactive Students (deactivated — is_active = false, not soft-deleted)
     Route::get('inactive-students', [App\Http\Controllers\Registrar\InactiveStudentController::class, 'index'])->name('inactive-students');
 
+    // Unified Student Status (Dropped / Archived / Deactivated)
+    Route::get('student-status', [App\Http\Controllers\Registrar\StudentStatusController::class, 'index'])->name('student-status.index');
+
     // Deactivate / Activate individual student
     Route::post('students/bulk-deactivate', [\App\Http\Controllers\StudentController::class, 'bulkDeactivate'])->name('students.bulk-deactivate');
     Route::post('students/{student}/deactivate', [\App\Http\Controllers\StudentController::class, 'deactivate'])->name('students.deactivate');

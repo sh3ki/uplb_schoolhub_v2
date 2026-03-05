@@ -235,9 +235,13 @@ class DropRequestController extends Controller
         })
             ->where('is_active', true)
             ->where(function ($query) use ($student) {
-                // Items for ALL students
-                $query->where('assignment_scope', 'all')
-                    ->orWhereNull('assignment_scope')
+                // Items for ALL students (only if no explicit assignments exist)
+                $query->where(function ($inner) {
+                        $inner->where(function ($i) {
+                            $i->where('assignment_scope', 'all')
+                              ->orWhereNull('assignment_scope');
+                        })->whereDoesntHave('assignments');
+                    })
                     // Items with 'specific' scope that have at least one filter set and match this student
                     ->orWhere(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific')
@@ -310,21 +314,19 @@ class DropRequestController extends Controller
     {
         $query->where('is_active', true);
 
-        if ($student->department) {
-            $query->where(function ($sq) use ($student) {
-                $sq->whereNull('classification')
-                    ->orWhere('classification', $student->department->classification);
-            });
+        if (!$student->department_id) {
+            $query->whereRaw('1 = 0');
+            return;
         }
 
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('department_id')
-                ->orWhere('department_id', $student->department_id);
-        });
+        if ($student->department) {
+            $query->where('classification', $student->department->classification);
+        }
 
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('year_level_id')
-                ->orWhere('year_level_id', $student->year_level_id);
-        });
+        $query->where('department_id', $student->department_id);
+
+        if ($student->year_level_id) {
+            $query->where('year_level_id', $student->year_level_id);
+        }
     }
 }
