@@ -157,6 +157,7 @@ class StudentAccountController extends Controller
             });
 
         $classListBase = Student::whereNull('deleted_at')
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
         return Inertia::render($this->viewPrefix() . '/student-accounts/index', [
@@ -198,8 +199,16 @@ class StudentAccountController extends Controller
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student) {
-                $query->where(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
+                $query->where('assignment_scope', 'all')
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
                         $this->applyStudentFilters($q, $student);
                     })
                     // Or items explicitly assigned via the Assignments tab
