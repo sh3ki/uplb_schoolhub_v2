@@ -101,7 +101,7 @@ class DropRequestController extends Controller
             'category' => $item->category?->name,
         ]);
 
-        $appSettings = AppSetting::current();
+        $dropSettings = AppSetting::current();
 
         return Inertia::render('registrar/drop-requests/index', [
             'requests' => $requests,
@@ -109,11 +109,7 @@ class DropRequestController extends Controller
             'tab' => $tab,
             'filters' => $request->only(['search']),
             'dropFeeItems' => $dropFeeItems,
-            'dropRequestDeadline' => $appSettings->drop_request_deadline?->format('Y-m-d'),
-            'appSettings' => [
-                'has_k12' => $appSettings->has_k12,
-                'has_college' => $appSettings->has_college,
-            ],
+            'dropRequestDeadline' => $dropSettings->drop_request_deadline?->format('Y-m-d'),
         ]);
     }
 
