@@ -538,22 +538,19 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         return acc;
     }, {} as Record<string, DocumentFeeItem[]>) || {};
 
-    // For College: derive department_id from selected program
-    const effectiveDepartmentId = assignClassification === 'College'
-        ? (assignProgramId ? (programs.find(p => p.id === assignProgramId)?.department_id ?? null) : null)
-        : assignDepartmentId;
-
-    // Filtered year levels based on selected department (or program's department for College)
-    const filteredYearLevels = yearLevels.filter(yl =>
-        yl.classification === assignClassification &&
-        (!effectiveDepartmentId || yl.department_id === effectiveDepartmentId)
-    );
-
-    // Filtered departments based on selected classification (K-12 only)
+    // Filtered departments based on selected classification
     const filteredDepartments = departments.filter(d => d.classification === assignClassification);
 
-    // Filtered programs (College only)
-    const filteredPrograms = programs.filter(p => p.classification === 'College');
+    // Filtered year levels based on selected department
+    const filteredYearLevels = yearLevels.filter(yl =>
+        yl.classification === assignClassification &&
+        (!assignDepartmentId || yl.department_id === assignDepartmentId)
+    );
+
+    // Filtered programs for College — filtered by selected department
+    const filteredPrograms = assignClassification === 'College'
+        ? programs.filter(p => !assignDepartmentId || p.department_id === assignDepartmentId)
+        : [];
 
     // Available classification options based on app settings
     const classificationOptions = [
@@ -561,11 +558,11 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         ...(appSettings?.has_college ? [{ value: 'College', label: 'College' }] : []),
     ];
 
-    // Load assignments when all three dropdowns are selected
+    // Load assignments when classification + department + year_level are all selected
     useEffect(() => {
-        if (assignClassification && effectiveDepartmentId && assignYearLevelId) {
+        if (assignClassification && assignDepartmentId && assignYearLevelId) {
             setLoadingAssignments(true);
-            fetch(`/accounting/fee-management/assignments?classification=${assignClassification}&department_id=${effectiveDepartmentId}&year_level_id=${assignYearLevelId}`)
+            fetch(`/accounting/fee-management/assignments?classification=${assignClassification}&department_id=${assignDepartmentId}&year_level_id=${assignYearLevelId}`)
                 .then(res => res.json())
                 .then(data => {
                     setSelectedFeeItemIds(data.assignments || []);
@@ -578,7 +575,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         } else {
             setSelectedFeeItemIds([]);
         }
-    }, [assignClassification, effectiveDepartmentId, assignYearLevelId]);
+    }, [assignClassification, assignDepartmentId, assignYearLevelId]);
 
     const toggleFeeItemSelection = (itemId: number) => {
         setSelectedFeeItemIds(prev => 
@@ -603,13 +600,13 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
     };
 
     const handleSaveAssignments = () => {
-        if (!assignClassification || !effectiveDepartmentId || !assignYearLevelId) return;
+        if (!assignClassification || !assignDepartmentId || !assignYearLevelId) return;
         
         const schoolYear = studentSchoolYears[0] ?? `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
         setSavingAssignments(true);
         router.post('/accounting/fee-management/assignments', {
             classification: assignClassification,
-            department_id: effectiveDepartmentId,
+            department_id: assignDepartmentId,
             year_level_id: assignYearLevelId,
             fee_item_ids: selectedFeeItemIds,
             school_year: schoolYear,
@@ -625,11 +622,9 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
         });
     };
 
-    // Get selected department/program and year level names for display
-    const selectedProgram = programs.find(p => p.id === assignProgramId);
-    const selectedDepartment = assignClassification === 'College'
-        ? selectedProgram ?? null
-        : departments.find(d => d.id === assignDepartmentId) ?? null;
+    // Get selected department, program, and year level names for display
+    const selectedDepartment = departments.find(d => d.id === assignDepartmentId) ?? null;
+    const selectedProgram = programs.find(p => p.id === assignProgramId) ?? null;
     const selectedYearLevel = yearLevels.find(yl => yl.id === assignYearLevelId);
 
     return (
@@ -1035,12 +1030,13 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                     Assign Fees to Student Groups
                                 </CardTitle>
                                 <CardDescription>
-                                    Select a classification, then department (K-12) or program (College), and year level to assign fee items
+                                    Select a classification, department, and year level to assign fee items (College: also select a program for context)
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {/* Selection Dropdowns */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className={`grid grid-cols-1 gap-4 ${assignClassification === 'College' ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+                                    {/* 1. Classification */}
                                     <div className="grid gap-2">
                                         <Label>Classification *</Label>
                                         <Select
@@ -1062,18 +1058,38 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                             </SelectContent>
                                         </Select>
                                     </div>
+                                    {/* 2. Department (always shown) */}
                                     <div className="grid gap-2">
-                                        <Label>{assignClassification === 'College' ? 'Program *' : 'Department *'}</Label>
-                                        {assignClassification === 'College' ? (
+                                        <Label>Department *</Label>
+                                        <Select
+                                            value={assignDepartmentId?.toString() || ''}
+                                            onValueChange={(value) => {
+                                                setAssignDepartmentId(parseInt(value));
+                                                setAssignProgramId(null);
+                                                setAssignYearLevelId(null);
+                                            }}
+                                            disabled={!assignClassification}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select department" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {filteredDepartments.map(dept => (
+                                                    <SelectItem key={dept.id} value={dept.id.toString()}>
+                                                        {dept.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    {/* 3. Program (College only, after department is selected) */}
+                                    {assignClassification === 'College' && (
+                                        <div className="grid gap-2">
+                                            <Label>Program</Label>
                                             <Select
                                                 value={assignProgramId?.toString() || ''}
-                                                onValueChange={(value) => {
-                                                    const prog = programs.find(p => p.id === parseInt(value));
-                                                    setAssignProgramId(parseInt(value));
-                                                    setAssignDepartmentId(prog?.department_id ?? null);
-                                                    setAssignYearLevelId(null);
-                                                }}
-                                                disabled={!assignClassification}
+                                                onValueChange={(value) => setAssignProgramId(parseInt(value))}
+                                                disabled={!assignDepartmentId}
                                             >
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select program" />
@@ -1086,35 +1102,15 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                        ) : (
-                                            <Select
-                                                value={assignDepartmentId?.toString() || ''}
-                                                onValueChange={(value) => {
-                                                    setAssignDepartmentId(parseInt(value));
-                                                    setAssignProgramId(null);
-                                                    setAssignYearLevelId(null);
-                                                }}
-                                                disabled={!assignClassification}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select department" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {filteredDepartments.map(dept => (
-                                                        <SelectItem key={dept.id} value={dept.id.toString()}>
-                                                            {dept.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
+                                    {/* 4. Grade/Year Level */}
                                     <div className="grid gap-2">
                                         <Label>Grade/Year Level *</Label>
                                         <Select
                                             value={assignYearLevelId?.toString() || ''}
                                             onValueChange={(value) => setAssignYearLevelId(parseInt(value))}
-                                            disabled={!effectiveDepartmentId}
+                                            disabled={!assignDepartmentId}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select year level" />
@@ -1131,16 +1127,16 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                 </div>
 
                                 {/* Selected Group Display */}
-                                {assignClassification && effectiveDepartmentId && assignYearLevelId && (
+                                {assignClassification && assignDepartmentId && assignYearLevelId && (
                                     <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
                                         <p className="text-sm font-medium text-blue-800">
-                                            Select Fee Items for: {assignClassification} &gt; {selectedDepartment?.name} &gt; {selectedYearLevel?.name}
+                                            Select Fee Items for: {assignClassification} &gt; {selectedDepartment?.name}{selectedProgram ? ` › ${selectedProgram.name}` : ''} &gt; {selectedYearLevel?.name}
                                         </p>
                                     </div>
                                 )}
 
                                 {/* Fee Categories with Checkboxes */}
-                                {assignClassification && effectiveDepartmentId && assignYearLevelId ? (
+                                {assignClassification && assignDepartmentId && assignYearLevelId ? (
                                     loadingAssignments ? (
                                         <div className="flex items-center justify-center py-8">
                                             <p className="text-muted-foreground">Loading assignments...</p>
@@ -1266,7 +1262,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                 ) : (
                                     <div className="text-center py-8 text-muted-foreground">
                                         <CheckSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                                        <p>Select a classification, {assignClassification === 'College' ? 'program' : 'department'}, and grade/year level to assign fees.</p>
+                                        <p>Select a classification, department{assignClassification === 'College' ? ', program' : ''}, and grade/year level to assign fees.</p>
                                     </div>
                                 )}
                             </CardContent>
