@@ -28,7 +28,7 @@ class FeeManagementController extends Controller
         $tab = $request->input('tab', 'general');
 
         $categories = FeeCategory::with(['items' => function ($query) {
-            $query->orderBy('name');
+            $query->with(['assignments.department', 'assignments.yearLevel'])->orderBy('name');
         }])
         ->ordered()
         ->get()
