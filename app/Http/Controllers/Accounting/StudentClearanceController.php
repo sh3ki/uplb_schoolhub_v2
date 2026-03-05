@@ -91,14 +91,9 @@ class StudentClearanceController extends Controller
                 ->whereDoesntHave('category', function ($q) {
                     $q->where('name', 'like', '%Drop%');
                 })
-                ->where(function ($query) use ($student) {
-                    $query->where(function ($q) use ($student) {
-                            $q->where('assignment_scope', 'specific');
-                            $this->applyStudentFilters($q, $student);
-                        })
-                        ->orWhereHas('assignments', function ($q) use ($student) {
-                            $this->applyAssignmentFilters($q, $student);
-                        });
+                // Only items explicitly assigned via the Assignments tab
+                ->whereHas('assignments', function ($q) use ($student) {
+                    $this->applyAssignmentFilters($q, $student);
                 })
                 ->sum('selling_price');
 
@@ -181,14 +176,9 @@ class StudentClearanceController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student) {
-                $query->where(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific');
-                        $this->applyStudentFilters($q, $student);
-                    })
-                    ->orWhereHas('assignments', function ($q) use ($student) {
-                        $this->applyAssignmentFilters($q, $student);
-                    });
+            // Only items explicitly assigned via the Assignments tab
+            ->whereHas('assignments', function ($q) use ($student) {
+                $this->applyAssignmentFilters($q, $student);
             })
             ->sum('selling_price');
 
@@ -294,39 +284,6 @@ class StudentClearanceController extends Controller
         }
 
         return back()->with('success', "{$count} students updated successfully.");
-    }
-
-    /**
-     * Apply student-specific filters to fee item query.
-     */
-    private function applyStudentFilters($query, Student $student): void
-    {
-        if ($student->department) {
-            $query->where(function ($sq) use ($student) {
-                $sq->whereNull('classification')
-                    ->orWhere('classification', $student->department->classification);
-            });
-        }
-
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('department_id')
-                ->orWhere('department_id', $student->department_id);
-        });
-
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('program_id')
-                ->orWhere('program_id', $student->program_id);
-        });
-
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('year_level_id')
-                ->orWhere('year_level_id', $student->year_level_id);
-        });
-
-        $query->where(function ($sq) use ($student) {
-            $sq->whereNull('section_id')
-                ->orWhere('section_id', $student->section_id);
-        });
     }
 
     /**
