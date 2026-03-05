@@ -9,6 +9,7 @@ import {
     ThumbsUp,
     UserX,
     XCircle,
+    ArrowRight,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
