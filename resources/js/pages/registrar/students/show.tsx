@@ -221,6 +221,9 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
     const [histSyFilter, setHistSyFilter] = useState<string>('all');
     const [studentNotesText, setStudentNotesText] = useState(student.remarks ?? '');
     const [notesSaving, setNotesSaving] = useState(false);
+    const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
+    const [newNoteText, setNewNoteText] = useState('');
+    const [addingNote, setAddingNote] = useState(false);
 
     // Unique school years from enrollment history + current student school year
     const historySchoolYears = useMemo(() => {
@@ -281,6 +284,16 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
             preserveScroll: true,
             onSuccess: () => { toast.success('Notes saved.'); setNotesSaving(false); },
             onError:   () => { toast.error('Failed to save notes.'); setNotesSaving(false); },
+        });
+    };
+
+    const handleAddNote = () => {
+        if (!newNoteText.trim()) return;
+        setAddingNote(true);
+        router.post(`/registrar/students/${student.id}/add-note`, { text: newNoteText }, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Note added.'); setNewNoteText(''); setShowAddNoteDialog(false); setAddingNote(false); },
+            onError:   () => { toast.error('Failed to add note.'); setAddingNote(false); },
         });
     };
 
@@ -904,23 +917,48 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                     {/* Notes Tab */}
                     <TabsContent value="notes" className="space-y-4">
                         <Card>
-                            <CardHeader>
-                                <CardTitle>Student Notes</CardTitle>
-                                <CardDescription>Internal notes and remarks about this student. Only visible to staff.</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <Textarea
-                                    value={studentNotesText}
-                                    onChange={(e) => setStudentNotesText(e.target.value)}
-                                    placeholder="Add notes about this student..."
-                                    rows={8}
-                                    className="resize-y"
-                                />
-                                <div className="flex justify-end">
-                                    <Button onClick={handleSaveNotes} disabled={notesSaving}>
-                                        {notesSaving ? 'Saving...' : 'Save Notes'}
-                                    </Button>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle>Student Notes</CardTitle>
+                                    <CardDescription>Internal notes and remarks about this student. Only visible to staff.</CardDescription>
                                 </div>
+                                <Button size="sm" onClick={() => setShowAddNoteDialog(true)}>
+                                    <Plus className="mr-1 h-4 w-4" /> Add Note
+                                </Button>
+                            </CardHeader>
+                            <CardContent>
+                                {(() => {
+                                    const noteEntries = actionLogs.filter(l => l.action_type === 'note');
+                                    if (noteEntries.length === 0) {
+                                        return (
+                                            <p className="text-center text-sm text-muted-foreground py-8">
+                                                No notes yet. Click "Add Note" to add a staff note.
+                                            </p>
+                                        );
+                                    }
+                                    return (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Note</TableHead>
+                                                    <TableHead className="w-40">Added By</TableHead>
+                                                    <TableHead className="w-44">Date</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {noteEntries.map(entry => (
+                                                    <TableRow key={entry.id}>
+                                                        <TableCell className="whitespace-pre-wrap">{entry.details}</TableCell>
+                                                        <TableCell>{entry.performer?.name ?? '—'}</TableCell>
+                                                        <TableCell className="text-sm text-muted-foreground">
+                                                            {new Date(entry.created_at).toLocaleString()}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    );
+                                })()}
                             </CardContent>
                         </Card>
                     </TabsContent>
