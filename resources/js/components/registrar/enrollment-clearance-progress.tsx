@@ -186,6 +186,7 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
             title: 'Registrar Clearance',
             description: clearance?.registrar_clearance ? 'Cleared by Registrar' : 'Pending – Registrar must clear',
             completed: clearance?.registrar_clearance || false,
+            percentage: clearance?.registrar_clearance ? 100 : 0,
             color: 'bg-red-400',
             key: 'registrar_clearance',
             canToggle: true,
@@ -197,6 +198,7 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
             title: 'Accounting Clearance',
             description: clearance?.accounting_clearance ? 'Cleared by Accounting' : 'Pending – Accounting must clear',
             completed: clearance?.accounting_clearance || false,
+            percentage: clearance?.accounting_clearance ? 100 : 0,
             color: 'bg-red-400',
             key: 'accounting_clearance',
             canToggle: false,
@@ -210,6 +212,7 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                 ? 'Student officially dropped'
                 : officialBlocked ? 'Waiting for both clearances' : 'Pending – Mark as officially dropped',
             completed: clearance?.official_enrollment || false,
+            percentage: clearance?.official_enrollment ? 100 : 0,
             color: 'bg-red-600',
             key: 'official_enrollment',
             canToggle: true,
@@ -283,32 +286,36 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {/* Requirements Prerequisite Banner */}
-                <div className={cn(
-                    "flex items-center gap-3 p-3 rounded-lg border text-sm",
-                    reqDone ? "bg-green-50 border-green-200 text-green-700" : "bg-amber-50 border-amber-200 text-amber-700"
-                )}>
+                {/* Requirements Prerequisite Banner — enrollment only */}
+                {!isDropMode && (
                     <div className={cn(
-                        "flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0",
-                        reqDone ? "bg-green-500 text-white" : "bg-amber-400 text-white"
+                        "flex items-center gap-3 p-3 rounded-lg border text-sm",
+                        reqDone ? "bg-green-50 border-green-200 text-green-700" : "bg-amber-50 border-amber-200 text-amber-700"
                     )}>
-                        {reqDone ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">!</span>}
+                        <div className={cn(
+                            "flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0",
+                            reqDone ? "bg-green-500 text-white" : "bg-amber-400 text-white"
+                        )}>
+                            {reqDone ? <CheckCircle2 className="h-4 w-4" /> : <span className="text-xs font-bold">!</span>}
+                        </div>
+                        <div className="flex-1">
+                            <span className="font-medium">Requirements: </span>
+                            {reqDone ? 'All requirements approved' : `${reqPct}% of requirements approved`}
+                        </div>
+                        <span className={cn(
+                            "text-xs font-semibold px-2 py-0.5 rounded-full",
+                            reqDone ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
+                        )}>Prerequisite</span>
                     </div>
-                    <div className="flex-1">
-                        <span className="font-medium">Requirements: </span>
-                        {reqDone ? 'All requirements approved' : `${reqPct}% of requirements approved`}
-                    </div>
-                    <span className={cn(
-                        "text-xs font-semibold px-2 py-0.5 rounded-full",
-                        reqDone ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"
-                    )}>Prerequisite</span>
-                </div>
-                {clearanceSteps.map((step, index) => (
-                    <div 
-                        key={step.id} 
+                )}
+                {activeSteps.map((step, index) => (
+                    <div
+                        key={step.id}
                         className={cn(
                             "relative p-4 rounded-lg border-l-4 transition-all",
-                            step.completed ? "bg-green-50 border-green-500" : "bg-gray-50 border-gray-300"
+                            step.completed
+                                ? isDropMode ? "bg-red-50 border-red-500" : "bg-green-50 border-green-500"
+                                : "bg-gray-50 border-gray-300"
                         )}
                     >
                         <div className="flex items-center justify-between">
@@ -316,7 +323,9 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                                 {/* Step Number/Icon */}
                                 <div className={cn(
                                     "flex items-center justify-center w-10 h-10 rounded-full",
-                                    step.completed ? "bg-green-500 text-white" : "bg-gray-300 text-gray-600"
+                                    step.completed
+                                        ? isDropMode ? "bg-red-500 text-white" : "bg-green-500 text-white"
+                                        : "bg-gray-300 text-gray-600"
                                 )}>
                                     {step.completed ? (
                                         <CheckCircle2 className="h-5 w-5" />
@@ -330,14 +339,16 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                                     <h3 className="font-semibold text-lg">{step.title}</h3>
                                     <p className={cn(
                                         "text-sm italic",
-                                        step.completed ? "text-green-700" : "text-gray-600"
+                                        step.completed
+                                            ? isDropMode ? "text-red-700" : "text-green-700"
+                                            : "text-gray-600"
                                     )}>
                                         {step.description}
                                     </p>
 
                                     {/* Progress Bar */}
                                     <div className="mt-2 h-2 w-full bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
+                                        <div
                                             className={cn("h-full transition-all duration-500", step.color)}
                                             style={{ width: `${step.percentage}%` }}
                                         />
@@ -348,7 +359,9 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                                 <div className="text-right">
                                     <div className={cn(
                                         "text-2xl font-bold",
-                                        step.completed ? "text-green-600" : "text-gray-500"
+                                        step.completed
+                                            ? isDropMode ? "text-red-600" : "text-green-600"
+                                            : "text-gray-500"
                                     )}>
                                         {step.percentage}%
                                     </div>
@@ -377,11 +390,16 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
                                             <Button
                                                 variant={step.completed ? "outline" : "default"}
                                                 size="sm"
+                                                className={!step.completed && isDropMode ? 'bg-red-600 hover:bg-red-700 text-white' : ''}
                                                 onClick={() => handleToggleClearance(step.key, step.completed)}
                                             >
-                                                {step.completed ? 'Mark Incomplete' : 'Mark Complete'}
+                                                {step.completed
+                                                    ? 'Mark Incomplete'
+                                                    : isDropMode && step.id === 3
+                                                        ? 'Mark Officially Dropped'
+                                                        : 'Mark Complete'}
                                             </Button>
-                                            {step.id === 3 && step.completed && (
+                                            {!isDropMode && step.id === 3 && step.completed && (
                                                 <Button
                                                     variant="outline"
                                                     size="sm"

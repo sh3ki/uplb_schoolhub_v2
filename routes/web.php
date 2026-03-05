@@ -575,6 +575,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::get('payments/process/{student}', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'process'])->name('payments.process');
     Route::post('payments/process/{student}/carry-forward', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'carryForwardBalance'])->name('payments.carry-forward');
     Route::post('payments/process/{student}/add-balance', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'addBalance'])->name('payments.add-balance');
+    Route::post('payments/process/{student}/add-school-year', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'addSchoolYear'])->name('payments.add-school-year');
     // Payment CRUD (super-accounting: record, edit, delete payments)
     Route::post('payments', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'store'])->name('payments.store');
     Route::put('payments/{payment}', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'update'])->name('payments.update');
