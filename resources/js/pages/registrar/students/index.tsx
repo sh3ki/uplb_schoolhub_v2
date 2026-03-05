@@ -1043,6 +1043,7 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
 
             {/* Student Form Modal */}
             <StudentFormModal
+                key={editingStudent?.id ?? 'new'}
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
                 student={editingStudent}

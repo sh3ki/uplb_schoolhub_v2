@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
-use App\Models\AppSetting;
 use App\Models\Department;
 use App\Models\Student;
 use Illuminate\Http\Request;
@@ -82,17 +81,11 @@ class InactiveStudentController extends Controller
                 'classification' => $d->classification,
             ]);
 
-        $appSettings = AppSetting::current();
-
         return Inertia::render('registrar/inactive-students', [
             'students'    => $students,
             'filters'     => $filters,
             'schoolYears' => $schoolYears,
             'departments' => $departments,
-            'appSettings' => [
-                'has_k12'     => $appSettings->has_k12,
-                'has_college' => $appSettings->has_college,
-            ],
         ]);
     }
 }

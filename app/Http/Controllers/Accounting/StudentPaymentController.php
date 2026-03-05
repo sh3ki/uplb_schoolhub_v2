@@ -135,6 +135,9 @@ class StudentPaymentController extends Controller
                 $currentFee = $studentFees->firstWhere('school_year', $currentYear);
                 $previousFees = $studentFees->where('school_year', '!=', $currentYear);
 
+                // Recalculate current year dynamically for accuracy (also syncs student_fees record)
+                $freshFeeData = $this->calculateFeesForSchoolYear($selectedStudent, $currentYear);
+
                 $paymentData = [
                     'student' => [
                         'id' => $selectedStudent->id,
@@ -147,23 +150,19 @@ class StudentPaymentController extends Controller
                         'enrollment_status' => $selectedStudent->enrollment_status,
                         'student_photo_url' => $selectedStudent->student_photo_url,
                     ],
-                    'current_fee' => $currentFee ? [
-                        'id' => $currentFee->id,
-                        'school_year' => $currentFee->school_year,
-                        'registration_fee' => $currentFee->registration_fee,
-                        'tuition_fee' => $currentFee->tuition_fee,
-                        'misc_fee' => $currentFee->misc_fee,
-                        'books_fee' => $currentFee->books_fee,
-                        'other_fees' => $currentFee->other_fees,
-                        'total_amount' => $currentFee->total_amount,
-                        'grant_discount' => $currentFee->grant_discount,
-                        'total_paid' => $currentFee->total_paid,
-                        'balance' => $currentFee->balance,
-                        'is_overdue' => $currentFee->is_overdue,
-                        'due_date' => $currentFee->due_date,
+                    'current_fee' => $freshFeeData ? [
+                        'id' => $freshFeeData['id'],
+                        'school_year' => $currentYear,
+                        'total_amount' => $freshFeeData['total_amount'],
+                        'grant_discount' => $freshFeeData['grant_discount'],
+                        'total_paid' => $freshFeeData['total_paid'],
+                        'balance' => $freshFeeData['balance'],
+                        'is_overdue' => $freshFeeData['is_overdue'],
+                        'due_date' => $freshFeeData['due_date'],
+                        'categories' => $freshFeeData['categories'] ?? [],
                     ] : null,
                     'previous_balance' => $previousFees->sum('balance'),
-                    'total_balance' => ($currentFee?->balance ?? 0) + $previousFees->sum('balance'),
+                    'total_balance' => ($freshFeeData['balance'] ?? 0) + $previousFees->sum('balance'),
                     'school_year_fees' => $studentFees->map(function ($fee) {
                         return [
                             'id' => $fee->id,
@@ -508,9 +507,28 @@ class StudentPaymentController extends Controller
     {
         return \App\Models\FeeItem::where('is_active', true)
             ->whereNotNull('school_year')
-            // Only items explicitly assigned via the Assignments tab
-            ->whereHas('assignments', function ($q) use ($student) {
-                $this->applyAssignmentFilters($q, $student);
+            ->where(function ($query) use ($student) {
+                // 'all' scope only if no explicit per-group assignments override it
+                $query->where(function ($inner) {
+                        $inner->where('assignment_scope', 'all')
+                              ->whereDoesntHave('assignments');
+                    })
+                    // 'specific' scope with at least one direct filter field
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    // Or items explicitly assigned via the Assignments tab
+                    ->orWhereHas('assignments', function ($q) use ($student) {
+                        $this->applyAssignmentFilters($q, $student);
+                    });
             })
             ->distinct()
             ->pluck('school_year')
@@ -531,9 +549,25 @@ class StudentPaymentController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            // Only items explicitly assigned via the Assignments tab
-            ->whereHas('assignments', function ($q) use ($student) {
-                $this->applyAssignmentFilters($q, $student);
+            ->where(function ($query) use ($student) {
+                $query->where(function ($inner) {
+                        $inner->where('assignment_scope', 'all')
+                              ->whereDoesntHave('assignments');
+                    })
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    ->orWhereHas('assignments', function ($q) use ($student) {
+                        $this->applyAssignmentFilters($q, $student);
+                    });
             })
             ->get();
 
@@ -584,6 +618,17 @@ class StudentPaymentController extends Controller
                 'balance' => $totalAmount - $grantDiscount,
             ]);
             $studentFeeId = $studentFee->id;
+        } else {
+            // Keep stored record in sync with freshly calculated amounts
+            $freshTotal    = (float) $totalAmount;
+            $freshDiscount = (float) $grantDiscount;
+            if ((float) $studentFee->total_amount !== $freshTotal
+                || (float) $studentFee->grant_discount !== $freshDiscount) {
+                $studentFee->total_amount    = $freshTotal;
+                $studentFee->grant_discount  = $freshDiscount;
+                $studentFee->balance         = max(0, $freshTotal - $freshDiscount - $totalPaid);
+                $studentFee->save();
+            }
         }
 
         // Calculate balance
@@ -668,6 +713,29 @@ class StudentPaymentController extends Controller
     {
         $query->where('is_active', true);
 
+        // If student has no department or year level, no assignment can match
+        if (!$student->department_id) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        if ($student->department) {
+            $query->where('classification', $student->department->classification);
+        }
+
+        $query->where('department_id', $student->department_id);
+
+        if ($student->year_level_id) {
+            $query->where('year_level_id', $student->year_level_id);
+        }
+    }
+
+    /**
+     * Apply student-specific filters to fee item query.
+     */
+    private function applyStudentFilters($query, Student $student): void
+    {
+        // Match classification if set
         if ($student->department) {
             $query->where(function ($sq) use ($student) {
                 $sq->whereNull('classification')
@@ -675,14 +743,25 @@ class StudentPaymentController extends Controller
             });
         }
 
+        // Match department if set
         $query->where(function ($sq) use ($student) {
             $sq->whereNull('department_id')
                 ->orWhere('department_id', $student->department_id);
         });
 
+        // Note: program_id not filtered — Student model has no program_id FK;
+        // department_id provides sufficient program-level scoping for College.
+
+        // Match year level if set
         $query->where(function ($sq) use ($student) {
             $sq->whereNull('year_level_id')
                 ->orWhere('year_level_id', $student->year_level_id);
+        });
+
+        // Match section if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('section_id')
+                ->orWhere('section_id', $student->section_id);
         });
     }
 
@@ -697,9 +776,25 @@ class StudentPaymentController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            // Only items explicitly assigned via the Assignments tab
-            ->whereHas('assignments', function ($q) use ($student) {
-                $this->applyAssignmentFilters($q, $student);
+            ->where(function ($query) use ($student) {
+                $query->where(function ($inner) {
+                        $inner->where('assignment_scope', 'all')
+                              ->whereDoesntHave('assignments');
+                    })
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    ->orWhereHas('assignments', function ($q) use ($student) {
+                        $this->applyAssignmentFilters($q, $student);
+                    });
             })
             ->sum('selling_price');
 
@@ -774,5 +869,91 @@ class StudentPaymentController extends Controller
         );
 
         return redirect()->back()->with('success', "Balance of ₱" . number_format($validated['amount'], 2) . " added successfully.");
+    }
+
+    /**
+     * Edit a StudentFee record's discount and/or due date.
+     * Only available for accounting roles. Always logged.
+     */
+    public function editFee(Request $request, Student $student, StudentFee $fee): RedirectResponse
+    {
+        // Ensure the fee belongs to this student
+        if ((int) $fee->student_id !== (int) $student->id) {
+            return redirect()->back()->with('error', 'Fee record does not belong to this student.');
+        }
+
+        $validated = $request->validate([
+            'grant_discount' => 'nullable|numeric|min:0',
+            'due_date'       => 'nullable|date',
+            'reason'         => 'required|string|max:500',
+        ]);
+
+        $oldDiscount = (float) $fee->grant_discount;
+        $oldDueDate  = $fee->due_date;
+
+        if (isset($validated['grant_discount'])) {
+            $fee->grant_discount = (float) $validated['grant_discount'];
+        }
+        if (array_key_exists('due_date', $validated)) {
+            $fee->due_date = $validated['due_date'];
+        }
+
+        // Recalculate balance
+        $fee->balance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid);
+        $fee->save();
+
+        // Log the change
+        StudentActionLog::log(
+            studentId: $student->id,
+            action: "Fee record edited for {$fee->school_year} — {$validated['reason']}",
+            actionType: 'fee_edit',
+            details: "Updated {$fee->school_year}: discount {$oldDiscount} → {$fee->grant_discount}; due date {$oldDueDate} → {$fee->due_date}",
+            notes: null,
+            changes: [
+                'school_year'      => $fee->school_year,
+                'old_discount'     => $oldDiscount,
+                'new_discount'     => (float) $fee->grant_discount,
+                'old_due_date'     => $oldDueDate,
+                'new_due_date'     => $fee->due_date,
+                'reason'           => $validated['reason'],
+                'new_balance'      => (float) $fee->balance,
+            ],
+            performedBy: $request->user()->id,
+        );
+
+        return redirect()->back()->with('success', "Fee record for {$fee->school_year} updated.");
+    }
+
+    /**
+     * Delete a StudentFee record (removes tracking record; fees recalculate next visit).
+     * Only available for accounting roles. Always logged.
+     */
+    public function deleteFee(Request $request, Student $student, StudentFee $fee): RedirectResponse
+    {
+        // Ensure the fee belongs to this student
+        if ((int) $fee->student_id !== (int) $student->id) {
+            return redirect()->back()->with('error', 'Fee record does not belong to this student.');
+        }
+
+        // Prevent deletion if payments have been made
+        if ((float) $fee->total_paid > 0) {
+            return redirect()->back()->with('error', "Cannot delete fee record for {$fee->school_year} — payments of ₱" . number_format($fee->total_paid, 2) . " already recorded.");
+        }
+
+        $schoolYear = $fee->school_year;
+
+        StudentActionLog::log(
+            studentId: $student->id,
+            action: "Fee record deleted for {$schoolYear}",
+            actionType: 'fee_delete',
+            details: "Deleted StudentFee #{$fee->id} for {$schoolYear}",
+            notes: null,
+            changes: ['school_year' => $schoolYear, 'fee_id' => $fee->id],
+            performedBy: $request->user()->id,
+        );
+
+        $fee->delete();
+
+        return redirect()->back()->with('success', "Fee record for {$schoolYear} deleted.");
     }
 }

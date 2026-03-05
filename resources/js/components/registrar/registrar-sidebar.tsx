@@ -11,8 +11,8 @@ import {
     ListChecks,
     Megaphone,
     Settings,
+    UserCog,
     UserMinus,
-    UserX,
     Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -106,6 +106,7 @@ export function RegistrarSidebar() {
             icon: UserMinus,
         },
         {
+<<<<<<< HEAD
             title: 'Dropped Students',
             href: '/registrar/dropped-students',
             icon: UserX,
@@ -119,6 +120,11 @@ export function RegistrarSidebar() {
             title: 'Inactive Students',
             href: '/registrar/inactive-students',
             icon: UserX,
+=======
+            title: 'Student Status',
+            href: '/registrar/student-status',
+            icon: UserCog,
+>>>>>>> upstream/master
         },
         {
             title: 'Deadlines',

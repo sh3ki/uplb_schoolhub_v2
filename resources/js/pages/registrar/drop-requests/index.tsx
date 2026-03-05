@@ -9,6 +9,7 @@ import {
     ThumbsUp,
     UserX,
     XCircle,
+    ArrowRight,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -144,6 +145,47 @@ const StatusBadge = ({ status }: { status: string }) => {
             );
     }
 };
+
+/** 3-step drop clearance flow indicator */
+const DropFlowBadge = ({ req }: { req: DropRequest }) => {
+    const isRejected = req.registrar_status === 'rejected' || req.accounting_status === 'rejected';
+    const officiallyDropped = req.accounting_status === 'approved';
+    const awaitingAccounting = req.registrar_status === 'approved' && req.accounting_status === 'pending';
+
+    const step = isRejected ? -1 : officiallyDropped ? 3 : awaitingAccounting ? 2 : 1;
+
+    const stepClass = (s: number) => {
+        if (isRejected) return 'text-red-500';
+        return step >= s ? 'text-green-600 font-semibold' : 'text-muted-foreground';
+    };
+    const circleClass = (s: number) => {
+        if (isRejected && s <= step + 1) return 'bg-red-100 border-red-300 text-red-600';
+        return step >= s ? 'bg-green-100 border-green-300 text-green-700' : 'bg-muted border-border text-muted-foreground';
+    };
+
+    return (
+        <div className="flex items-center gap-1 text-xs">
+            <div className={`flex flex-col items-center gap-0.5`}>
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border text-[10px] font-bold ${circleClass(1)}`}>1</span>
+                <span className={stepClass(1)}>Submitted</span>
+            </div>
+            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mb-2" />
+            <div className="flex flex-col items-center gap-0.5">
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border text-[10px] font-bold ${circleClass(2)}`}>2</span>
+                <span className={stepClass(2)}>Registrar</span>
+            </div>
+            <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0 mb-2" />
+            <div className="flex flex-col items-center gap-0.5">
+                <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full border text-[10px] font-bold ${circleClass(3)}`}>3</span>
+                <span className={stepClass(3)}>{officiallyDropped ? 'Dropped ✓' : 'Accounting'}</span>
+            </div>
+            {isRejected && (
+                <Badge className="ml-1 bg-red-100 text-red-700 border-red-200 text-[10px] px-1.5 py-0">Rejected</Badge>
+            )}
+        </div>
+    );
+};
+
 
 export default function DropRequestsIndex({ requests, stats, tab, filters, dropFeeItems, dropRequestDeadline }: Props) {
     const [activeTab, setActiveTab] = useState(tab);
@@ -433,7 +475,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                                         )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <StatusBadge status={req.registrar_status} />
+                                                        <DropFlowBadge req={req} />
                                                     </TableCell>
                                                     <TableCell className="text-sm">{req.created_at}</TableCell>
                                                     {activeTab !== 'pending' && (

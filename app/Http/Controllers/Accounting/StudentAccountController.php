@@ -157,6 +157,7 @@ class StudentAccountController extends Controller
             });
 
         $classListBase = Student::whereNull('deleted_at')
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
         return Inertia::render($this->viewPrefix() . '/student-accounts/index', [
@@ -197,9 +198,25 @@ class StudentAccountController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            // Only items explicitly assigned via the Assignments tab
-            ->whereHas('assignments', function ($q) use ($student) {
-                $this->applyAssignmentFilters($q, $student);
+            ->where(function ($query) use ($student) {
+                $query->where(function ($inner) {
+                        $inner->where('assignment_scope', 'all')
+                              ->whereDoesntHave('assignments');
+                    })
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    ->orWhereHas('assignments', function ($q) use ($student) {
+                        $this->applyAssignmentFilters($q, $student);
+                    });
             })
             ->sum('selling_price');
 
@@ -216,6 +233,19 @@ class StudentAccountController extends Controller
 
         $totalPaid = $studentFee ? (float) $studentFee->total_paid : 0;
         $dueDate = $studentFee?->due_date;
+
+        // Sync stored record with freshly calculated amounts (for reports accuracy)
+        if ($studentFee) {
+            $freshTotal    = (float) $totalAmount;
+            $freshDiscount = (float) $grantDiscount;
+            if ((float) $studentFee->total_amount !== $freshTotal
+                || (float) $studentFee->grant_discount !== $freshDiscount) {
+                $studentFee->total_amount   = $freshTotal;
+                $studentFee->grant_discount = $freshDiscount;
+                $studentFee->balance        = max(0, $freshTotal - $freshDiscount - $totalPaid);
+                $studentFee->save();
+            }
+        }
 
         // Get payments count
         $paymentsCount = StudentPayment::where('student_id', $student->id)
@@ -315,12 +345,11 @@ class StudentAccountController extends Controller
     }
 
     /**
-     * Apply assignment-specific filters to fee_item_assignments query.
+     * Apply student-specific filters to fee item query.
      */
-    private function applyAssignmentFilters($query, Student $student): void
+    private function applyStudentFilters($query, Student $student): void
     {
-        $query->where('is_active', true);
-
+        // Match classification if set
         if ($student->department) {
             $query->where(function ($sq) use ($student) {
                 $sq->whereNull('classification')
@@ -328,15 +357,49 @@ class StudentAccountController extends Controller
             });
         }
 
+        // Match department if set
         $query->where(function ($sq) use ($student) {
             $sq->whereNull('department_id')
                 ->orWhere('department_id', $student->department_id);
         });
 
+        // Note: program_id not filtered — Student model has no program_id FK;
+        // department_id provides sufficient program-level scoping for College.
+
+        // Match year level if set
         $query->where(function ($sq) use ($student) {
             $sq->whereNull('year_level_id')
                 ->orWhere('year_level_id', $student->year_level_id);
         });
+
+        // Match section if set
+        $query->where(function ($sq) use ($student) {
+            $sq->whereNull('section_id')
+                ->orWhere('section_id', $student->section_id);
+        });
+    }
+
+    /**
+     * Apply assignment-specific filters to fee_item_assignments query.
+     */
+    private function applyAssignmentFilters($query, Student $student): void
+    {
+        $query->where('is_active', true);
+
+        if (!$student->department_id) {
+            $query->whereRaw('1 = 0');
+            return;
+        }
+
+        if ($student->department) {
+            $query->where('classification', $student->department->classification);
+        }
+
+        $query->where('department_id', $student->department_id);
+
+        if ($student->year_level_id) {
+            $query->where('year_level_id', $student->year_level_id);
+        }
     }
 
     /**

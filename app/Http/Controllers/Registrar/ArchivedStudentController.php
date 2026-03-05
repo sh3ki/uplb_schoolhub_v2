@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
-use App\Models\AppSetting;
 use App\Models\Department;
 use App\Models\Student;
 use App\Models\StudentActionLog;
@@ -86,17 +85,11 @@ class ArchivedStudentController extends Controller
                 'classification' => $d->classification,
             ]);
 
-        $appSettings = AppSetting::current();
-
         return Inertia::render('registrar/archived', [
             'students'     => $students,
             'filters'      => $filters,
             'schoolYears'  => $schoolYears,
             'departments'  => $departments,
-            'appSettings'  => [
-                'has_k12'     => $appSettings->has_k12,
-                'has_college' => $appSettings->has_college,
-            ],
         ]);
     }
 
