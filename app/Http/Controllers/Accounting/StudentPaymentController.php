@@ -816,6 +816,55 @@ class StudentPaymentController extends Controller
     }
 
     /**
+    /**
+     * Manually create a new student_fees record for a specific school year.
+     * Only available for super-accounting roles. Always logged.
+     */
+    public function addSchoolYear(Request $request, Student $student): RedirectResponse
+    {
+        $validated = $request->validate([
+            'school_year' => 'required|string|max:20',
+            'total_amount' => 'required|numeric|min:0',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        // Prevent duplicate school year records for this student
+        $existing = StudentFee::where('student_id', $student->id)
+            ->where('school_year', $validated['school_year'])
+            ->first();
+
+        if ($existing) {
+            return redirect()->back()->with('error', "A fee record for school year {$validated['school_year']} already exists.");
+        }
+
+        $fee = StudentFee::create([
+            'student_id'    => $student->id,
+            'school_year'   => $validated['school_year'],
+            'total_amount'  => (float) $validated['total_amount'],
+            'total_paid'    => 0,
+            'balance'       => (float) $validated['total_amount'],
+            'grant_discount' => 0,
+            'status'        => 'pending',
+        ]);
+
+        StudentActionLog::log(
+            studentId: $student->id,
+            action: "School year fee record added for {$validated['school_year']} — {$validated['reason']}",
+            actionType: 'fee_edit',
+            details: "Created StudentFee #{$fee->id} for {$validated['school_year']}: ₱" . number_format($validated['total_amount'], 2),
+            notes: null,
+            changes: [
+                'school_year'  => $validated['school_year'],
+                'total_amount' => (float) $validated['total_amount'],
+                'reason'       => $validated['reason'],
+            ],
+            performedBy: $request->user()->id,
+        );
+
+        return redirect()->back()->with('success', "Fee record for {$validated['school_year']} created.");
+    }
+
+    /**
      * Add balance to a student's fee record.
      * Only available for super-accounting role. Always logged.
      */
