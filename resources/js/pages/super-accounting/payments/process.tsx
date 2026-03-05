@@ -286,6 +286,26 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         notes: '',
     });
 
+    const [isAddSchoolYearDialogOpen, setIsAddSchoolYearDialogOpen] = useState(false);
+
+    const addSchoolYearForm = useForm({
+        school_year: '',
+        total_amount: '',
+        reason: '',
+    });
+
+    const handleAddSchoolYearSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        addSchoolYearForm.post(`/super-accounting/payments/process/${student.id}/add-school-year`, {
+            onSuccess: () => {
+                setIsAddSchoolYearDialogOpen(false);
+                addSchoolYearForm.reset();
+                toast.success('School year fee record created.');
+            },
+            onError: () => toast.error('Failed to create fee record.'),
+        });
+    };
+
     const [isEditFeeDialogOpen, setIsEditFeeDialogOpen] = useState(false);
     const [editingFee, setEditingFee] = useState<Fee | null>(null);
     const [isDeleteFeeConfirmOpen, setIsDeleteFeeConfirmOpen] = useState(false);
