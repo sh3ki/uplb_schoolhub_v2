@@ -40,7 +40,7 @@ interface AppSettings {
 }
 
 export function AccountingSidebar() {
-    const { announcementCount, appSettings } = usePage<{ announcementCount: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -77,6 +77,7 @@ export function AccountingSidebar() {
             title: 'Document Request',
             href: '/accounting/document-approvals',
             icon: FileCheck,
+            badge: pendingDocumentCount || undefined,
         },
         {
             title: 'Payment Processing',
