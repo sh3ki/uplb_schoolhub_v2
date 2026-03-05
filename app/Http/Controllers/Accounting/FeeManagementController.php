@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\AppSetting;
 use App\Models\Department;
 use App\Models\DocumentFeeItem;
 use App\Models\FeeCategory;
@@ -199,8 +198,6 @@ class FeeManagementController extends Controller
             ->orderBy('school_year', 'desc')
             ->pluck('school_year');
 
-        $settings = AppSetting::current();
-
         return Inertia::render($this->viewPrefix() . '/fee-management/index', [
             'categories' => $categories,
             'totals' => $totals,
@@ -213,10 +210,6 @@ class FeeManagementController extends Controller
             'tab' => $tab,
             'studentCounts' => $studentCounts,
             'studentSchoolYears' => $studentSchoolYears,
-            'appSettings' => [
-                'has_k12'     => (bool) $settings->has_k12,
-                'has_college' => (bool) $settings->has_college,
-            ],
         ]);
     }
 
