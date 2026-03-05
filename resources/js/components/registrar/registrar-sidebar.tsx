@@ -106,25 +106,9 @@ export function RegistrarSidebar() {
             icon: UserMinus,
         },
         {
-<<<<<<< HEAD
-            title: 'Dropped Students',
-            href: '/registrar/dropped-students',
-            icon: UserX,
-        },
-        {
-            title: 'Archived Students',
-            href: '/registrar/archived',
-            icon: Archive,
-        },
-        {
-            title: 'Inactive Students',
-            href: '/registrar/inactive-students',
-            icon: UserX,
-=======
             title: 'Student Status',
             href: '/registrar/student-status',
             icon: UserCog,
->>>>>>> upstream/master
         },
         {
             title: 'Deadlines',

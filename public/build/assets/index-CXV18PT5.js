@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/index-CXV18PT5.js
-import{r as n,j as f}from"./app-CRK7IEWV.js";import{f as l}from"./button-l-JGyevD.js";var u=["a","button","div","form","h2","h3","img","input","label","li","nav","ol","p","select","span","svg","ul"],d=u.reduce((t,r)=>{const o=l(`Primitive.${r}`),i=n.forwardRef((e,s)=>{const{asChild:a,...m}=e,p=a?o:r;return typeof window<"u"&&(window[Symbol.for("radix-ui")]=!0),f.jsx(p,{...m,ref:s})});return i.displayName=`Primitive.${r}`,{...t,[r]:i}},{});export{d as P};
-========
-import{r as n,j as f}from"./app-Bl31lRTB.js";import{f as l}from"./button-DaXUR2sg.js";var u=["a","button","div","form","h2","h3","img","input","label","li","nav","ol","p","select","span","svg","ul"],d=u.reduce((t,r)=>{const o=l(`Primitive.${r}`),i=n.forwardRef((e,s)=>{const{asChild:a,...m}=e,p=a?o:r;return typeof window<"u"&&(window[Symbol.for("radix-ui")]=!0),f.jsx(p,{...m,ref:s})});return i.displayName=`Primitive.${r}`,{...t,[r]:i}},{});export{d as P};
->>>>>>>> upstream/master:public/build/assets/index-DvJiPkJv.js

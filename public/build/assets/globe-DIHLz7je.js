@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/globe-CgMAEJjq.js
-import{a as e}from"./button-l-JGyevD.js";const o=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",key:"13o1zl"}],["path",{d:"M2 12h20",key:"9i4pu4"}]],a=e("Globe",o);export{a as G};
-========
-import{a as e}from"./button-DaXUR2sg.js";const o=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["path",{d:"M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",key:"13o1zl"}],["path",{d:"M2 12h20",key:"9i4pu4"}]],a=e("Globe",o);export{a as G};
->>>>>>>> upstream/master:public/build/assets/globe-DIHLz7je.js

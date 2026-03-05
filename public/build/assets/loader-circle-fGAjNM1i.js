@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/loader-circle-DZckK8VW.js
-import{a as e}from"./button-l-JGyevD.js";const o=[["path",{d:"M21 12a9 9 0 1 1-6.219-8.56",key:"13zald"}]],c=e("LoaderCircle",o);export{c as L};
-========
-import{a as e}from"./button-DaXUR2sg.js";const o=[["path",{d:"M21 12a9 9 0 1 1-6.219-8.56",key:"13zald"}]],c=e("LoaderCircle",o);export{c as L};
->>>>>>>> upstream/master:public/build/assets/loader-circle-fGAjNM1i.js

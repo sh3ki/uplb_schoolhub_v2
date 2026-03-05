@@ -1,5 +1,0 @@
-<<<<<<<< HEAD:public/build/assets/external-link-Dw9y55Lr.js
-import{a}from"./button-l-JGyevD.js";const t=[["path",{d:"M15 3h6v6",key:"1q9fwt"}],["path",{d:"M10 14 21 3",key:"gplh6r"}],["path",{d:"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",key:"a6xqqp"}]],n=a("ExternalLink",t);export{n as E};
-========
-import{a}from"./button-DaXUR2sg.js";const t=[["path",{d:"M15 3h6v6",key:"1q9fwt"}],["path",{d:"M10 14 21 3",key:"gplh6r"}],["path",{d:"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",key:"a6xqqp"}]],n=a("ExternalLink",t);export{n as E};
->>>>>>>> upstream/master:public/build/assets/external-link-9ONr_65F.js
