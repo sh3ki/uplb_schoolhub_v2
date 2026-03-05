@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Announcement;
 use App\Models\AppSetting;
+use App\Models\DocumentRequest;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -80,6 +81,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'announcementCount' => $this->getAnnouncementCount($user),
+            'pendingDocumentCount' => $this->getPendingDocumentCount($user),
             'appSettings' => $this->getAppSettings(),
         ];
     }
@@ -147,6 +149,21 @@ class HandleInertiaRequests extends Middleware
                 'alumni_items'   => [],
                 'nav_links'      => [],
             ];
+        }
+    }
+
+    /**
+     * Get the count of pending document requests for relevant roles.
+     */
+    protected function getPendingDocumentCount($user): int
+    {
+        if (!$user || !in_array($user->role, ['accounting', 'registrar', 'super-accounting', 'owner'])) {
+            return 0;
+        }
+        try {
+            return DocumentRequest::where('status', 'pending')->count();
+        } catch (\Exception $e) {
+            return 0;
         }
     }
 
