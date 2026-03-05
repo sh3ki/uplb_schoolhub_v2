@@ -35,9 +35,10 @@ interface Props {
     studentId: number;
     clearance?: EnrollmentClearance;
     student?: StudentInfo;
+    mode?: 'enroll' | 'drop';
 }
 
-export function EnrollmentClearanceProgress({ studentId, clearance, student }: Props) {
+export function EnrollmentClearanceProgress({ studentId, clearance, student, mode = 'enroll' }: Props) {
     const { props } = usePage<{ appSettings?: { app_name?: string } }>();
     const appName = props.appSettings?.app_name || 'School Management System';
 
@@ -173,6 +174,50 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student }: P
 
     const officialBlocked = !(clearance?.registrar_clearance && clearance?.accounting_clearance);
 
+    // ── Drop clearance: 3-step flow ──────────────────────────────────────────────
+    // Step 1: Registrar Clearance (registrar_clearance)
+    // Step 2: Accounting Clearance (accounting_clearance)
+    // Step 3: Officially Dropped (official_enrollment used as the final drop confirmation toggle)
+    const isDropMode = mode === 'drop';
+
+    const dropClearanceSteps = [
+        {
+            id: 1,
+            title: 'Registrar Clearance',
+            description: clearance?.registrar_clearance ? 'Cleared by Registrar' : 'Pending – Registrar must clear',
+            completed: clearance?.registrar_clearance || false,
+            color: 'bg-red-400',
+            key: 'registrar_clearance',
+            canToggle: true,
+            blocked: false,
+            blockedReason: '',
+        },
+        {
+            id: 2,
+            title: 'Accounting Clearance',
+            description: clearance?.accounting_clearance ? 'Cleared by Accounting' : 'Pending – Accounting must clear',
+            completed: clearance?.accounting_clearance || false,
+            color: 'bg-red-400',
+            key: 'accounting_clearance',
+            canToggle: false,
+            blocked: false,
+            blockedReason: '',
+        },
+        {
+            id: 3,
+            title: 'Officially Dropped',
+            description: clearance?.official_enrollment
+                ? 'Student officially dropped'
+                : officialBlocked ? 'Waiting for both clearances' : 'Pending – Mark as officially dropped',
+            completed: clearance?.official_enrollment || false,
+            color: 'bg-red-600',
+            key: 'official_enrollment',
+            canToggle: true,
+            blocked: !clearance?.official_enrollment && officialBlocked,
+            blockedReason: 'Both registrar and accounting clearance must be completed first.',
+        },
+    ];
+
     const clearanceSteps = [
         {
             id: 1,
@@ -214,20 +259,25 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student }: P
         },
     ];
 
-    const overallProgress = clearanceSteps.filter(step => step.completed).length;
-    const overallPercentage = (overallProgress / clearanceSteps.length) * 100;
+    const activeSteps = isDropMode ? dropClearanceSteps : clearanceSteps;
+    const overallProgress = activeSteps.filter(step => step.completed).length;
+    const overallPercentage = (overallProgress / activeSteps.length) * 100;
 
     return (
-        <Card>
+        <Card className={isDropMode ? 'border-red-300 bg-red-50/40' : ''}>
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle>Enrollment Clearance Progress</CardTitle>
+                    <CardTitle className={isDropMode ? 'text-red-700' : ''}>
+                        {isDropMode ? 'Drop Clearance Progress' : 'Enrollment Clearance Progress'}
+                    </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Track student progress through enrollment clearance steps
+                        {isDropMode
+                            ? 'Track student progress through the drop clearance process'
+                            : 'Track student progress through enrollment clearance steps'}
                     </p>
                 </div>
                 <div className="text-right">
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className={`text-2xl font-bold ${isDropMode ? 'text-red-600' : 'text-blue-600'}`}>
                         {Math.round(overallPercentage)}% Complete
                     </div>
                 </div>
