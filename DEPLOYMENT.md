@@ -57,7 +57,7 @@ git push origin master
 | `SSH_HOST` | Hostinger IP: `` |
 | `SSH_PORT` | SSH Port: `` |
 | `SSH_USER` | Username: `` |
-| `SSH_PRIVATE_KEY` | Ed25519 private key for deployment |
+| `SSH_PRIVATE_KEY` |  private key for deployment |
 | `APP_KEY` | Laravel application key |
 | `PROD_DEPLOY_PATH` | `` |
 | `PROD_DB_DATABASE` | Production database name |
