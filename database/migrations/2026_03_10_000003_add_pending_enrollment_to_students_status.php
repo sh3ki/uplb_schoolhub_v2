@@ -44,4 +44,5 @@ return new class extends Migration
             'dropped'
         ) NOT NULL DEFAULT 'not-enrolled'");
     }
+    
 };
