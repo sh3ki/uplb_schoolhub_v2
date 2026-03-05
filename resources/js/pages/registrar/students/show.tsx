@@ -1019,6 +1019,38 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                 </DialogContent>
             </Dialog>
 
+            {/* Add Staff Note Dialog */}
+            <Dialog open={showAddNoteDialog} onOpenChange={setShowAddNoteDialog}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Add Staff Note</DialogTitle>
+                        <DialogDescription>
+                            Add an internal note about this student. Only visible to staff.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="note-text">Note</Label>
+                            <Textarea
+                                id="note-text"
+                                value={newNoteText}
+                                onChange={(e) => setNewNoteText(e.target.value)}
+                                placeholder="Enter staff note..."
+                                rows={4}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setShowAddNoteDialog(false); setNewNoteText(''); }}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleAddNote} disabled={addingNote || !newNoteText.trim()}>
+                            {addingNote ? 'Saving...' : 'Add Note'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </RegistrarLayout>
     );
 }
