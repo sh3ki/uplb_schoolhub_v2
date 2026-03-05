@@ -70,6 +70,20 @@ class FeeManagementController extends Controller
                         'section' => $item->section,
                         'is_required' => $item->is_required,
                         'is_active' => $item->is_active,
+                        'is_per_unit' => $item->is_per_unit ?? false,
+                        'unit_price' => $item->unit_price ?? 0,
+                        'assignments' => $item->assignments->map(function ($a) {
+                            return [
+                                'id' => $a->id,
+                                'classification' => $a->classification,
+                                'department_id' => $a->department_id,
+                                'department_name' => $a->department?->name,
+                                'year_level_id' => $a->year_level_id,
+                                'year_level_name' => $a->yearLevel?->name,
+                                'school_year' => $a->school_year,
+                                'is_active' => $a->is_active,
+                            ];
+                        })->values(),
                     ];
                 }),
                 'total_cost' => $category->activeItems->sum('cost_price'),
