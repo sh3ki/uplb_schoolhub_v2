@@ -509,14 +509,12 @@ class StudentPaymentController extends Controller
         return \App\Models\FeeItem::where('is_active', true)
             ->whereNotNull('school_year')
             ->where(function ($query) use ($student) {
-                // Include items with 'all' scope
-                $query->where('assignment_scope', 'all')
-                    // Or items with 'specific' scope that match this student
-                    ->orWhere(function ($q) use ($student) {
+                // Items with 'specific' scope that match this student's C/D/YL
+                $query->where(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific');
                         $this->applyStudentFilters($q, $student);
                     })
-                    // Or items assigned via the Assignments tab
+                    // Or items explicitly assigned via the Assignments tab
                     ->orWhereHas('assignments', function ($q) use ($student) {
                         $this->applyAssignmentFilters($q, $student);
                     });
@@ -541,12 +539,11 @@ class StudentPaymentController extends Controller
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student) {
-                $query->where('assignment_scope', 'all')
-                    ->orWhere(function ($q) use ($student) {
+                $query->where(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific');
                         $this->applyStudentFilters($q, $student);
                     })
-                    // Or items assigned via the Assignments tab
+                    // Or items explicitly assigned via the Assignments tab
                     ->orWhereHas('assignments', function ($q) use ($student) {
                         $this->applyAssignmentFilters($q, $student);
                     });
