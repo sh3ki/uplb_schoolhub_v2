@@ -129,13 +129,28 @@ const StatusBadge = ({ status }: { status: string }) => {
             return (
                 <Badge className="bg-green-100 text-green-800 border border-green-200">
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Approved
+                </Badge>
+            );
+        case 'rejected':
+            return (
+                <Badge className="bg-red-100 text-red-800 border border-red-200">
+                    <XCircle className="h-3 w-3 mr-1" /> Rejected
+                </Badge>
+            );
+        default:
+            return (
+                <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                    <Clock className="h-3 w-3 mr-1" /> Pending
+                </Badge>
+            );
+    }
+};
 
 /** 3-step drop clearance flow indicator */
 const DropFlowBadge = ({ req }: { req: DropRequest }) => {
     const isRejected = req.registrar_status === 'rejected' || req.accounting_status === 'rejected';
     const officiallyDropped = req.accounting_status === 'approved';
     const awaitingAccounting = req.registrar_status === 'approved' && req.accounting_status === 'pending';
-    const awaitingRegistrar = req.registrar_status === 'pending';
 
     const step = isRejected ? -1 : officiallyDropped ? 3 : awaitingAccounting ? 2 : 1;
 
@@ -171,28 +186,6 @@ const DropFlowBadge = ({ req }: { req: DropRequest }) => {
     );
 };
 
-const _StatusBadge = ({ status }: { status: string }) => {
-    switch (status) {
-        case 'approved':
-            return (
-                <Badge className="bg-green-100 text-green-800 border border-green-200">
-                    <CheckCircle2 className="h-3 w-3 mr-1" /> Approved
-                </Badge>
-            );
-        case 'rejected':
-            return (
-                <Badge className="bg-red-100 text-red-800 border border-red-200">
-                    <XCircle className="h-3 w-3 mr-1" /> Rejected
-                </Badge>
-            );
-        default:
-            return (
-                <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
-                    <Clock className="h-3 w-3 mr-1" /> Pending
-                </Badge>
-            );
-    }
-};
 
 export default function DropRequestsIndex({ requests, stats, tab, filters, dropFeeItems, dropRequestDeadline }: Props) {
     const [activeTab, setActiveTab] = useState(tab);
