@@ -16,6 +16,7 @@ import {
     Send,
     List,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
@@ -479,7 +480,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                 </Badge>
                                                                 {request.is_paid && (
                                                                     <Badge className="bg-blue-100 text-blue-800">
-                                                                        <DollarSign className="h-3 w-3" />
+                                                                        <PhilippinePeso className="h-3 w-3" />
                                                                         Paid
                                                                     </Badge>
                                                                 )}
