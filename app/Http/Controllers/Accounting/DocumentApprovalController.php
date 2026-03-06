@@ -112,6 +112,7 @@ class DocumentApprovalController extends Controller
 
         // Stats - only for registrar-approved requests
         $stats = [
+            'all' => DocumentRequest::where('registrar_status', 'approved')->count(),
             'pending' => DocumentRequest::where('registrar_status', 'approved')
                 ->where('accounting_status', 'pending')->count(),
             'approved' => DocumentRequest::where('registrar_status', 'approved')
@@ -123,7 +124,8 @@ class DocumentApprovalController extends Controller
                 ->where('accounting_status', 'approved')
                 ->where('status', 'processing')->count(),
             'ready' => DocumentRequest::where('status', 'ready')->count(),
-            'released' => DocumentRequest::where('status', 'released')->count(),
+            'released' => DocumentRequest::where('registrar_status', 'approved')
+                ->where('status', 'released')->count(),
         ];
 
         // Get document types for filter
