@@ -4,11 +4,11 @@ import {
     Circle,
     Search,
     Filter,
-    DollarSign,
     Users,
     Clock,
     AlertCircle,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import {
