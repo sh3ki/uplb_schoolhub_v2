@@ -3,7 +3,6 @@ import {
     CalendarDays,
     CheckCircle2,
     Clock,
-    DollarSign,
     Search,
     ThumbsDown,
     ThumbsUp,
@@ -11,6 +10,7 @@ import {
     XCircle,
     ArrowRight,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -591,7 +591,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                         {selectedFeeItemIds.length > 0 && (
                                             <div className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
                                                 <span className="text-sm font-medium flex items-center gap-1">
-                                                    <DollarSign className="h-4 w-4" />
+                                                    <PhilippinePeso className="h-4 w-4" />
                                                     Total Fee:
                                                 </span>
                                                 <span className="text-sm font-bold">
