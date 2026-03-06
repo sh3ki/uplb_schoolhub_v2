@@ -99,7 +99,28 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
         <>
             <Head title="Welcome" />
 
-            <div className="min-h-screen overflow-x-hidden bg-white text-neutral-900 antialiased">
+            <div className="min-h-screen overflow-x-hidden bg-sky-50/50 text-neutral-900 antialiased relative">
+                {/* Decorative background shapes - similar to login page */}
+                <div aria-hidden className="pointer-events-none fixed inset-0 overflow-hidden z-0">
+                    {/* Large circle top-left */}
+                    <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-sky-200/40" />
+                    {/* Medium rounded square top-right */}
+                    <div className="absolute -right-20 top-24 h-64 w-64 rounded-3xl bg-blue-100/50 rotate-12" />
+                    {/* Small circle mid-left */}
+                    <div className="absolute left-12 top-1/2 h-24 w-24 rounded-full bg-indigo-100/60" />
+                    {/* Large rounded square bottom-right */}
+                    <div className="absolute -bottom-32 -right-16 h-96 w-96 rounded-3xl bg-sky-200/30 -rotate-6" />
+                    {/* Medium circle bottom-left */}
+                    <div className="absolute -bottom-20 left-24 h-64 w-64 rounded-full bg-blue-100/40" />
+                    {/* Tiny circle center-right */}
+                    <div className="absolute right-1/4 top-1/3 h-12 w-12 rounded-full bg-sky-300/30" />
+                    {/* Thin rounded rect mid-top */}
+                    <div className="absolute left-1/3 top-8 h-10 w-40 rounded-full bg-indigo-100/40 rotate-12" />
+                    {/* Dot pattern overlay */}
+                    <div className="absolute inset-0"
+                        style={{ backgroundImage: 'radial-gradient(circle, #bae6fd 1px, transparent 1px)', backgroundSize: '40px 40px', opacity: 0.25 }}
+                    />
+                </div>
 
                 {/* ════════════════════════════════════════
                     NAVBAR
@@ -107,7 +128,7 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                 <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
                     scrolled
                         ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-neutral-100'
-                        : 'bg-transparent'
+                        : heroImages.length > 0 ? 'bg-transparent' : 'bg-transparent'
                 }`}>
                     <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4 sm:px-8 lg:px-10">
                         {/* Logo */}
@@ -201,7 +222,7 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                 {/* ════════════════════════════════════════
                     HERO
                 ════════════════════════════════════════ */}
-                <section id="home" className="relative flex min-h-screen items-center overflow-hidden">
+                <section id="home" className="relative z-10 flex min-h-screen items-center overflow-hidden">
                     {/* Background */}
                     {heroImages.length > 0 ? (
                         <>
@@ -303,7 +324,7 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                     FEATURES
                 ════════════════════════════════════════ */}
                 {showFeatures && (
-                    <section id="features" className="py-24 bg-white">
+                    <section id="features" className="relative z-10 py-24 bg-white/80 backdrop-blur-sm">
                         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
 
                             {/* Section header */}
@@ -504,7 +525,7 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                     ALUMNI
                 ════════════════════════════════════════ */}
                 {hasAlumni && (
-                    <section id="alumni" className="py-24 bg-white">
+                    <section id="alumni" className="relative z-10 py-24 bg-white/80 backdrop-blur-sm">
                         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
 
                             <div className="mb-16 max-w-2xl mx-auto text-center">
