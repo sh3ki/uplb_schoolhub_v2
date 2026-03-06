@@ -96,6 +96,9 @@ class DashboardController extends Controller
         $currentFeesBalance = $fees->where('school_year', $currentSchoolYear)->sum('balance');
         
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
+
+        // Use stored balance as source of truth (updated by accounting payments)
+        $storedBalance = $fees->sum('balance');
         
         // Get StudentFee record for overdue status
         $studentFee = $fees->where('school_year', $currentSchoolYear)->first();
@@ -106,22 +109,25 @@ class DashboardController extends Controller
             ->get();
         
         $approvedPromissoryAmount = $approvedPromissoryNotes->sum('amount');
-        $effectiveBalance = max(0, $balance - $approvedPromissoryAmount);
+        $effectiveBalance = max(0, $storedBalance - $approvedPromissoryAmount);
         
         // Check if overdue
-        $isOverdue = $balance > 0 && !$approvedPromissoryNotes->count() && 
+        $isOverdue = $storedBalance > 0 && !$approvedPromissoryNotes->count() && 
                      $studentFee?->due_date && now()->gt($studentFee->due_date);
         
+        // Only fully paid if fee records exist AND all stored balances are zero
+        $isFullyPaid = !$fees->isEmpty() && $storedBalance <= 0;
+
         return [
             'total_fees' => $totalFees,
             'discount_amount' => $totalDiscount,
             'total_paid' => $totalPaid,
-            'balance' => $balance,
+            'balance' => $storedBalance,
             'effective_balance' => $effectiveBalance,
             'promissory_amount' => $approvedPromissoryAmount,
             'previous_balance' => $previousBalance,
-            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : $balance,
-            'is_fully_paid' => $balance <= 0,
+            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : $storedBalance,
+            'is_fully_paid' => $isFullyPaid,
             'is_overdue' => $isOverdue,
             'due_date' => $studentFee?->due_date,
             'has_promissory' => $approvedPromissoryNotes->count() > 0,
