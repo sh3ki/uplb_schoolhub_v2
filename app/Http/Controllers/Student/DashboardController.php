@@ -81,7 +81,7 @@ class DashboardController extends Controller
         $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
         
         // Get student fees (same as accounting process page)
-        $fees = StudentFee::with(['payments', 'feeItem'])
+        $fees = StudentFee::with(['payments'])
             ->where('student_id', $student->id)
             ->orderBy('school_year', 'desc')
             ->get();
