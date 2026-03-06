@@ -227,7 +227,16 @@ class Student extends Model
      */
     public function enrollmentClearance()
     {
-        return $this->hasOne(EnrollmentClearance::class, 'user_id');
+        // enrollment_clearances.user_id FK references users.id, not students.id.
+        // Use hasOneThrough to correctly join: students → users (via student_id) → enrollment_clearances (via user_id).
+        return $this->hasOneThrough(
+            EnrollmentClearance::class,
+            \App\Models\User::class,
+            'student_id', // FK on users referencing students.id
+            'user_id',    // FK on enrollment_clearances referencing users.id
+            'id',         // local key on students
+            'id'          // local key on users
+        );
     }
 
     /**
