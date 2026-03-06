@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BadgeDollarSign,
     BookOpen,
     Globe,
     LayoutDashboard,
@@ -10,6 +9,7 @@ import {
     Settings,
     Users,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {
@@ -100,7 +100,7 @@ export function SuperAccountingSidebar() {
                                     <img src={logoUrl} alt={appName} className="size-8 rounded-lg object-contain bg-white" />
                                 ) : (
                                     <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                                        <BadgeDollarSign className="size-4" />
+                                        <PhilippinePeso className="size-4" />
                                     </div>
                                 )}
                                 <div className="grid flex-1 text-left text-sm leading-tight">
