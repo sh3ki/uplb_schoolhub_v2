@@ -60,11 +60,11 @@ export function StudentSidebar() {
     const isEnrolled = auth.user.student?.enrollment_status === 'enrolled';
     const isCollegeDept = auth.user.student?.department_classification === 'College';
 
-    // Show Enrollment link for College students when college enrollment period is open
-    // This covers both re-enrollment (not-enrolled/dropped) and subject enrollment (enrolled)
-    const showEnrollment = isCollegeDept && !!appSettings?.college_enrollment_open;
-    // Enrolled students go straight to subject enrollment; others go to the re-enrollment form
-    const enrollmentHref = isEnrolled ? '/student/enrollment/subjects' : '/student/enrollment';
+    // Show Enrollment link for enrolled students (always → details page)
+    // Also show for non-enrolled college students during open enrollment (→ re-enrollment form)
+    const showEnrollment = isEnrolled || (isCollegeDept && !!appSettings?.college_enrollment_open);
+    // All students go to the main enrollment page (details for enrolled, form for others)
+    const enrollmentHref = '/student/enrollment';
 
     const mainNavItems: NavItem[] = [
         {
