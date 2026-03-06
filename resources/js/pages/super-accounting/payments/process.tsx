@@ -3,7 +3,6 @@ import { useForm } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { 
     ArrowLeft, 
-    DollarSign, 
     Calendar, 
     FileText, 
     Receipt, 
@@ -25,6 +24,7 @@ import {
     Pencil,
     Trash2,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
@@ -984,7 +984,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             Promissory
                         </TabsTrigger>
                         <TabsTrigger value="transactions" className="flex items-center gap-2">
-                            <DollarSign className="h-4 w-4" />
+                            <PhilippinePeso className="h-4 w-4" />
                             Transactions
                         </TabsTrigger>
                     </TabsList>
@@ -1053,7 +1053,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <div className="grid gap-2">
                                                     <Label>Payment Method</Label>
                                                     <div className="flex items-center gap-2 p-3 border rounded-md bg-muted/50">
-                                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                                        <PhilippinePeso className="h-4 w-4 text-green-600" />
                                                         <span className="font-medium">Cash</span>
                                                     </div>
                                                 </div>
