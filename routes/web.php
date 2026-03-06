@@ -602,6 +602,9 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::post('drop-approvals/{dropRequest}/reject', [App\Http\Controllers\Accounting\DropApprovalController::class, 'reject'])->name('drop-approvals.reject');
     Route::post('drop-approvals/{dropRequest}/set-fees', [App\Http\Controllers\Accounting\DropApprovalController::class, 'setFees'])->name('drop-approvals.set-fees');
 
+    // Student Clearance (super-accounting can also toggle accounting clearance)
+    Route::put('clearance/{student}', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'updateClearance'])->name('clearance.update');
+
     // Dashboard exports
     Route::get('dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'export'])->name('dashboard.export');
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
