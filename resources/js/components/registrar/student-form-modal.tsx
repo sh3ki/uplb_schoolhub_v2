@@ -125,7 +125,7 @@ export function StudentFormModal({
         lrn: student?.lrn || '',
         email: student?.email || '',
         phone: student?.phone || '',
-        date_of_birth: student?.date_of_birth || '',
+        date_of_birth: student?.date_of_birth ? format(new Date(student.date_of_birth), 'yyyy-MM-dd') : '',
         gender: student?.gender || '',
         religion: student?.religion || '',
         mother_tongue: student?.mother_tongue || '',
