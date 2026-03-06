@@ -257,19 +257,22 @@ class StudentClearanceController extends Controller
             'accounting_notes' => $validated['notes'] ?? null,
         ]);
 
-        // Update enrollment status based on clearance result
-        $freshClearance = $clearance->fresh();
-        if ($freshClearance->isFullyCleared()) {
-            $clearance->update(['enrollment_status' => 'completed']);
-            $student->update(['enrollment_status' => 'enrolled']);
-        } elseif ($status) {
-            // Accounting cleared but not fully enrolled → pending-enrollment
-            $clearance->update(['enrollment_status' => 'in_progress']);
-            $student->update(['enrollment_status' => 'pending-enrollment']);
-        } else {
-            // Accounting clearance revoked → back to pending-accounting
-            $clearance->update(['enrollment_status' => 'in_progress']);
-            $student->update(['enrollment_status' => 'pending-accounting']);
+        // Update enrollment status based on clearance result.
+        // Dropped students follow the drop clearance flow — enrollment_status stays 'dropped'.
+        if ($student->enrollment_status !== 'dropped') {
+            $freshClearance = $clearance->fresh();
+            if ($freshClearance->isFullyCleared()) {
+                $clearance->update(['enrollment_status' => 'completed']);
+                $student->update(['enrollment_status' => 'enrolled']);
+            } elseif ($status) {
+                // Accounting cleared but not fully enrolled → pending-enrollment
+                $clearance->update(['enrollment_status' => 'in_progress']);
+                $student->update(['enrollment_status' => 'pending-enrollment']);
+            } else {
+                // Accounting clearance revoked → back to pending-accounting
+                $clearance->update(['enrollment_status' => 'in_progress']);
+                $student->update(['enrollment_status' => 'pending-accounting']);
+            }
         }
 
         return back()->with('success', $status 
