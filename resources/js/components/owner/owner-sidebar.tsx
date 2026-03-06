@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BadgeDollarSign,
     Calendar,
     FileText,
     GraduationCap,
@@ -15,6 +14,7 @@ import {
     UserSquare2,
     Scale,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -65,7 +65,7 @@ export function OwnerSidebar() {
         {
             title: "Today's Income",
             href: '/owner/income/today',
-            icon: BadgeDollarSign,
+            icon: PhilippinePeso,
         },
         {
             title: 'Overall Income',
