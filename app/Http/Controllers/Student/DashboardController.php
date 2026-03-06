@@ -74,39 +74,31 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get payment summary using same logic as online payments.
+     * Get payment summary using same logic as accounting payments process.
      */
     private function getPaymentSummary(Student $student): ?array
     {
-        $schoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
         
-        // Calculate total fees from fee items (same as online payments)
-        $totalFees = $this->calculateTotalFees($student, $schoolYear);
+        // Get student fees (same as accounting process page)
+        $fees = StudentFee::with(['payments', 'feeItem'])
+            ->where('student_id', $student->id)
+            ->orderBy('school_year', 'desc')
+            ->get();
         
-        // Get discount from grants
-        $totalDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
-            ->where('status', 'active')
-            ->sum('discount_amount');
+        // Calculate summary stats dynamically (same as accounting process page)
+        $totalFees = $fees->sum('total_amount');
+        $totalDiscount = $fees->sum('grant_discount');
+        $totalPaid = $fees->flatMap->payments->sum('amount');
         
-        // Get total paid from StudentPayments
-        $totalPaid = \App\Models\StudentPayment::whereHas('studentFee', function ($query) use ($student) {
-            $query->where('student_id', $student->id);
-        })->sum('amount');
+        // Calculate previous balance (from previous school years) and current fees balance
+        $previousBalance = $fees->where('school_year', '!=', $currentSchoolYear)->sum('balance');
+        $currentFeesBalance = $fees->where('school_year', $currentSchoolYear)->sum('balance');
         
-        // Get verified online transactions
-        $onlinePaid = \App\Models\OnlineTransaction::where('student_id', $student->id)
-            ->where('status', 'verified')
-            ->sum('amount');
-        
-        $totalPaid += $onlinePaid;
-        
-        // Calculate balance
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
         
         // Get StudentFee record for overdue status
-        $studentFee = StudentFee::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
-            ->first();
+        $studentFee = $fees->where('school_year', $currentSchoolYear)->first();
         
         // Get approved promissory notes
         $approvedPromissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
@@ -127,48 +119,13 @@ class DashboardController extends Controller
             'balance' => $balance,
             'effective_balance' => $effectiveBalance,
             'promissory_amount' => $approvedPromissoryAmount,
+            'previous_balance' => $previousBalance,
+            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : $balance,
             'is_fully_paid' => $balance <= 0,
             'is_overdue' => $isOverdue,
             'due_date' => $studentFee?->due_date,
             'has_promissory' => $approvedPromissoryNotes->count() > 0,
         ];
-    }
-
-    /**
-     * Calculate total fees from fee items.
-     */
-    private function calculateTotalFees(Student $student, string $schoolYear): float
-    {
-        // Get assigned fee item IDs
-        $assignedFeeItemIds = \App\Models\FeeItemAssignment::where('school_year', $schoolYear)
-            ->where('is_active', true)
-            ->where(function ($query) use ($student) {
-                if ($student->classification) {
-                    $query->where('classification', $student->classification);
-                }
-                if ($student->department_id) {
-                    $query->where('department_id', $student->department_id);
-                }
-                if ($student->year_level_id) {
-                    $query->where('year_level_id', $student->year_level_id);
-                }
-            })
-            ->pluck('fee_item_id')
-            ->toArray();
-        
-        // Get fee items with 'all' scope
-        $allScopeFeeItems = \App\Models\FeeItem::where('school_year', $schoolYear)
-            ->where('is_active', true)
-            ->where('assignment_scope', 'all')
-            ->pluck('id')
-            ->toArray();
-        
-        $feeItemIds = array_unique(array_merge($assignedFeeItemIds, $allScopeFeeItems));
-        
-        // Calculate total
-        return (float) \App\Models\FeeItem::whereIn('id', $feeItemIds)
-            ->where('is_active', true)
-            ->sum('selling_price');
     }
 
     /**
