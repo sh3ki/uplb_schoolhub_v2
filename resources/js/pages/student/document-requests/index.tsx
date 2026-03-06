@@ -10,6 +10,8 @@ import {
     Upload,
     History,
     Eye,
+    Send,
+    PackageCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -38,6 +40,7 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -174,7 +177,10 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
     };
 
     const pendingRequests = requests.filter((r) => r.status === 'pending' || r.status === 'processing');
-    const hasActiveRequests = pendingRequests.length > 0;
+    const readyRequests = requests.filter((r) => r.status === 'ready');
+    const completedRequests = requests.filter((r) => r.status === 'released' || r.status === 'cancelled');
+    const rejectedRequests = requests.filter((r) => r.registrar_status === 'rejected' || r.accounting_status === 'rejected');
+    const hasActiveRequests = pendingRequests.length > 0 || readyRequests.length > 0;
 
     return (
         <StudentLayout>
