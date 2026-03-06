@@ -1,5 +1,6 @@
 import { Head, router, Link } from '@inertiajs/react';
-import { Search, ArrowRight, DollarSign, Users, AlertCircle, Wallet, TrendingDown, CreditCard, Receipt } from 'lucide-react';
+import { Search, ArrowRight, Users, AlertCircle, Wallet, TrendingDown, CreditCard, Receipt } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -168,7 +169,7 @@ export default function PaymentProcessingIndex({ students, filters, statistics }
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Balance to Pay</CardTitle>
-                            <DollarSign className="h-4 w-4 text-red-500" />
+                            <PhilippinePeso className="h-4 w-4 text-red-500" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-red-600">{formatCurrency(statistics.total_balance_to_pay)}</div>
@@ -192,7 +193,7 @@ export default function PaymentProcessingIndex({ students, filters, statistics }
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">With Balance</CardTitle>
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{stats.withBalance}</div>
