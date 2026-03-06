@@ -498,7 +498,8 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
-        if (value !== 'projected') {
+        // 'projected' and 'breakdown' are client-only tabs, no server round-trip needed
+        if (value !== 'projected' && value !== 'breakdown') {
             router.get('/accounting/fee-management', { tab: value }, { preserveState: true, preserveScroll: true });
         }
     };
@@ -763,8 +764,11 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 />
 
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
-                    <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+                    <TabsList className="grid w-full grid-cols-5 max-w-3xl">
                         <TabsTrigger value="general">General Fees</TabsTrigger>
+                        <TabsTrigger value="breakdown">
+                            <LayoutList className="mr-1 h-3.5 w-3.5" />Breakdown
+                        </TabsTrigger>
                         <TabsTrigger value="assignments">Assign Fees</TabsTrigger>
                         <TabsTrigger value="documents">Document Fees</TabsTrigger>
                         <TabsTrigger value="projected">
@@ -1049,6 +1053,100 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                         ))}
                     </Accordion>
                 )}
+                    </TabsContent>
+
+                    {/* ── Fee Breakdown by Assignment Tab ───────────────────── */}
+                    <TabsContent value="breakdown" className="space-y-6 mt-6">
+                        <div>
+                            <h2 className="text-lg font-semibold">Fee Breakdown by Assignment</h2>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                All active fees grouped by student assignment group. “All Students” fees apply to every group.
+                            </p>
+                        </div>
+
+                        {/* All-students items */}
+                        {assignmentBreakdown.allStudentsItems.length > 0 && (
+                            <div className="border-l-4 border-l-blue-400 rounded-lg overflow-hidden shadow-sm bg-card">
+                                <div className="flex items-center justify-between px-4 py-3 bg-slate-800 text-white">
+                                    <span className="font-semibold text-sm">All Students</span>
+                                    <span className="text-xs bg-blue-600 px-3 py-1 rounded-full font-medium">
+                                        Total Sell: {formatCurrency(assignmentBreakdown.allStudentsItems.reduce((s, i) => s + parseFloat(i.selling_price || '0'), 0))}
+                                    </span>
+                                </div>
+                                <div className="divide-y">
+                                    {assignmentBreakdown.allStudentsItems.map(item => (
+                                        <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/40">
+                                            <div>
+                                                <span className="font-medium">{item.name}</span>
+                                                <span className="ml-2 text-xs text-muted-foreground">{item._categoryName}</span>
+                                            </div>
+                                            <span className="text-muted-foreground">
+                                                Sell {formatCurrency(item.selling_price)} / Profit{' '}
+                                                <span className="text-green-600 font-medium">{formatCurrency(item.profit)}</span>
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="px-4 py-2 bg-muted/30 text-sm border-t flex gap-6">
+                                    <span className="text-muted-foreground">
+                                        Total Cost: <span className="text-foreground font-medium">{formatCurrency(assignmentBreakdown.allStudentsItems.reduce((s, i) => s + parseFloat(i.cost_price || '0'), 0))}</span>
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        Profit: <span className="text-green-600 font-semibold">{formatCurrency(assignmentBreakdown.allStudentsItems.reduce((s, i) => s + parseFloat(i.profit || '0'), 0))}</span>
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Per-assignment-group items */}
+                        {assignmentBreakdown.specificGroups.length === 0 && assignmentBreakdown.allStudentsItems.length === 0 && (
+                            <Card>
+                                <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                    <LayoutList className="h-12 w-12 mb-4" />
+                                    <p>No assigned fee items found. Assign fee items in the ‘Assign Fees’ tab first.</p>
+                                </CardContent>
+                            </Card>
+                        )}
+
+                        <div className="space-y-4">
+                            {assignmentBreakdown.specificGroups.map(group => {
+                                const totalSell = group.items.reduce((s, i) => s + parseFloat(i.selling_price || '0'), 0);
+                                const totalCost = group.items.reduce((s, i) => s + parseFloat(i.cost_price || '0'), 0);
+                                const totalProfit = group.items.reduce((s, i) => s + parseFloat(i.profit || '0'), 0);
+                                return (
+                                    <div key={group.label} className="border-l-4 border-l-indigo-400 rounded-lg overflow-hidden shadow-sm bg-card">
+                                        <div className="flex items-center justify-between px-4 py-3 bg-slate-800 text-white">
+                                            <span className="font-semibold text-sm">{group.label}</span>
+                                            <span className="text-xs bg-indigo-600 px-3 py-1 rounded-full font-medium">
+                                                Total Sell: {formatCurrency(totalSell)}
+                                            </span>
+                                        </div>
+                                        <div className="divide-y">
+                                            {group.items.map(item => (
+                                                <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-muted/40">
+                                                    <div>
+                                                        <span className="font-medium">{item.name}</span>
+                                                        <span className="ml-2 text-xs text-muted-foreground">{item._categoryName}</span>
+                                                    </div>
+                                                    <span className="text-muted-foreground">
+                                                        Sell {formatCurrency(item.selling_price)} / Profit{' '}
+                                                        <span className="text-green-600 font-medium">{formatCurrency(item.profit)}</span>
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="px-4 py-2 bg-muted/30 text-sm border-t flex gap-6">
+                                            <span className="text-muted-foreground">
+                                                Total Cost: <span className="text-foreground font-medium">{formatCurrency(totalCost)}</span>
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                                Profit: <span className="text-green-600 font-semibold">{formatCurrency(totalProfit)}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
                     </TabsContent>
 
                     {/* Fee Assignment Tab */}
