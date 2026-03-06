@@ -476,7 +476,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         options={schoolYearOptions}
                         onChange={(value) => {
                             setSchoolYear(value);
-                            setTimeout(handleFilter, 0);
+                            setTimeout(() => handleFilter(), 0);
                         }}
                     />
                     <FilterDropdown
@@ -485,7 +485,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         options={departmentOptions}
                         onChange={(value) => {
                             setDepartmentId(value);
-                            setTimeout(handleFilter, 0);
+                            setTimeout(() => handleFilter(), 0);
                         }}
                     />
                     <FilterDropdown
@@ -494,10 +494,10 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         options={classificationOptions}
                         onChange={(value) => {
                             setClassification(value);
-                            setTimeout(handleFilter, 0);
+                            setTimeout(() => handleFilter(), 0);
                         }}
                     />
-                    <Button onClick={handleFilter} className="mt-auto">
+                    <Button onClick={() => handleFilter()} className="mt-auto">
                         Apply Filters
                     </Button>
                 </FilterBar>
