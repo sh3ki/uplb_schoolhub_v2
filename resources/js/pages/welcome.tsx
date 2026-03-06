@@ -379,7 +379,7 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                     FACULTY
                 ════════════════════════════════════════ */}
                 {facultyCategories.length > 0 && (
-                    <section id="faculty" className="py-24" style={{ background: `linear-gradient(180deg, rgba(${rgb},0.03) 0%, #fff 100%)` }}>
+                    <section id="faculty" className="relative z-10 py-24 bg-white/60 backdrop-blur-sm" style={{ background: `linear-gradient(180deg, rgba(${rgb},0.03) 0%, rgba(255,255,255,0.9) 100%)` }}>
                         <div className="mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
 
                             {/* Section header */}
