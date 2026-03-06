@@ -3,7 +3,6 @@ import {
     Ban,
     CheckCircle2,
     Clock,
-    DollarSign,
     Search,
     Settings2,
     ThumbsDown,
@@ -12,6 +11,7 @@ import {
     UserX,
     XCircle,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -402,7 +402,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                                             </Badge>
                                                             {req.is_paid && (
                                                                 <Badge className="ml-1 bg-blue-100 text-blue-800">
-                                                                    <DollarSign className="h-3 w-3" />
+                                                                    <PhilippinePeso className="h-3 w-3" />
                                                                     Paid
                                                                 </Badge>
                                                             )}
@@ -553,7 +553,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                 onClick={handleSetFees}
                                 disabled={setFeesForm.processing}
                             >
-                                <DollarSign className="h-4 w-4 mr-2" />
+                                <PhilippinePeso className="h-4 w-4 mr-2" />
                                 Save Fees
                             </Button>
                         </DialogFooter>
