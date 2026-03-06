@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, DollarSign, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp, Search, X } from 'lucide-react';
+import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, DollarSign, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp, Search, X, LayoutList } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
@@ -528,6 +528,36 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
     const projTotalDocRevenue = useMemo(() =>
         documentFees.reduce((sum, d) => sum + parseFloat(d.price || '0') * projStudentCount, 0)
     , [documentFees, projStudentCount]);
+
+    // ── Fee Breakdown by Assignment ────────────────────────────────────────────
+    const assignmentBreakdown = useMemo(() => {
+        // Collect all items with their category name attached
+        const allItems = categories.flatMap(cat =>
+            cat.items
+                .filter(item => item.is_active)
+                .map(item => ({ ...item, _categoryName: cat.name }))
+        );
+
+        // Group: 'all' scope items go into a special group
+        const allStudentsItems = allItems.filter(i => i.assignment_scope === 'all');
+
+        // Specific assignments — build a map of group-key → items
+        const specific: Record<string, { label: string; classification: string; items: (FeeItem & { _categoryName: string })[] }> = {};
+        for (const item of allItems) {
+            if (item.assignment_scope !== 'specific' || !item.assignments?.length) continue;
+            for (const a of item.assignments.filter(a => a.is_active)) {
+                const parts = [a.classification, a.department_name, a.year_level_name].filter(Boolean);
+                const key = parts.join('|');
+                if (!specific[key]) {
+                    specific[key] = { label: parts.join(' › '), classification: a.classification ?? '', items: [] };
+                }
+                specific[key].items.push(item as FeeItem & { _categoryName: string });
+            }
+        }
+
+        const specificGroups = Object.values(specific).sort((a, b) => a.label.localeCompare(b.label));
+        return { allStudentsItems, specificGroups };
+    }, [categories]);
 
     // Group document fees by category
     const groupedDocFees = documentFees?.reduce((acc, fee) => {
