@@ -307,7 +307,7 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                                         </div>
                                     ))}
                                 </div>
-                                <Link href="/student/payments/online">
+                                <Link href="/student/online-payments">
                                     <Button className="bg-red-600 hover:bg-red-700 text-white">
                                         <CreditCard className="h-4 w-4 mr-2" />
                                         Pay Now
