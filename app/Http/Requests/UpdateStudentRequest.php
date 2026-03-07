@@ -48,7 +48,7 @@ class UpdateStudentRequest extends FormRequest
             'student_type' => ['required', 'in:new,transferee,returnee'],
             'school_year' => ['required', 'string', 'max:50'],
             'department_id' => ['nullable', 'exists:departments,id'],
-            'program' => ['required', 'string', 'max:255'],
+            'program' => ['nullable', 'string', 'max:255'],
             'year_level' => ['required', 'string', 'max:50'],
             'year_level_id' => ['nullable', 'exists:year_levels,id'],
             'section' => ['nullable', 'string', 'max:100'],
