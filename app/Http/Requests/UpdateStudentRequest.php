@@ -36,7 +36,7 @@ class UpdateStudentRequest extends FormRequest
             'lrn' => ['required', 'string', Rule::unique('students', 'lrn')->ignore($studentId), 'max:255'],
             'email' => ['required', 'email', Rule::unique('students', 'email')->ignore($studentId), Rule::unique('users', 'email')->ignore($userId), 'max:255'],
             'phone' => ['required', 'string', 'max:20'],
-            'date_of_birth' => ['required', 'date'],
+            'date_of_birth' => ['nullable', 'date'],
             'gender' => ['required', 'in:male,female,other'],
             'religion' => ['nullable', 'string', 'max:255'],
             'mother_tongue' => ['nullable', 'string', 'max:255'],
