@@ -164,7 +164,7 @@ type Props = EnrolledProps | NotEnrolledProps;
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const formatCurrency = (val: number) =>
-    `â‚±${val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    `₱${val.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const statusColors: Record<string, string> = {
     'not-enrolled':       'bg-gray-100 text-gray-800',
@@ -440,8 +440,8 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, requireme
                                                     </Badge>
                                                 </div>
                                                 <p className="text-muted-foreground text-xs mt-1">
-                                                    Submitted: {note.submitted_date} Â· Due: {note.due_date}
-                                                    {note.amount !== null && ` Â· Amount: ${formatCurrency(note.amount)}`}
+                                                    Submitted: {note.submitted_date} · Due: {note.due_date}
+                                                    {note.amount !== null && ` · Amount: ${formatCurrency(note.amount)}`}
                                                 </p>
                                                 {note.review_notes && <p className="text-xs mt-1 italic">Note: {note.review_notes}</p>}
                                             </div>
