@@ -90,6 +90,8 @@ class DocumentRequestController extends Controller
             'purpose' => 'required|string|max:500',
             'receipt_file' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
             'receipt_number' => 'required|string|max:100',
+            'payment_type' => 'nullable|in:gcash,bank',
+            'bank_name' => 'nullable|string|max:100',
         ]);
 
         $student = auth()->user()->student;
@@ -111,6 +113,8 @@ class DocumentRequestController extends Controller
             'processing_days' => $feeItem->processing_days,
             'receipt_file_path' => $receiptPath,
             'receipt_number' => $validated['receipt_number'],
+            'payment_type' => $validated['payment_type'] ?? null,
+            'bank_name' => $validated['bank_name'] ?? null,
             'request_date' => now(),
             'registrar_status' => 'pending',
             'accounting_status' => 'pending',
