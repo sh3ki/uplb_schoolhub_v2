@@ -224,13 +224,33 @@ class ReportsController extends Controller
             'classifications' => $classifications,
             'feeReport' => $feeReport,
             'documentFeeReport' => $documentFeeReport,
+            'departmentAnalysis' => $this->buildDepartmentAnalysis(),
         ]);
     }
 
-    /**
-     * Export report to various formats.
-     * This can be extended to support Excel, CSV, PDF exports.
-     */
+    private function buildDepartmentAnalysis(): array
+    {
+        return Department::all()
+            ->map(function ($dept) {
+                $studentIds     = Student::where('department_id', $dept->id)->whereNull('deleted_at')->pluck('id');
+                $totalBilled    = (float) StudentFee::whereIn('student_id', $studentIds)->sum('total_amount');
+                $totalCollected = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount');
+                $totalBalance   = (float) StudentFee::whereIn('student_id', $studentIds)->sum('balance');
+                $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
+                return [
+                    'department'      => $dept->name,
+                    'students'        => $studentIds->count(),
+                    'billed'          => round($totalBilled, 2),
+                    'collected'       => round($totalCollected, 2),
+                    'balance'         => round($totalBalance, 2),
+                    'collection_rate' => $collectionRate,
+                ];
+            })
+            ->sortByDesc('collected')
+            ->values()
+            ->toArray();
+    }
+
     public function export(Request $request)
     {
         $type = $request->input('type', 'csv'); // csv, excel, pdf
