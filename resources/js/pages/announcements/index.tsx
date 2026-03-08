@@ -203,16 +203,24 @@ export default function AnnouncementsIndex({ announcements, filters, role, canCr
 
             <div className="space-y-6 p-6">
                 {/* Header */}
-                <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
-                        <Megaphone className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900">
+                            <Megaphone className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                            <h1 className="text-3xl font-bold">Announcements</h1>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Stay updated with the latest school announcements
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h1 className="text-3xl font-bold">Announcements</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Stay updated with the latest school announcements
-                        </p>
-                    </div>
+                    {canCreate && (
+                        <Button onClick={() => setCreateOpen(true)}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            New Announcement
+                        </Button>
+                    )}
                 </div>
 
                 {/* Announcements List */}
@@ -341,6 +349,146 @@ export default function AnnouncementsIndex({ announcements, filters, role, canCr
                     title={viewingImageAnnouncement.image_name || viewingImageAnnouncement.title}
                     imagePath={viewingImageAnnouncement.image_path}
                 />
+            )}
+
+            {/* Create Announcement Dialog */}
+            {canCreate && (
+                <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader>
+                            <DialogTitle>Create Announcement</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <Label htmlFor="title">Title <span className="text-destructive">*</span></Label>
+                                <Input
+                                    id="title"
+                                    value={data.title}
+                                    onChange={e => setData('title', e.target.value)}
+                                    placeholder="Announcement title"
+                                />
+                                {errors.title && <p className="text-sm text-destructive">{errors.title}</p>}
+                            </div>
+
+                            <div className="space-y-1">
+                                <Label htmlFor="content">Content <span className="text-destructive">*</span></Label>
+                                <Textarea
+                                    id="content"
+                                    value={data.content}
+                                    onChange={e => setData('content', e.target.value)}
+                                    placeholder="Announcement content"
+                                    rows={4}
+                                />
+                                {errors.content && <p className="text-sm text-destructive">{errors.content}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label>Priority <span className="text-destructive">*</span></Label>
+                                    <Select value={data.priority} onValueChange={v => setData('priority', v)}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="low">Low</SelectItem>
+                                            <SelectItem value="normal">Normal</SelectItem>
+                                            <SelectItem value="high">High</SelectItem>
+                                            <SelectItem value="urgent">Urgent</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    {errors.priority && <p className="text-sm text-destructive">{errors.priority}</p>}
+                                </div>
+
+                                <div className="space-y-1">
+                                    <Label>Classification</Label>
+                                    <Select value={data.classification || 'none'} onValueChange={v => setData('classification', v === 'none' ? '' : v)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">All</SelectItem>
+                                            <SelectItem value="K-12">K-12</SelectItem>
+                                            <SelectItem value="College">College</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label>Target Roles <span className="text-destructive">*</span></Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {AVAILABLE_ROLES.map(r => (
+                                        <div key={r.value} className="flex items-center gap-2">
+                                            <Checkbox
+                                                id={`role-${r.value}`}
+                                                checked={data.target_roles.includes(r.value)}
+                                                onCheckedChange={() => toggleTargetRole(r.value)}
+                                            />
+                                            <Label htmlFor={`role-${r.value}`} className="font-normal cursor-pointer">{r.label}</Label>
+                                        </div>
+                                    ))}
+                                </div>
+                                {errors.target_roles && <p className="text-sm text-destructive">{errors.target_roles}</p>}
+                            </div>
+
+                            {departments.length > 0 && (
+                                <div className="space-y-1">
+                                    <Label>Department</Label>
+                                    <Select value={data.department_id || 'none'} onValueChange={v => setData('department_id', v === 'none' ? '' : v)}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All Departments" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="none">All Departments</SelectItem>
+                                            {departments.map(d => (
+                                                <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <Label htmlFor="program">Program</Label>
+                                    <Input
+                                        id="program"
+                                        value={data.program}
+                                        onChange={e => setData('program', e.target.value)}
+                                        placeholder="e.g. BSCS, Grade 10"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <Label htmlFor="grade_level">Grade Level</Label>
+                                    <Input
+                                        id="grade_level"
+                                        value={data.grade_level}
+                                        onChange={e => setData('grade_level', e.target.value)}
+                                        placeholder="e.g. Grade 7"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="is_pinned"
+                                    checked={data.is_pinned}
+                                    onCheckedChange={v => setData('is_pinned', !!v)}
+                                />
+                                <Label htmlFor="is_pinned" className="font-normal cursor-pointer">Pin this announcement</Label>
+                            </div>
+
+                            <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => { setCreateOpen(false); reset(); }}>
+                                    Cancel
+                                </Button>
+                                <Button type="submit" disabled={processing}>
+                                    {processing ? 'Posting...' : 'Post Announcement'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
             )}
         </>
     );
