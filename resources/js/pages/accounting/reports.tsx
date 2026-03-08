@@ -101,11 +101,21 @@ interface Department {
     classification: string;
 }
 
+interface DepartmentRow {
+    department: string;
+    students: number;
+    billed: number;
+    collected: number;
+    balance: number;
+    collection_rate: number;
+}
+
 interface Props {
     paymentSummary: PaymentSummary[];
     balanceReport: BalanceReport[];
     feeReport: FeeReportCategory[];
     documentFeeReport: DocFeeReportCategory[];
+    departmentAnalysis: DepartmentRow[];
     filters: {
         from?: string;
         to?: string;
@@ -131,6 +141,7 @@ export default function AccountingReports({
     balanceReport = [],
     feeReport = [],
     documentFeeReport = [],
+    departmentAnalysis = [],
     filters = {},
     schoolYears = [],
     departments = [],
@@ -428,6 +439,7 @@ export default function AccountingReports({
                         <TabsTrigger value="balance">Balance Report</TabsTrigger>
                         <TabsTrigger value="collection">Collection Summary</TabsTrigger>
                         <TabsTrigger value="fee-income">Fee Income</TabsTrigger>
+                        <TabsTrigger value="department">Department Analysis</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="balance" className="space-y-4">
@@ -694,6 +706,71 @@ export default function AccountingReports({
                                         ))}
                                         <div className="rounded-lg bg-muted p-4 flex justify-end text-sm font-semibold">
                                             <span>Total Document Fee Revenue: <span className="text-blue-600">{formatCurrency(documentFeeReport.reduce((s, c) => s + c.total_revenue, 0))}</span></span>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Department Analysis Tab */}
+                    <TabsContent value="department" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Department Financial Summary</CardTitle>
+                                <CardDescription>Fee billing, collections, and outstanding balances per department</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {departmentAnalysis.length === 0 ? (
+                                    <p className="py-8 text-center text-sm text-muted-foreground">No department data available.</p>
+                                ) : (
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Department</TableHead>
+                                                    <TableHead className="text-right">Students</TableHead>
+                                                    <TableHead className="text-right">Total Billed</TableHead>
+                                                    <TableHead className="text-right">Collected</TableHead>
+                                                    <TableHead className="text-right">Outstanding</TableHead>
+                                                    <TableHead>Collection Rate</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {departmentAnalysis.map((d) => {
+                                                    const rate = d.collection_rate;
+                                                    const rateColor = rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                                                    return (
+                                                        <TableRow key={d.department}>
+                                                            <TableCell className="font-medium">
+                                                                {d.department}
+                                                                <span className="ml-1 text-xs text-muted-foreground">({d.students} students)</span>
+                                                            </TableCell>
+                                                            <TableCell className="text-right">{d.students.toLocaleString()}</TableCell>
+                                                            <TableCell className="text-right">{formatCurrency(d.billed)}</TableCell>
+                                                            <TableCell className="text-right text-green-600 font-semibold">{formatCurrency(d.collected)}</TableCell>
+                                                            <TableCell className="text-right">
+                                                                <span className={d.balance > 0 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>
+                                                                    {formatCurrency(d.balance)}
+                                                                </span>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
+                                                                        <div className={`h-full rounded-full ${rateColor}`} style={{ width: `${Math.min(rate, 100)}%` }} />
+                                                                    </div>
+                                                                    <span className="text-xs font-medium tabular-nums">{rate.toFixed(1)}%</span>
+                                                                </div>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                        <div className="mt-4 flex flex-wrap justify-end gap-6 rounded-lg bg-muted p-3 text-sm font-semibold">
+                                            <span>Billed: <span className="text-foreground">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.billed, 0))}</span></span>
+                                            <span>Collected: <span className="text-green-600">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.collected, 0))}</span></span>
+                                            <span>Outstanding: <span className="text-red-500">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.balance, 0))}</span></span>
                                         </div>
                                     </>
                                 )}
