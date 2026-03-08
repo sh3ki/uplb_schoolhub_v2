@@ -628,6 +628,49 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
 
                     {/* Student Information Tab - Consolidated */}
                     <TabsContent value="information" className="space-y-6">
+                        {/* Academic Information */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Academic Information</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Student Type</dt>
+                                        <dd className="mt-1 capitalize">{student.student_type}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">School Year</dt>
+                                        <dd className="mt-1">{student.school_year || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Program / Track</dt>
+                                        <dd className="mt-1">{student.program || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Year Level / Grade</dt>
+                                        <dd className="mt-1">{student.year_level || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Section</dt>
+                                        <dd className="mt-1">{student.section || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Enrollment Status</dt>
+                                        <dd className="mt-1">
+                                            <Badge>{student.enrollment_status}</Badge>
+                                        </dd>
+                                    </div>
+                                    {student.remarks && (
+                                        <div className="col-span-2">
+                                            <dt className="text-sm font-medium text-muted-foreground">Remarks</dt>
+                                            <dd className="mt-1">{student.remarks}</dd>
+                                        </div>
+                                    )}
+                                </dl>
+                            </CardContent>
+                        </Card>
+
                         {/* Personal Information */}
                         <Card>
                             <CardHeader>
@@ -644,8 +687,16 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                         <dd className="mt-1">{new Date(student.date_of_birth).toLocaleDateString()}</dd>
                                     </div>
                                     <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Place of Birth</dt>
+                                        <dd className="mt-1">{student.place_of_birth || 'N/A'}</dd>
+                                    </div>
+                                    <div>
                                         <dt className="text-sm font-medium text-muted-foreground">Gender</dt>
                                         <dd className="mt-1 capitalize">{student.gender}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Nationality</dt>
+                                        <dd className="mt-1">{student.nationality || 'N/A'}</dd>
                                     </div>
                                     <div>
                                         <dt className="text-sm font-medium text-muted-foreground">Religion</dt>
@@ -659,18 +710,6 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                         <dt className="text-sm font-medium text-muted-foreground">Phone</dt>
                                         <dd className="mt-1">{student.phone}</dd>
                                     </div>
-                                    <div>
-                                        <dt className="text-sm font-medium text-muted-foreground">Enrollment Status</dt>
-                                        <dd className="mt-1">
-                                            <Badge>{student.enrollment_status}</Badge>
-                                        </dd>
-                                    </div>
-                                    {student.remarks && (
-                                        <div className="col-span-2">
-                                            <dt className="text-sm font-medium text-muted-foreground">Remarks</dt>
-                                            <dd className="mt-1">{student.remarks}</dd>
-                                        </div>
-                                    )}
                                 </dl>
                             </CardContent>
                         </Card>
@@ -689,6 +728,10 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                     <div>
                                         <dt className="text-sm font-medium text-muted-foreground">City/Municipality</dt>
                                         <dd className="mt-1">{student.city_municipality}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Province</dt>
+                                        <dd className="mt-1">{student.province || 'N/A'}</dd>
                                     </div>
                                     <div>
                                         <dt className="text-sm font-medium text-muted-foreground">Zip Code</dt>
@@ -723,9 +766,63 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                             <dd className="mt-1">{student.guardian_email}</dd>
                                         </div>
                                     )}
+                                    {student.guardian_address && (
+                                        <div className="col-span-2">
+                                            <dt className="text-sm font-medium text-muted-foreground">Address</dt>
+                                            <dd className="mt-1">{student.guardian_address}</dd>
+                                        </div>
+                                    )}
                                 </dl>
                             </CardContent>
                         </Card>
+
+                        {/* Emergency Contact */}
+                        {(student.emergency_contact_name || student.emergency_contact_number) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Emergency Contact</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Name</dt>
+                                        <dd className="mt-1">{student.emergency_contact_name || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Relationship</dt>
+                                        <dd className="mt-1 capitalize">{student.emergency_contact_relationship || 'N/A'}</dd>
+                                    </div>
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">Contact Number</dt>
+                                        <dd className="mt-1">{student.emergency_contact_number || 'N/A'}</dd>
+                                    </div>
+                                </dl>
+                            </CardContent>
+                        </Card>
+                        )}
+
+                        {/* Previous School */}
+                        {student.previous_school && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Previous School</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <dl className="grid grid-cols-2 gap-6">
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">School Name</dt>
+                                        <dd className="mt-1">{student.previous_school}</dd>
+                                    </div>
+                                    {student.previous_school_address && (
+                                    <div>
+                                        <dt className="text-sm font-medium text-muted-foreground">School Address</dt>
+                                        <dd className="mt-1">{student.previous_school_address}</dd>
+                                    </div>
+                                    )}
+                                </dl>
+                            </CardContent>
+                        </Card>
+                        )}
                     </TabsContent>
 
                     {/* Schedules & Grades Tab */}
