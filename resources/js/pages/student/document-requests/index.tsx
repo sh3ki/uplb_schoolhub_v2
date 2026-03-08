@@ -514,6 +514,22 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
                                                                 )}
                                                                 <span>Accounting</span>
                                                             </div>
+                                                            <div className="flex items-center gap-2 text-sm">
+                                                                {request.status === 'ready' || request.status === 'released' ? (
+                                                                    <PackageCheck className="h-4 w-4 text-green-500" />
+                                                                ) : (
+                                                                    <Clock className="h-4 w-4 text-gray-300" />
+                                                                )}
+                                                                <span>Ready</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-sm">
+                                                                {request.status === 'released' ? (
+                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                                ) : (
+                                                                    <Clock className="h-4 w-4 text-gray-300" />
+                                                                )}
+                                                                <span>Released</span>
+                                                            </div>
                                                         </div>
                                                     </TableCell>
                                                     <TableCell className="font-medium">
@@ -616,6 +632,22 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
                                                                     <Clock className="h-4 w-4 text-yellow-500" />
                                                                 )}
                                                                 <span>Accounting</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-sm">
+                                                                {request.status === 'ready' || request.status === 'released' ? (
+                                                                    <PackageCheck className="h-4 w-4 text-green-500" />
+                                                                ) : (
+                                                                    <Clock className="h-4 w-4 text-gray-300" />
+                                                                )}
+                                                                <span>Ready</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-2 text-sm">
+                                                                {request.status === 'released' ? (
+                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                                                ) : (
+                                                                    <Clock className="h-4 w-4 text-gray-300" />
+                                                                )}
+                                                                <span>Released</span>
                                                             </div>
                                                         </div>
                                                     </TableCell>
