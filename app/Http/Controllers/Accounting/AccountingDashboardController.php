@@ -354,7 +354,7 @@ class AccountingDashboardController extends Controller
         $transactions = [];
         $dailyCollections = [];
 
-        $payments  = StudentPayment::whereIn('student_id', $studentIds)
+        $payments  = StudentPayment::with(['recordedBy'])->whereIn('student_id', $studentIds)
             ->whereBetween('payment_date', [$periodStart, $periodEnd])
             ->get();
         $documents = DocumentRequest::whereIn('student_id', $studentIds)
@@ -425,38 +425,44 @@ class AccountingDashboardController extends Controller
         // Recent transactions (top 25 payments + top 10 documents)
         foreach ($payments->sortByDesc('payment_date')->take(25) as $p) {
             $transactions[] = [
-                'id'        => $p->id,
-                'date'      => Carbon::parse($p->payment_date)->format('Y-m-d'),
-                'time'      => Carbon::parse($p->created_at)->format('h:i A'),
-                'type'      => 'Fee',
-                'or_number' => $p->or_number ?? 'N/A',
-                'mode'      => strtoupper($p->payment_mode ?? $p->payment_method ?? 'CASH'),
-                'reference' => $p->reference_number,
-                'amount'    => (float) $p->amount,
+                'id'           => $p->id,
+                'date'         => Carbon::parse($p->payment_date)->format('Y-m-d'),
+                'time'         => Carbon::parse($p->created_at)->format('h:i A'),
+                'type'         => 'Fee',
+                'or_number'    => $p->or_number ?? 'N/A',
+                'mode'         => strtoupper($p->payment_mode ?? $p->payment_method ?? 'CASH'),
+                'reference'    => $p->reference_number,
+                'amount'       => (float) $p->amount,
+                'student_id'   => $p->student_id,
+                'processed_by' => $p->recordedBy?->name ?? 'N/A',
             ];
         }
         foreach ($documents->take(10) as $doc) {
             $transactions[] = [
-                'id'        => 'doc-' . $doc->id,
-                'date'      => Carbon::parse($doc->created_at)->format('Y-m-d'),
-                'time'      => Carbon::parse($doc->created_at)->format('h:i A'),
-                'type'      => 'Document',
-                'or_number' => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
-                'mode'      => 'CASH',
-                'reference' => $doc->document_type,
-                'amount'    => (float) $doc->fee,
+                'id'           => 'doc-' . $doc->id,
+                'date'         => Carbon::parse($doc->created_at)->format('Y-m-d'),
+                'time'         => Carbon::parse($doc->created_at)->format('h:i A'),
+                'type'         => 'Document',
+                'or_number'    => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
+                'mode'         => 'CASH',
+                'reference'    => $doc->document_type,
+                'amount'       => (float) $doc->fee,
+                'student_id'   => $doc->student_id,
+                'processed_by' => 'N/A',
             ];
         }
         foreach ($dropRequests->take(10) as $drop) {
             $transactions[] = [
-                'id'        => 'drop-' . $drop->id,
-                'date'      => Carbon::parse($drop->accounting_approved_at)->format('Y-m-d'),
-                'time'      => Carbon::parse($drop->accounting_approved_at)->format('h:i A'),
-                'type'      => 'Drop',
-                'or_number' => $drop->or_number ?? ('DRP' . str_pad($drop->id, 3, '0', STR_PAD_LEFT)),
-                'mode'      => 'CASH',
-                'reference' => 'Drop Request',
-                'amount'    => (float) $drop->fee_amount,
+                'id'           => 'drop-' . $drop->id,
+                'date'         => Carbon::parse($drop->accounting_approved_at)->format('Y-m-d'),
+                'time'         => Carbon::parse($drop->accounting_approved_at)->format('h:i A'),
+                'type'         => 'Drop',
+                'or_number'    => $drop->or_number ?? ('DRP' . str_pad($drop->id, 3, '0', STR_PAD_LEFT)),
+                'mode'         => 'CASH',
+                'reference'    => 'Drop Request',
+                'amount'       => (float) $drop->fee_amount,
+                'student_id'   => $drop->student_id,
+                'processed_by' => 'N/A',
             ];
         }
         usort($transactions, fn($a, $b) => strcmp($b['date'] . $b['time'], $a['date'] . $a['time']));
