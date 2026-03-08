@@ -45,8 +45,17 @@ class SelfEnrollmentController extends Controller
                 ->orderBy('school_year', 'desc')
                 ->get();
             foreach ($rawFees as $feeToSync) {
+                // Never apply a grant discount to a fee record with no fees — prevents double-counting.
+                if ((float) $feeToSync->total_amount <= 0) {
+                    if ((float) $feeToSync->grant_discount !== 0.0 || (float) $feeToSync->balance !== 0.0) {
+                        $feeToSync->grant_discount = 0;
+                        $feeToSync->balance        = 0;
+                        $feeToSync->save();
+                    }
+                    continue;
+                }
                 $recipients = GrantRecipient::where('student_id', $student->id)
-                    ->where('school_year', $feeToSync->school_year)
+                    ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
                     ->where('status', 'active')
                     ->with('grant')
                     ->get();
@@ -140,9 +149,10 @@ class SelfEnrollmentController extends Controller
             ] : null;
 
             return Inertia::render('student/enrollment/index', [
-                'isEnrolled'        => true,
-                'currentSchoolYear' => $currentSchoolYear,
-                'classification'    => $classification,
+                'isEnrolled'           => true,
+                'currentSchoolYear'    => $currentSchoolYear,
+                'classification'       => $classification,
+                'collegeEnrollmentOpen' => $settings->isEnrollmentOpen('College'),
                 'student' => [
                     'id'                => $student->id,
                     'first_name'        => $student->first_name,
@@ -183,9 +193,10 @@ class SelfEnrollmentController extends Controller
         $yearLevels  = YearLevel::orderBy('level_number')->get(['id', 'name', 'department_id']);
 
         return Inertia::render('student/enrollment/index', [
-            'isEnrolled'        => false,
-            'currentSchoolYear' => $currentSchoolYear,
-            'classification'    => $classification,
+            'isEnrolled'            => false,
+            'currentSchoolYear'     => $currentSchoolYear,
+            'classification'        => $classification,
+            'collegeEnrollmentOpen' => $settings->isEnrollmentOpen('College'),
             'student' => [
                 'id'                => $student->id,
                 'first_name'        => $student->first_name,
