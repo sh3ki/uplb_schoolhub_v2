@@ -173,10 +173,20 @@ class OnlinePaymentController extends Controller
     {
         $fees = StudentFee::where('student_id', $student->id)->get();
 
-        // Sync grant discounts: recalculate from Grant model to fix stale discount_amount=0 records
+        // Sync grant discounts: recalculate from Grant model to fix stale discount_amount=0 records.
+        // Never apply a grant to a fee record with no fees — prevents double-counting.
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year;
         foreach ($fees as $feeToSync) {
+            if ((float) $feeToSync->total_amount <= 0) {
+                if ((float) $feeToSync->grant_discount !== 0.0 || (float) $feeToSync->balance !== 0.0) {
+                    $feeToSync->grant_discount = 0;
+                    $feeToSync->balance        = 0;
+                    $feeToSync->save();
+                }
+                continue;
+            }
             $recipients = GrantRecipient::where('student_id', $student->id)
-                ->where('school_year', $feeToSync->school_year)
+                ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
                 ->where('status', 'active')
                 ->with('grant')
                 ->get();
