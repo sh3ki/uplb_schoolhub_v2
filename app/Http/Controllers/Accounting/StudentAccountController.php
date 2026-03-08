@@ -75,9 +75,8 @@ class StudentAccountController extends Controller
         $accounts = $students->through(function ($student) use ($selectedSchoolYear) {
             $feeData = $this->calculateStudentFees($student, $selectedSchoolYear);
             
-            // Get grants
+            // Get grants — no school_year filter so mislabelled grants still show
             $grants = GrantRecipient::where('student_id', $student->id)
-                ->where('school_year', $selectedSchoolYear)
                 ->where('status', 'active')
                 ->with('grant')
                 ->get();
@@ -222,9 +221,11 @@ class StudentAccountController extends Controller
             })
             ->sum('selling_price');
 
-        // Get grant discount — recalculate from Grant model to fix stale discount_amount=0 records
+        // Get grant discount — recalculate from Grant model to fix stale discount_amount=0 records.
+        // For the current school year apply ALL active grants (fixes year-label mismatch).
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? $schoolYear;
         $grantRecipients = GrantRecipient::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->when($schoolYear !== $currentSchoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->where('status', 'active')
             ->with('grant')
             ->get();
