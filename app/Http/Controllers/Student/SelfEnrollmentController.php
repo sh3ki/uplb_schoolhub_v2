@@ -160,7 +160,7 @@ class SelfEnrollmentController extends Controller
 
         $departments = Department::orderBy('name')->get(['id', 'name', 'code', 'classification']);
         $programs    = Program::orderBy('name')->get(['id', 'name', 'department_id']);
-        $yearLevels  = YearLevel::orderBy('order')->get(['id', 'name', 'code', 'department_id']);
+        $yearLevels  = YearLevel::orderBy('order')->get(['id', 'name', 'department_id']);
 
         return Inertia::render('student/enrollment/index', [
             'isEnrolled'        => false,
