@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Department;
+use App\Models\GrantRecipient;
 use App\Models\Program;
 use App\Models\StudentActionLog;
 use App\Models\StudentFee;
