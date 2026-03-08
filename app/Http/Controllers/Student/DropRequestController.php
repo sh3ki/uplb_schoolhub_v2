@@ -70,6 +70,7 @@ class DropRequestController extends Controller
             'currentSchoolYear' => $settings?->school_year ?? date('Y') . '-' . (date('Y') + 1),
             'dropRequestDeadline' => $deadline?->format('M d, Y'),
             'deadlinePassed' => $deadlinePassed,
+            'classification' => $student->resolveDepartmentClassification() ?? 'K-12',
         ]);
     }
 
