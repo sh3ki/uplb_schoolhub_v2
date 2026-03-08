@@ -847,6 +847,26 @@ class StudentController extends Controller
             'enrollment_status' => 'dropped',
         ]);
 
+        // Create a DropRequest so the accounting team can process financial settlement
+        $settings = \App\Models\AppSetting::current();
+        \App\Models\DropRequest::firstOrCreate(
+            [
+                'student_id'        => $student->id,
+                'registrar_status'  => 'approved',
+                'accounting_status' => 'pending',
+            ],
+            [
+                'reason'                => 'Direct drop initiated by registrar.',
+                'status'                => 'pending',
+                'registrar_status'      => 'approved',
+                'accounting_status'     => 'pending',
+                'registrar_approved_by' => auth()->id(),
+                'registrar_approved_at' => now(),
+                'semester'              => $settings->active_semester ?? 1,
+                'school_year'           => $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1)),
+            ]
+        );
+
         // Auto-create a refund request if student has made payments
         $totalPaid = $student->fees()->sum('total_paid');
 
