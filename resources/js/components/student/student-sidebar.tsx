@@ -47,8 +47,9 @@ interface AppSettings {
 }
 
 export function StudentSidebar() {
-    const { announcementCount, auth, appSettings } = usePage<{ 
+    const { announcementCount, auth, appSettings, pendingDropRequestCount } = usePage<{ 
         announcementCount: number;
+        pendingDropRequestCount?: number;
         auth: { user: { student?: { enrollment_status?: string; department_classification?: string | null } } };
         appSettings?: AppSettings;
     }>().props;
@@ -119,6 +120,7 @@ export function StudentSidebar() {
         {
             title: 'Drop Request',
             href: '/student/drop-request',
+            badge: pendingDropRequestCount || undefined,
             icon: UserMinus,
         },
         {
