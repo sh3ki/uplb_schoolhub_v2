@@ -22,6 +22,8 @@ class DocumentApprovalController extends Controller
         $query = DocumentRequest::with([
             'student:id,first_name,last_name,lrn,program,year_level',
             'documentFeeItem:id,name,category,price,processing_days',
+            'registrarApprovedBy:id,name',
+            'accountingApprovedBy:id,name',
         ]);
 
         // Apply tab filter
@@ -88,11 +90,21 @@ class DocumentApprovalController extends Controller
                 'fee' => $request->fee,
                 'total_fee' => $request->total_fee,
                 'receipt_number' => $request->receipt_number,
+                'payment_type' => $request->payment_type,
+                'bank_name' => $request->bank_name,
                 'receipt_file_path' => $request->receipt_file_path,
                 'registrar_status' => $request->registrar_status,
                 'registrar_remarks' => $request->registrar_remarks,
                 'registrar_approved_at' => $request->registrar_approved_at?->format('M d, Y H:i'),
+                'registrar_approved_by' => $request->registrarApprovedBy ? [
+                    'name' => $request->registrarApprovedBy->name,
+                ] : null,
                 'accounting_status' => $request->accounting_status,
+                'accounting_remarks' => $request->accounting_remarks,
+                'accounting_approved_at' => $request->accounting_approved_at?->format('M d, Y H:i'),
+                'accounting_approved_by' => $request->accountingApprovedBy ? [
+                    'name' => $request->accountingApprovedBy->name,
+                ] : null,
                 'status' => $request->status,
                 'request_date' => $request->request_date?->format('M d, Y'),
                 'created_at' => $request->created_at->format('M d, Y H:i'),
