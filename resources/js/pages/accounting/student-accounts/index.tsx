@@ -693,7 +693,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/accounting/student-accounts/${account.id}`}>
+                                                        <Link href={`/accounting/student-accounts/${account.student.id}`}>
                                                             <Eye className="h-4 w-4 mr-2" />
                                                             View Details
                                                         </Link>
