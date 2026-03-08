@@ -81,10 +81,11 @@ class DashboardController extends Controller
     {
         $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
 
-        // Sync grant discounts: recalculate from Grant model so stale discount_amount never causes issues
+        // Sync grant discounts: recalculate from Grant model so stale discount_amount never causes issues.
+        // For the current school year apply ALL active grants (fixes year-label mismatch from form default).
         foreach (StudentFee::where('student_id', $student->id)->get() as $feeToSync) {
             $recipients = GrantRecipient::where('student_id', $student->id)
-                ->where('school_year', $feeToSync->school_year)
+                ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
                 ->where('status', 'active')
                 ->with('grant')
                 ->get();
