@@ -1,6 +1,6 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Megaphone, Pin, FileText, Image as ImageIcon, File, Download } from 'lucide-react';
+import { Megaphone, Pin, FileText, Image as ImageIcon, File, Download, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -8,9 +8,15 @@ import { SearchBar } from '@/components/filters/search-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { FileViewer } from '@/components/ui/file-viewer';
 import { ImageViewer } from '@/components/ui/image-viewer';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Department {
     id: number;
@@ -30,6 +36,9 @@ interface Announcement {
     target_audience: string;
     target_roles: string[] | null;
     department_id: number | null;
+    classification: string | null;
+    program: string | null;
+    grade_level: string | null;
     created_by: number;
     published_at: string | null;
     expires_at: string | null;
@@ -45,6 +54,18 @@ interface Announcement {
     department?: Department | null;
     creator?: User;
 }
+
+const AVAILABLE_ROLES = [
+    { value: 'registrar', label: 'Registrar' },
+    { value: 'accounting', label: 'Accounting' },
+    { value: 'student', label: 'Student' },
+    { value: 'teacher', label: 'Teacher' },
+    { value: 'parent', label: 'Parent' },
+    { value: 'guidance', label: 'Guidance' },
+    { value: 'librarian', label: 'Librarian' },
+    { value: 'clinic', label: 'Clinic' },
+    { value: 'canteen', label: 'Canteen' },
+];
 
 interface Props {
     announcements: {
@@ -62,6 +83,8 @@ interface Props {
         priority?: string;
     };
     role: string;
+    canCreate?: boolean;
+    departments?: Department[];
 }
 
 const priorityOptions = [
@@ -88,7 +111,7 @@ const getFileIcon = (mimeType: string | null) => {
     return <File className="h-4 w-4" />;
 };
 
-export default function AnnouncementsIndex({ announcements, filters, role }: Props) {
+export default function AnnouncementsIndex({ announcements, filters, role, canCreate = false, departments = [] }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [priority, setPriority] = useState(filters.priority || 'all');
     const [fileViewerOpen, setFileViewerOpen] = useState(false);
@@ -96,6 +119,36 @@ export default function AnnouncementsIndex({ announcements, filters, role }: Pro
     const [imageViewerOpen, setImageViewerOpen] = useState(false);
     const [viewingImageAnnouncement, setViewingImageAnnouncement] = useState<Announcement | null>(null);
     const [expandedAnnouncements, setExpandedAnnouncements] = useState<Set<number>>(new Set());
+    const [createOpen, setCreateOpen] = useState(false);
+
+    const { data, setData, post, processing, errors, reset } = useForm({
+        title: '',
+        content: '',
+        priority: 'normal',
+        target_roles: [] as string[],
+        department_id: '',
+        classification: '',
+        program: '',
+        grade_level: '',
+        is_pinned: false,
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post(`/${role}/announcements`, {
+            onSuccess: () => {
+                setCreateOpen(false);
+                reset();
+            },
+        });
+    };
+
+    const toggleTargetRole = (roleValue: string) => {
+        setData('target_roles', data.target_roles.includes(roleValue)
+            ? data.target_roles.filter(r => r !== roleValue)
+            : [...data.target_roles, roleValue]
+        );
+    };
 
     const navigate = (params: Record<string, string>) => {
         const cleanParams = Object.fromEntries(
