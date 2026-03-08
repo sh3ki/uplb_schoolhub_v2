@@ -9,6 +9,14 @@ import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -41,6 +49,15 @@ interface SectionFillRate {
     fill_rate: number;
 }
 
+interface DepartmentRow {
+    department: string;
+    students: number;
+    billed: number;
+    collected: number;
+    balance: number;
+    collection_rate: number;
+}
+
 interface Props {
     stats: {
         totalStudents: number;
@@ -54,6 +71,7 @@ interface Props {
     enrollmentDistribution: EnrollmentItem[];
     sectionFillRates: SectionFillRate[];
     departments: Department[];
+    departmentAnalysis: DepartmentRow[];
     filters: {
         classification?: string;
         department_id?: string;
@@ -128,6 +146,7 @@ export default function RegistrarReportsIndex({
     enrollmentDistribution,
     sectionFillRates,
     departments,
+    departmentAnalysis = [],
     filters,
 }: Props) {
     const { props } = usePage();
@@ -140,7 +159,7 @@ export default function RegistrarReportsIndex({
 
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [selectedDepartment, setSelectedDepartment] = useState(filters.department_id || 'all');
-    const [activeTab, setActiveTab] = useState<'analytics' | 'sections'>('analytics');
+    const [activeTab, setActiveTab] = useState<'analytics' | 'sections' | 'department'>('analytics');
 
     const handleClassificationChange = (value: string) => {
         setClassification(value);
@@ -294,6 +313,14 @@ export default function RegistrarReportsIndex({
                     >
                         <FileText className="mr-2 h-4 w-4" />
                         Section Fill Rates
+                    </Button>
+                    <Button
+                        variant={activeTab === 'department' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setActiveTab('department')}
+                    >
+                        <TrendingUp className="mr-2 h-4 w-4" />
+                        Department Financials
                     </Button>
                 </div>
 
