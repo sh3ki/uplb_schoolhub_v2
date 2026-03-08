@@ -74,6 +74,7 @@ class OnlineTransactionController extends Controller
                 'refunded_at' => null,
                 'failure_reason' => null,
                 'remarks' => $transaction->remarks,
+                'or_number' => $transaction->payment?->or_number,
                 'created_at' => $transaction->created_at,
                 'student' => $transaction->student ? [
                     'id' => $transaction->student->id,
