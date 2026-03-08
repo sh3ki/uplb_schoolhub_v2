@@ -84,6 +84,16 @@ class DashboardController extends Controller
         // Sync grant discounts: recalculate from Grant model so stale discount_amount never causes issues.
         // For the current school year apply ALL active grants (fixes year-label mismatch from form default).
         foreach (StudentFee::where('student_id', $student->id)->get() as $feeToSync) {
+            // Never apply a grant discount to a fee record with no fees — prevents double-counting
+            // when a placeholder record exists for a year with no fee items.
+            if ((float) $feeToSync->total_amount <= 0) {
+                if ((float) $feeToSync->grant_discount !== 0.0 || (float) $feeToSync->balance !== 0.0) {
+                    $feeToSync->grant_discount = 0;
+                    $feeToSync->balance        = 0;
+                    $feeToSync->save();
+                }
+                continue;
+            }
             $recipients = GrantRecipient::where('student_id', $student->id)
                 ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
                 ->where('status', 'active')
