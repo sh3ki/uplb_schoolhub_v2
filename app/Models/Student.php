@@ -69,7 +69,7 @@ class Student extends Model
      *
      * @var array
      */
-    protected $appends = ['requirements_completion_percentage'];
+    protected $appends = ['requirements_completion_percentage', 'full_name'];
 
     /**
      * Get the student's full name.
