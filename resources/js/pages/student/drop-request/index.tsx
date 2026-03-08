@@ -74,6 +74,7 @@ type Props = {
     currentSchoolYear: string;
     dropRequestDeadline: string | null;
     deadlinePassed: boolean;
+    classification: string;
 };
 
 const StatusBadge = ({ status }: { status: string }) => {
@@ -107,6 +108,7 @@ export default function DropRequestIndex({
     currentSchoolYear,
     dropRequestDeadline,
     deadlinePassed,
+    classification,
 }: Props) {
     const [isOpen, setIsOpen] = useState(false);
 
@@ -193,6 +195,7 @@ export default function DropRequestIndex({
                                         />
                                     </div>
 
+                                    {classification === 'College' && (
                                     <div className="space-y-2">
                                         <Label htmlFor="semester">Semester (Optional)</Label>
                                         <Input
@@ -202,6 +205,7 @@ export default function DropRequestIndex({
                                             placeholder="1st Semester"
                                         />
                                     </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <Label htmlFor="reason">
