@@ -46,25 +46,10 @@ class ExamApprovalController extends Controller
 
         $approvals = $query->latest()->paginate(20)->withQueryString();
 
-        // Get students who are NOT overdue (eligible for exam approval)
-        // These are students with enrollment clearance and either:
-        // 1. No overdue fees, OR
-        // 2. Have approved promissory notes, OR
-        // 3. Have made partial payments
-        $eligibleStudents = Student::whereHas('enrollmentClearance', function ($q) {
-                $q->where('registrar_clearance', true);
-            })
-            ->where(function ($q) {
-                // Not overdue OR has approved promissory note OR has made payments
-                $q->whereDoesntHave('fees', function ($fq) {
-                    $fq->where('is_overdue', true);
-                })
-                ->orWhereHas('promissoryNotes', function ($pq) {
-                    $pq->where('status', 'approved');
-                })
-                ->orWhereHas('fees', function ($fq) {
-                    $fq->where('total_paid', '>', 0);
-                });
+        // Get all students eligible for exam approval: everyone except those marked overdue
+        $eligibleStudents = Student::whereNull('deleted_at')
+            ->whereDoesntHave('fees', function ($fq) {
+                $fq->where('is_overdue', true);
             })
             ->with('fees')
             ->get()
@@ -82,9 +67,7 @@ class ExamApprovalController extends Controller
             });
 
         // Fully paid students — split by gender for male/female tables
-        $fullyPaidQuery = Student::whereHas('enrollmentClearance', function ($q) {
-                $q->where('registrar_clearance', true);
-            })
+        $fullyPaidQuery = Student::whereNull('deleted_at')
             ->whereHas('fees', function ($fq) {
                 $fq->where('balance', '<=', 0)->where('total_amount', '>', 0);
             })
