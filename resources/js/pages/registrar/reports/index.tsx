@@ -479,6 +479,70 @@ export default function RegistrarReportsIndex({
                         </CardContent>
                     </Card>
                 )}
+
+                {/* Department Analysis Tab */}
+                {activeTab === 'department' && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Department Financial Summary</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {departmentAnalysis.length === 0 ? (
+                                <p className="py-8 text-center text-sm text-muted-foreground">No department financial data available.</p>
+                            ) : (
+                                <>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Department</TableHead>
+                                                <TableHead className="text-right">Students</TableHead>
+                                                <TableHead className="text-right">Total Billed</TableHead>
+                                                <TableHead className="text-right">Collected</TableHead>
+                                                <TableHead className="text-right">Outstanding</TableHead>
+                                                <TableHead>Collection Rate</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {departmentAnalysis.map((d) => {
+                                                const rate = d.collection_rate;
+                                                const rateColor = rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
+                                                return (
+                                                    <TableRow key={d.department}>
+                                                        <TableCell className="font-medium">
+                                                            {d.department}
+                                                            <span className="ml-1 text-xs text-muted-foreground">({d.students} students)</span>
+                                                        </TableCell>
+                                                        <TableCell className="text-right">{d.students.toLocaleString()}</TableCell>
+                                                        <TableCell className="text-right">₱{d.billed.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                                                        <TableCell className="text-right text-green-600 font-semibold">₱{d.collected.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</TableCell>
+                                                        <TableCell className="text-right">
+                                                            <span className={d.balance > 0 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>
+                                                                ₱{d.balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                                            </span>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-2 w-24 rounded-full bg-muted overflow-hidden">
+                                                                    <div className={`h-full rounded-full ${rateColor}`} style={{ width: `${Math.min(rate, 100)}%` }} />
+                                                                </div>
+                                                                <span className="text-xs font-medium tabular-nums">{rate.toFixed(1)}%</span>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                    <div className="mt-4 flex flex-wrap justify-end gap-6 rounded-lg bg-muted p-3 text-sm font-semibold">
+                                        <span>Billed: <span className="text-foreground">₱{departmentAnalysis.reduce((s, d) => s + d.billed, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></span>
+                                        <span>Collected: <span className="text-green-600">₱{departmentAnalysis.reduce((s, d) => s + d.collected, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></span>
+                                        <span>Outstanding: <span className="text-red-500">₱{departmentAnalysis.reduce((s, d) => s + d.balance, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></span>
+                                    </div>
+                                </>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </RegistrarLayout>
     );
