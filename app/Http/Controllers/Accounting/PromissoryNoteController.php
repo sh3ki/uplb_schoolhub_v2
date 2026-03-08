@@ -29,6 +29,10 @@ class PromissoryNoteController extends Controller
             return [
                 'id' => $note->id,
                 'student_name' => $note->student?->full_name ?? 'Unknown',
+                'student_first_name' => $note->student?->first_name ?? '',
+                'student_last_name' => $note->student?->last_name ?? '',
+                'student_photo_url' => $note->student?->student_photo_url,
+                'student_lrn' => $note->student?->lrn,
                 'student_id' => $note->student_id,
                 'submitted_date' => $note->submitted_date->format('Y-m-d'),
                 'due_date' => $note->due_date->format('Y-m-d'),
