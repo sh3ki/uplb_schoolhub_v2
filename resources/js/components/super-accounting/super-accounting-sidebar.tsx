@@ -6,6 +6,7 @@ import {
     LayoutGrid,
     Megaphone,
     RotateCcw,
+    ScrollText,
     Settings,
     Users,
 } from 'lucide-react';
@@ -65,6 +66,11 @@ export function SuperAccountingSidebar() {
             title: 'Student Accounts',
             href: '/super-accounting/student-accounts',
             icon: Users,
+        },
+        {
+            title: 'Promissory Notes',
+            href: '/super-accounting/promissory-notes',
+            icon: ScrollText,
         },
         {
             title: 'Reports',
