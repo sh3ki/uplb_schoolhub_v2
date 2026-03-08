@@ -40,11 +40,22 @@ class SelfEnrollmentController extends Controller
         if ($student->enrollment_status === 'enrolled') {
             $student->load(['requirements.requirement.category', 'enrollmentClearance', 'departmentModel']);
 
-            // Fees for all school years
-            $fees = StudentFee::where('student_id', $student->id)
+            // Fees for all school years — sync grant discounts first
+            $rawFees = StudentFee::where('student_id', $student->id)
                 ->orderBy('school_year', 'desc')
-                ->get()
-                ->map(fn ($fee) => [
+                ->get();
+            foreach ($rawFees as $feeToSync) {
+                $freshGrant = GrantRecipient::where('student_id', $student->id)
+                    ->where('school_year', $feeToSync->school_year)
+                    ->where('status', 'active')
+                    ->sum('discount_amount');
+                if ((float) $feeToSync->grant_discount !== (float) $freshGrant) {
+                    $feeToSync->grant_discount = $freshGrant;
+                    $feeToSync->balance = max(0, (float) $feeToSync->total_amount - (float) $freshGrant - (float) $feeToSync->total_paid);
+                    $feeToSync->save();
+                }
+            }
+            $fees = $rawFees->map(fn ($fee) => [
                     'id'                => $fee->id,
                     'school_year'       => $fee->school_year,
                     'total_amount'      => (float) $fee->total_amount,
