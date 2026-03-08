@@ -57,6 +57,7 @@ class ProfileController extends Controller
                 'guardian_relationship' => $student->guardian_relationship,
                 'guardian_contact' => $student->guardian_contact,
                 'guardian_email' => $student->guardian_email,
+                'guardian_occupation' => $student->guardian_occupation,
                 'guardian_address' => $student->guardian_address ?? null,
                 'created_at' => $student->created_at->format('M d, Y'),
             ],
