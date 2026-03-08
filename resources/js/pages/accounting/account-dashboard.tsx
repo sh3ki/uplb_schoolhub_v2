@@ -7,6 +7,7 @@ import {
     RefreshCw,
     Download,
 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { ExportButton } from '@/components/export-button';
@@ -249,7 +250,7 @@ export default function AccountDashboard({
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div className="h-12 w-12 rounded-lg bg-green-100 flex items-center justify-center">
-                                <DollarSign className="h-6 w-6 text-green-600" />
+                                <PhilippinePeso className="h-6 w-6 text-green-600" />
                             </div>
                         </CardHeader>
                         <CardContent>
@@ -297,7 +298,7 @@ export default function AccountDashboard({
                       <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                                <DollarSign className="h-6 w-6 text-blue-600" />
+                                <PhilippinePeso className="h-6 w-6 text-blue-600" />
                             </div>
                         </CardHeader>
                         <CardContent>
