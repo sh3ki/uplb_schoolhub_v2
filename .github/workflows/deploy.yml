@@ -80,4 +80,12 @@ jobs:
             # Run pending migrations
             php artisan migrate --force
 
+            # Sync grant discounts for all existing student fee records
+            php artisan grants:sync
+
+            # Clear PHP-FPM OPcache so updated PHP files take effect immediately
+            echo "<?php if (function_exists('opcache_reset')) { opcache_reset(); } @unlink(__FILE__);" > /home/u866511543/westerncollege/public/oc_reset_tmp.php
+            curl -sf "https://westerncollegesinc.ph/oc_reset_tmp.php" 2>&1 || true
+            rm -f /home/u866511543/westerncollege/public/oc_reset_tmp.php 2>/dev/null || true
+
             echo "✅ Deployed commit ${{ github.sha }}"
