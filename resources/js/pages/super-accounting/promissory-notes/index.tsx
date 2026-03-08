@@ -9,8 +9,8 @@ import {
     Check,
     X,
     Filter,
-    User,
 } from 'lucide-react';
+import { StudentPhoto } from '@/components/ui/student-photo';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -48,6 +48,10 @@ import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-l
 interface PromissoryNote {
     id: number;
     student_name: string;
+    student_first_name: string;
+    student_last_name: string;
+    student_photo_url: string | null;
+    student_lrn: string | null;
     student_id: number;
     submitted_date: string;
     due_date: string;
@@ -280,9 +284,19 @@ export default function PromissoryNotesIndex({ notes, stats, filters }: Props) {
                                     notes.data.map((note) => (
                                         <TableRow key={note.id}>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <User className="h-4 w-4 text-muted-foreground" />
-                                                    <span className="font-medium">{note.student_name}</span>
+                                                <div className="flex items-center gap-3">
+                                                    <StudentPhoto
+                                                        src={note.student_photo_url}
+                                                        firstName={note.student_first_name}
+                                                        lastName={note.student_last_name}
+                                                        size="sm"
+                                                    />
+                                                    <div>
+                                                        <p className="font-medium text-sm">{note.student_name}</p>
+                                                        {note.student_lrn && (
+                                                            <p className="text-xs text-muted-foreground">{note.student_lrn}</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>{note.school_year || 'General Request'}</TableCell>
