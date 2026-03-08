@@ -269,7 +269,7 @@ export function StudentFormModal({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="max-h-[95vh] max-w-4xl overflow-hidden p-0">
+            <DialogContent className="max-h-[95vh] max-w-6xl overflow-hidden p-0">
                 <div className="flex max-h-[95vh] flex-col">
                     <DialogHeader className="shrink-0 border-b px-6 py-4">
                         <DialogTitle>
