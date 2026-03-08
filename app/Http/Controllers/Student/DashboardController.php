@@ -94,9 +94,10 @@ class DashboardController extends Controller
                     $freshGrant += $r->grant->calculateDiscount((float) $feeToSync->total_amount);
                 }
             }
-            if ((float) $feeToSync->grant_discount !== $freshGrant) {
+            $expectedBalance = max(0, (float) $feeToSync->total_amount - $freshGrant - (float) $feeToSync->total_paid);
+            if ((float) $feeToSync->grant_discount !== $freshGrant || (float) $feeToSync->balance !== $expectedBalance) {
                 $feeToSync->grant_discount = $freshGrant;
-                $feeToSync->balance = max(0, (float) $feeToSync->total_amount - $freshGrant - (float) $feeToSync->total_paid);
+                $feeToSync->balance = $expectedBalance;
                 $feeToSync->save();
             }
         }
