@@ -132,12 +132,12 @@ class StudentFee extends Model
 
     /**
      * Apply grant discount.
+     * total_amount is always the RAW fee total; balance = total_amount - grant_discount - total_paid.
      */
     public function applyGrantDiscount(float $discount): void
     {
         $this->grant_discount = $discount;
-        $this->total_amount = max(0, (float) $this->total_amount - $discount);
-        $this->balance = max(0, (float) $this->total_amount - (float) $this->total_paid);
+        $this->balance = max(0, (float) $this->total_amount - $discount - (float) $this->total_paid);
         $this->save();
     }
 
