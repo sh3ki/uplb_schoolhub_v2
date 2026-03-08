@@ -138,6 +138,7 @@ interface EnrolledProps {
     isEnrolled: true;
     currentSchoolYear: string;
     classification: string;
+    collegeEnrollmentOpen: boolean;
     student: EnrolledStudent;
     fees: Fee[];
     payments: Payment[];
@@ -151,6 +152,7 @@ interface NotEnrolledProps {
     isEnrolled: false;
     currentSchoolYear: string;
     classification: string;
+    collegeEnrollmentOpen: boolean;
     student: NotEnrolledStudent;
     hasPendingRequest: boolean;
     enrollmentOpen: boolean;
@@ -194,7 +196,7 @@ const reqStatusIcon = (status: string) => {
 };
 
 // â”€â”€â”€ Enrolled Details View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function EnrollmentDetails({ student, fees, payments, promissoryNotes, requirements, clearance, summary, currentSchoolYear }: EnrolledProps) {
+function EnrollmentDetails({ student, fees, payments, promissoryNotes, requirements, clearance, summary, currentSchoolYear, classification, collegeEnrollmentOpen }: EnrolledProps) {
     const [tab, setTab] = useState<'fees' | 'payments' | 'requirements' | 'notes'>('fees');
 
     const currentFee = fees.find(f => f.school_year === currentSchoolYear);
@@ -212,12 +214,14 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, requireme
                     >
                         Enrollment Details
                     </Link>
-                    <Link
-                        href="/student/enrollment/subjects"
-                        className="px-5 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 transition-colors"
-                    >
-                        Subject Enrollment
-                    </Link>
+                    {classification === 'College' && collegeEnrollmentOpen && (
+                        <Link
+                            href="/student/enrollment/subjects"
+                            className="px-5 py-2.5 text-sm font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground hover:border-gray-300 transition-colors"
+                        >
+                            Subject Enrollment
+                        </Link>
+                    )}
                 </nav>
             </div>
 
