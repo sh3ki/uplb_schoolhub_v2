@@ -239,17 +239,25 @@ class GrantController extends Controller
         
         $recipient->delete();
 
-        // Recalculate student fee grant discount
+        // Recalculate student fee grant discount using fresh Grant model values (not stale sum)
         $studentFee = StudentFee::where('student_id', $studentId)
             ->where('school_year', $schoolYear)
-            ->first();
+            ->first()
+            ?? StudentFee::where('student_id', $studentId)
+                ->orderBy('school_year', 'desc')
+                ->first();
 
         if ($studentFee) {
-            $totalDiscount = GrantRecipient::where('student_id', $studentId)
-                ->where('school_year', $schoolYear)
+            $allActive = GrantRecipient::where('student_id', $studentFee->student_id)
                 ->where('status', 'active')
-                ->sum('discount_amount');
-            
+                ->with('grant')
+                ->get();
+            $totalDiscount = 0.0;
+            foreach ($allActive as $r) {
+                if ($r->grant) {
+                    $totalDiscount += $r->grant->calculateDiscount((float) $studentFee->total_amount);
+                }
+            }
             $studentFee->applyGrantDiscount($totalDiscount);
         }
 
