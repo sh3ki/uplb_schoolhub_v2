@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
-import { AlertTriangle, Eye, MoreHorizontal, Users, TrendingUp, Clock, Plus, Upload, CreditCard, List } from 'lucide-react';
+import { AlertTriangle, MoreHorizontal, Users, TrendingUp, Clock, Plus, Upload, CreditCard, List } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { toast } from 'sonner';
