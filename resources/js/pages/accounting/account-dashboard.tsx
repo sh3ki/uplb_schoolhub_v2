@@ -42,6 +42,8 @@ interface Transaction {
     mode: string;
     reference: string | null;
     amount: number;
+    student_id?: number;
+    processed_by?: string;
 }
 
 interface Stats {
@@ -386,13 +388,14 @@ export default function AccountDashboard({
                                         <TableHead className="text-white">OR No.</TableHead>
                                         <TableHead className="text-white">Mode</TableHead>
                                         <TableHead className="text-white">Reference</TableHead>
+                                        <TableHead className="text-white">Processed By</TableHead>
                                         <TableHead className="text-white text-right">Amount</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {(transactions || []).length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                                 No transactions found for the selected period.
                                             </TableCell>
                                         </TableRow>
@@ -407,11 +410,13 @@ export default function AccountDashboard({
                                                         variant={tx.type === 'Fee' ? 'default' : 'secondary'}
                                                         className={`cursor-pointer ${tx.type === 'Fee' ? 'bg-blue-500 hover:bg-blue-600' : tx.type === 'Drop' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-500 hover:bg-green-600'}`}
                                                         onClick={() => router.visit(
-                                                            tx.type === 'Fee'
-                                                                ? '/accounting/payments'
-                                                                : tx.type === 'Document'
-                                                                    ? '/accounting/document-requests'
-                                                                    : '/accounting/drop-requests'
+                                                            tx.type === 'Fee' && tx.student_id
+                                                                ? `/accounting/payments/process/${tx.student_id}`
+                                                                : tx.type === 'Fee'
+                                                                    ? '/accounting/payments'
+                                                                    : tx.type === 'Document'
+                                                                        ? '/accounting/document-requests'
+                                                                        : '/accounting/drop-requests'
                                                         )}
                                                     >
                                                         {tx.type}
@@ -428,6 +433,7 @@ export default function AccountDashboard({
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>{tx.reference || 'N/A'}</TableCell>
+                                                <TableCell>{tx.processed_by || '—'}</TableCell>
                                                 <TableCell className="text-right font-semibold">
                                                     {formatCurrency(tx.amount)}
                                                 </TableCell>
