@@ -75,11 +75,17 @@ interface DocumentRequest {
     fee: string;
     total_fee: number;
     receipt_number: string | null;
+    payment_type: string | null;
+    bank_name: string | null;
     receipt_file_path: string | null;
     registrar_status: 'pending' | 'approved' | 'rejected';
     registrar_remarks: string | null;
     registrar_approved_at: string | null;
+    registrar_approved_by: { name: string } | null;
     accounting_status: 'pending' | 'approved' | 'rejected';
+    accounting_remarks: string | null;
+    accounting_approved_at: string | null;
+    accounting_approved_by: { name: string } | null;
     status: string;
     request_date: string | null;
     created_at: string;
@@ -373,6 +379,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                 <TableHead>Type</TableHead>
                                                 <TableHead>Receipt</TableHead>
                                                 <TableHead className="text-right">Fee</TableHead>
+                                                <TableHead>History</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
@@ -428,9 +435,32 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                             ) : (
                                                                 <span className="text-muted-foreground text-sm">-</span>
                                                             )}
+                                                            {request.payment_type && (
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    {request.payment_type.toUpperCase()}
+                                                                    {request.bank_name ? ` - ${request.bank_name}` : ''}
+                                                                </p>
+                                                            )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium">
                                                             {formatCurrency(request.total_fee)}
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="text-xs space-y-1">
+                                                                <p className="text-muted-foreground">Submitted: {request.created_at}</p>
+                                                                {request.registrar_approved_at && (
+                                                                    <p className="text-green-700">
+                                                                        Registrar: {request.registrar_approved_by?.name ?? 'Staff'}
+                                                                        <span className="block text-muted-foreground">{request.registrar_approved_at}</span>
+                                                                    </p>
+                                                                )}
+                                                                {request.accounting_approved_at && (
+                                                                    <p className="text-blue-700">
+                                                                        Accounting: {request.accounting_approved_by?.name ?? 'Staff'}
+                                                                        <span className="block text-muted-foreground">{request.accounting_approved_at}</span>
+                                                                    </p>
+                                                                )}
+                                                            </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="flex flex-col gap-1">
