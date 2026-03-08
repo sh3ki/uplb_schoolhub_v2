@@ -112,7 +112,7 @@ class DropRequest extends Model
     }
 
     /**
-     * Approve by accounting (final stage).
+     * Approve by accounting (acknowledges payment, does not drop the student).
      */
     public function approveByAccounting(int $userId, ?string $remarks = null, ?string $orNumber = null): void
     {
@@ -127,8 +127,13 @@ class DropRequest extends Model
             'processed_by' => $userId,
             'processed_at' => now(),
         ]);
+    }
 
-        // Update the student's enrollment status and deactivate
+    /**
+     * Finalize by registrar — officially drop the student after accounting approval.
+     */
+    public function finalizeByRegistrar(int $userId): void
+    {
         $student = $this->student;
         $student->update([
             'enrollment_status' => 'dropped',
