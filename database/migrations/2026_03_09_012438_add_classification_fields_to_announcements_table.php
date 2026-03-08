@@ -12,17 +12,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('announcements', function (Blueprint $table) {
-            //
+            $table->string('classification')->nullable()->after('department_id');
+            $table->string('program')->nullable()->after('classification');
+            $table->string('grade_level')->nullable()->after('program');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('announcements', function (Blueprint $table) {
-            //
+            $table->dropColumn(['classification', 'program', 'grade_level']);
         });
     }
 };
