@@ -593,9 +593,12 @@ class StudentPaymentController extends Controller
             return (float) $item->selling_price;
         });
 
-        // Get grant discount — always recalculate from Grant model so stale discount_amount is never used
+        // Get grant discount — always recalculate from Grant model so stale discount_amount is never used.
+        // For the current school year apply ALL active grants regardless of their school_year label
+        // (the form default can cause a year mismatch). For historical years use exact matching.
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? $schoolYear;
         $grantRecipients = GrantRecipient::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->when($schoolYear !== $currentSchoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->where('status', 'active')
             ->with('grant')
             ->get();
@@ -816,9 +819,11 @@ class StudentPaymentController extends Controller
             })
             ->sum('selling_price');
 
-        // Get grant discount from Grant model (always fresh, not stale discount_amount)
+        // Get grant discount from Grant model (always fresh, not stale discount_amount).
+        // For the current school year apply ALL active grants (fixes year-label mismatch).
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? $schoolYear;
         $grantRecipients = GrantRecipient::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->when($schoolYear !== $currentSchoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->where('status', 'active')
             ->with('grant')
             ->get();
