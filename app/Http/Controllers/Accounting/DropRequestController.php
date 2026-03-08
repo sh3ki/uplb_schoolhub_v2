@@ -137,7 +137,7 @@ class DropRequestController extends Controller
             $validated['or_number'] ?? null
         );
 
-        return back()->with('success', 'Drop request approved. Student has been officially dropped.');
+        return back()->with('success', 'Drop request approved. Awaiting registrar finalization.');
     }
 
     /**
