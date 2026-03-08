@@ -12,8 +12,6 @@ import {
     Receipt,
     Ban,
     Package,
-    PackageCheck,
-    Send,
     List,
 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
@@ -144,7 +142,6 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
         remarks: '',
     });
 
-    const [markReadyProcessing, setMarkReadyProcessing] = useState(false);
     const handleTabChange = (newTab: string) => {
         setActiveTab(newTab);
         router.get(
@@ -347,7 +344,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                 <TableHead>Type</TableHead>
                                                 <TableHead>Receipt</TableHead>
                                                 <TableHead className="text-right">Fee</TableHead>
-                                                <TableHead>Registrar</TableHead>
+                                                <TableHead>History</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
@@ -408,16 +405,31 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                             ) : (
                                                                 <span className="text-muted-foreground text-sm">-</span>
                                                             )}
+                                                            {request.payment_type && (
+                                                                <p className="text-xs text-muted-foreground mt-1">
+                                                                    {request.payment_type.toUpperCase()}
+                                                                    {request.bank_name ? ` - ${request.bank_name}` : ''}
+                                                                </p>
+                                                            )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-medium">
                                                             {formatCurrency(request.total_fee)}
                                                         </TableCell>
                                                         <TableCell>
-                                                            <div className="text-xs">
-                                                                <span className="text-green-600">Approved</span>
-                                                                <p className="text-muted-foreground">
-                                                                    {request.registrar_approved_at}
-                                                                </p>
+                                                            <div className="text-xs space-y-1">
+                                                                <p className="text-muted-foreground">Submitted: {request.created_at}</p>
+                                                                {request.registrar_approved_at && (
+                                                                    <p className="text-green-700">
+                                                                        Registrar: {request.registrar_approved_by?.name ?? 'Staff'}
+                                                                        <span className="block text-muted-foreground">{request.registrar_approved_at}</span>
+                                                                    </p>
+                                                                )}
+                                                                {request.accounting_approved_at && (
+                                                                    <p className="text-blue-700">
+                                                                        Accounting: {request.accounting_approved_by?.name ?? 'Staff'}
+                                                                        <span className="block text-muted-foreground">{request.accounting_approved_at}</span>
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
@@ -470,28 +482,6 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                         <ThumbsDown className="h-4 w-4" />
                                                                     </Button>
                                                                 </div>
-                                                            ) : request.status === 'processing' ? (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="text-purple-600 hover:text-purple-700"
-                                                                    onClick={() => handleMarkReady(request)}
-                                                                    disabled={markReadyProcessing}
-                                                                >
-                                                                    <PackageCheck className="h-4 w-4 mr-1" />
-                                                                    Mark Ready
-                                                                </Button>
-                                                            ) : request.status === 'ready' ? (
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="text-blue-600 hover:text-blue-700"
-                                                                    onClick={() => handleRelease(request)}
-                                                                    disabled={releaseProcessing}
-                                                                >
-                                                                    <Send className="h-4 w-4 mr-1" />
-                                                                    Release
-                                                                </Button>
                                                             ) : (
                                                                 <div className="text-sm text-muted-foreground">
                                                                     {request.accounting_approved_at || request.status}
