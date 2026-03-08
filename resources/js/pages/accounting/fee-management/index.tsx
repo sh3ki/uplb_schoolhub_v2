@@ -52,6 +52,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountingLayout from '@/layouts/accounting-layout';
 import { cn } from '@/lib/utils';
+import { FilterDropdown } from '@/components/filters/filter-dropdown';
 
 interface FeeItem {
     id: number;
@@ -180,6 +181,10 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
     // Search/filter state for general fees
     const [feeSearch, setFeeSearch] = useState('');
     const [feeClassificationFilter, setFeeClassificationFilter] = useState<string>('all');
+    const [feeDepartmentFilter, setFeeDepartmentFilter] = useState<string>('all');
+    const [feeProgramFilter, setFeeProgramFilter] = useState<string>('all');
+    const [feeYearLevelFilter, setFeeYearLevelFilter] = useState<string>('all');
+    const [feeSectionFilter, setFeeSectionFilter] = useState<string>('all');
 
     // Projected revenue filter state
     const [projSchoolYear, setProjSchoolYear] = useState<string>('');
@@ -255,15 +260,31 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 const matchesClassification = feeClassificationFilter === 'all' || 
                     !item.classification || 
                     item.classification === feeClassificationFilter;
+
+                const matchesDepartment = feeDepartmentFilter === 'all' ||
+                    !item.department_id ||
+                    item.department_id === Number(feeDepartmentFilter);
+
+                const matchesProgram = feeProgramFilter === 'all' ||
+                    !item.program_id ||
+                    item.program_id === Number(feeProgramFilter);
+
+                const matchesYearLevel = feeYearLevelFilter === 'all' ||
+                    !item.year_level_id ||
+                    item.year_level_id === Number(feeYearLevelFilter);
+
+                const matchesSection = feeSectionFilter === 'all' ||
+                    !item.section_id ||
+                    item.section_id === Number(feeSectionFilter);
                 
-                return matchesSearch && matchesClassification;
+                return matchesSearch && matchesClassification && matchesDepartment && matchesProgram && matchesYearLevel && matchesSection;
             });
             return { ...category, items: filteredItems };
         }).filter(category => 
             // Keep categories that have matching items, or show all when no search
             !feeSearch || category.items.length > 0
         );
-    }, [categories, feeSearch, feeClassificationFilter]);
+    }, [categories, feeSearch, feeClassificationFilter, feeDepartmentFilter, feeProgramFilter, feeYearLevelFilter, feeSectionFilter]);
 
     const formatCurrency = (amount: string | number) => {
         const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -836,7 +857,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                 </div>
                             </div>
                             <div className="w-[180px]">
-                                <Select value={feeClassificationFilter} onValueChange={setFeeClassificationFilter}>
+                                <Select value={feeClassificationFilter} onValueChange={(v) => { setFeeClassificationFilter(v); setFeeDepartmentFilter('all'); setFeeProgramFilter('all'); setFeeYearLevelFilter('all'); setFeeSectionFilter('all'); }}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Classification" />
                                     </SelectTrigger>
@@ -847,13 +868,64 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                     </SelectContent>
                                 </Select>
                             </div>
-                            {(feeSearch || feeClassificationFilter !== 'all') && (
+                            {feeClassificationFilter !== 'all' && (
+                                <FilterDropdown
+                                    label="Department"
+                                    value={feeDepartmentFilter}
+                                    onChange={(v) => { setFeeDepartmentFilter(v); setFeeProgramFilter('all'); setFeeYearLevelFilter('all'); setFeeSectionFilter('all'); }}
+                                    options={departments
+                                        .filter(d => feeClassificationFilter === 'all' || d.classification === feeClassificationFilter)
+                                        .map(d => ({ value: String(d.id), label: d.name }))}
+                                    placeholder="All Departments"
+                                />
+                            )}
+                            {feeDepartmentFilter !== 'all' && (
+                                <FilterDropdown
+                                    label="Program"
+                                    value={feeProgramFilter}
+                                    onChange={(v) => { setFeeProgramFilter(v); }}
+                                    options={programs
+                                        .filter(p => p.department_id === Number(feeDepartmentFilter))
+                                        .map(p => ({ value: String(p.id), label: p.name }))}
+                                    placeholder="All Programs"
+                                />
+                            )}
+                            {feeClassificationFilter !== 'all' && (
+                                <FilterDropdown
+                                    label="Year Level"
+                                    value={feeYearLevelFilter}
+                                    onChange={(v) => { setFeeYearLevelFilter(v); setFeeSectionFilter('all'); }}
+                                    options={yearLevels
+                                        .filter(yl => (
+                                            (feeClassificationFilter === 'all' || yl.classification === feeClassificationFilter) &&
+                                            (feeDepartmentFilter === 'all' || yl.department_id === Number(feeDepartmentFilter))
+                                        ))
+                                        .map(yl => ({ value: String(yl.id), label: yl.name }))}
+                                    placeholder="All Year Levels"
+                                />
+                            )}
+                            {feeYearLevelFilter !== 'all' && (
+                                <FilterDropdown
+                                    label="Section"
+                                    value={feeSectionFilter}
+                                    onChange={setFeeSectionFilter}
+                                    options={sections
+                                        .filter(s => s.year_level_id === Number(feeYearLevelFilter))
+                                        .map(s => ({ value: String(s.id), label: s.name }))}
+                                    placeholder="All Sections"
+                                />
+                            )}
+                            {(feeSearch || feeClassificationFilter !== 'all' || feeDepartmentFilter !== 'all' || feeProgramFilter !== 'all' || feeYearLevelFilter !== 'all' || feeSectionFilter !== 'all') && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => {
                                         setFeeSearch('');
                                         setFeeClassificationFilter('all');
+                                        setFeeDepartmentFilter('all');
+                                        setFeeProgramFilter('all');
+                                        setFeeYearLevelFilter('all');
+                                        setFeeSectionFilter('all');
                                     }}
                                 >
                                     <X className="h-4 w-4 mr-1" />
