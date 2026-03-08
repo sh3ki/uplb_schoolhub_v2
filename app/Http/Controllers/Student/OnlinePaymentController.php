@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\FeeItem;
 use App\Models\FeeItemAssignment;
+use App\Models\GrantRecipient;
 use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
@@ -171,6 +172,19 @@ class OnlinePaymentController extends Controller
     private function getFeeSummary(Student $student): array
     {
         $fees = StudentFee::where('student_id', $student->id)->get();
+
+        // Sync grant discounts dynamically from GrantRecipient (fixes stale grant_discount = 0)
+        foreach ($fees as $feeToSync) {
+            $freshGrant = GrantRecipient::where('student_id', $student->id)
+                ->where('school_year', $feeToSync->school_year)
+                ->where('status', 'active')
+                ->sum('discount_amount');
+            if ((float) $feeToSync->grant_discount !== (float) $freshGrant) {
+                $feeToSync->grant_discount = $freshGrant;
+                $feeToSync->balance = max(0, (float) $feeToSync->total_amount - (float) $freshGrant - (float) $feeToSync->total_paid);
+                $feeToSync->save();
+            }
+        }
 
         return [
             'total_fees'     => (float) $fees->sum('total_amount'),
