@@ -23,6 +23,7 @@ class DocumentApprovalController extends Controller
              'student:id,first_name,last_name,lrn,program,year_level,student_photo_url',
             'documentFeeItem:id,name,category,price,processing_days',
             'registrarApprovedBy:id,name',
+            'accountingApprovedBy:id,name',
         ]);
 
         // Only show requests that have been approved by registrar
@@ -91,6 +92,8 @@ class DocumentApprovalController extends Controller
                 'fee' => $request->fee,
                 'total_fee' => $request->total_fee,
                 'receipt_number' => $request->receipt_number,
+                'payment_type' => $request->payment_type,
+                'bank_name' => $request->bank_name,
                 'receipt_file_path' => $request->receipt_file_path,
                 'is_paid' => $request->is_paid,
                 'or_number' => $request->or_number,
@@ -103,6 +106,9 @@ class DocumentApprovalController extends Controller
                 'accounting_status' => $request->accounting_status,
                 'accounting_remarks' => $request->accounting_remarks,
                 'accounting_approved_at' => $request->accounting_approved_at?->format('M d, Y H:i'),
+                'accounting_approved_by' => $request->accountingApprovedBy ? [
+                    'name' => $request->accountingApprovedBy->name,
+                ] : null,
                 'status' => $request->status,
                 'expected_completion_date' => $request->expected_completion_date?->format('M d, Y'),
                 'request_date' => $request->request_date?->format('M d, Y'),
