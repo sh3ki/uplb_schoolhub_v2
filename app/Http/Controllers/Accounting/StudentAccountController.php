@@ -7,6 +7,7 @@ use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use App\Models\FeeItem;
+use App\Models\Grant;
 use App\Models\GrantRecipient;
 use App\Models\Department;
 use App\Models\YearLevel;
@@ -221,11 +222,24 @@ class StudentAccountController extends Controller
             })
             ->sum('selling_price');
 
-        // Get grant discount
-        $grantDiscount = GrantRecipient::where('student_id', $student->id)
+        // Get grant discount — recalculate from Grant model to fix stale discount_amount=0 records
+        $grantRecipients = GrantRecipient::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
             ->where('status', 'active')
-            ->sum('discount_amount');
+            ->with('grant')
+            ->get();
+        $grantDiscount = 0.0;
+        foreach ($grantRecipients as $recipient) {
+            if ($recipient->grant) {
+                $calculated = $recipient->grant->calculateDiscount((float) $totalAmount);
+                // Fix stale discount_amount in DB if it differs
+                if ((float) $recipient->discount_amount !== $calculated) {
+                    $recipient->discount_amount = $calculated;
+                    $recipient->save();
+                }
+                $grantDiscount += $calculated;
+            }
+        }
 
         // Get payment info from student_fees (if exists)
         $studentFee = StudentFee::where('student_id', $student->id)
