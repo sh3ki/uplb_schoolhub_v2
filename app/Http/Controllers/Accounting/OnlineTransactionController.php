@@ -118,6 +118,10 @@ class OnlineTransactionController extends Controller
             return redirect()->back()->with('error', 'Transaction is not pending.');
         }
 
+        $validated = $request->validate([
+            'or_number' => 'nullable|string|max:100',
+        ]);
+
         // Create payment record - find or create StudentFee for the student's current school year
         $currentSchoolYear = \App\Models\AppSetting::current()->school_year
             ?? now()->year . '-' . (now()->year + 1);
@@ -145,23 +149,34 @@ class OnlineTransactionController extends Controller
             ]);
         }
 
+        $orNumber = $validated['or_number'] ?? ('OT-' . $transaction->transaction_id);
+        $paymentMode = strtoupper($transaction->payment_method ?? 'CASH');
+        // Map to valid enum values
+        if (!in_array($paymentMode, ['CASH', 'GCASH', 'BANK'])) {
+            $paymentMode = 'CASH';
+        }
+
         $payment = StudentPayment::create([
             'student_id' => $transaction->student_id,
             'student_fee_id' => $studentFee->id,
             'payment_date' => $transaction->transaction_date,
-            'or_number' => 'OT-' . $transaction->transaction_id,
+            'or_number' => $orNumber,
             'amount' => $transaction->amount,
             'payment_for' => 'tuition',
+            'payment_mode' => $paymentMode,
             'payment_method' => $transaction->payment_method,
             'reference_number' => $transaction->reference_number,
             'notes' => 'Online transaction: ' . $transaction->transaction_id,
             'recorded_by' => auth()->id(),
         ]);
 
+        // Update student fee balance
+        $studentFee->updateBalance();
+
         // Update transaction
         $transaction->update([
             'student_payment_id' => $payment->id,
-            'status' => 'verified',
+            'status' => 'completed',
             'verified_at' => now(),
             'verified_by' => auth()->id(),
         ]);
