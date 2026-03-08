@@ -149,6 +149,7 @@ export function StudentFormModal({
         guardian_relationship: student?.guardian_relationship || '',
         guardian_contact: student?.guardian_contact || '',
         guardian_email: student?.guardian_email || '',
+        guardian_occupation: student?.guardian_occupation || '',
         student_photo: null as File | null,
         remarks: student?.remarks || '',
     });
@@ -854,8 +855,16 @@ export function StudentFormModal({
                                     placeholder="guardian@example.com"
                                 />
                             </div>
-                        </div>
-                    </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="guardian_occupation">Guardian Occupation</Label>
+                                <Input
+                                    id="guardian_occupation"
+                                    value={data.guardian_occupation}
+                                    onChange={e => setData('guardian_occupation', e.target.value)}
+                                    placeholder="e.g. Farmer, Teacher, Engineer"
+                                />
+                            </div>
 
                     {/* Optional Information */}
                     <div className="space-y-4">
