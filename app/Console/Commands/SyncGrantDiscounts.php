@@ -33,6 +33,18 @@ class SyncGrantDiscounts extends Command
             $studentFees = StudentFee::where('student_id', $studentId)->get();
 
             foreach ($studentFees as $fee) {
+                // Never apply a grant discount to a fee record with no fees — prevents double-counting
+                // when a placeholder record exists for a school year that has no fee items.
+                if ((float) $fee->total_amount <= 0) {
+                    if ((float) $fee->grant_discount !== 0.0 || (float) $fee->balance !== 0.0) {
+                        $fee->grant_discount = 0;
+                        $fee->balance        = 0;
+                        $fee->save();
+                        $this->info("Cleared spurious discount on StudentFee {$fee->id} (student {$studentId}, {$fee->school_year}): zero-fee record.");
+                    }
+                    continue;
+                }
+
                 // For the current school year, apply ALL active grants.
                 // For historical years, only apply grants whose school_year matches exactly.
                 $applicableRecipients = ($fee->school_year === $currentSchoolYear || !$currentSchoolYear)
