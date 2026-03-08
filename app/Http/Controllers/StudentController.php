@@ -17,6 +17,7 @@ use App\Models\Subject;
 use App\Models\StudentSubject;
 use App\Models\AppSetting;
 use App\Models\EnrollmentClearance;
+use App\Models\GrantRecipient;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -766,7 +767,7 @@ class StudentController extends Controller
             $carriedBalance = $previousFees->sum('balance');
             $carriedFrom    = $previousFees->pluck('school_year')->unique()->sort()->implode(', ');
 
-            \App\Models\StudentFee::firstOrCreate(
+            $newStudentFee = \App\Models\StudentFee::firstOrCreate(
                 [
                     'student_id' => $student->id,
                     'school_year' => $newSchoolYear,
@@ -785,6 +786,17 @@ class StudentController extends Controller
                     'carried_forward_from'      => $carriedBalance > 0 ? $carriedFrom : null,
                 ]
             );
+
+            // Apply any active grants for this school year if not already applied
+            if ($newStudentFee->grant_discount == 0) {
+                $totalGrantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
+                    ->where('school_year', $newSchoolYear)
+                    ->where('status', 'active')
+                    ->sum('discount_amount');
+                if ($totalGrantDiscount > 0) {
+                    $newStudentFee->applyGrantDiscount((float) $totalGrantDiscount);
+                }
+            }
         }
 
         // Update enrollment status if all clearances are complete
@@ -958,7 +970,7 @@ class StudentController extends Controller
             $carriedBalance = $previousFees->sum('balance');
             $carriedFrom    = $previousFees->pluck('school_year')->unique()->sort()->implode(', ');
 
-            \App\Models\StudentFee::firstOrCreate(
+            $newStudentFee2 = \App\Models\StudentFee::firstOrCreate(
                 [
                     'student_id' => $student->id,
                     'school_year' => $currentSchoolYear,
@@ -977,6 +989,17 @@ class StudentController extends Controller
                     'carried_forward_from'      => $carriedBalance > 0 ? $carriedFrom : null,
                 ]
             );
+
+            // Apply any active grants for this school year if not already applied
+            if ($newStudentFee2->grant_discount == 0) {
+                $totalGrantDiscount2 = \App\Models\GrantRecipient::where('student_id', $student->id)
+                    ->where('school_year', $currentSchoolYear)
+                    ->where('status', 'active')
+                    ->sum('discount_amount');
+                if ($totalGrantDiscount2 > 0) {
+                    $newStudentFee2->applyGrantDiscount((float) $totalGrantDiscount2);
+                }
+            }
         }
 
         // Log the action
