@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BalanceAdjustment;
 use App\Models\Department;
 use App\Models\EnrollmentClearance;
+use App\Models\Grant;
+use App\Models\GrantRecipient;
 use App\Models\PromissoryNote;
 use App\Models\Student;
 use App\Models\StudentActionLog;
@@ -591,43 +593,58 @@ class StudentPaymentController extends Controller
             return (float) $item->selling_price;
         });
 
-        // Get grant discount for this school year
-        $grantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
+        // Get grant discount — always recalculate from Grant model so stale discount_amount is never used
+        $grantRecipients = GrantRecipient::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
             ->where('status', 'active')
-            ->sum('discount_amount');
+            ->with('grant')
+            ->get();
+        $grantDiscount = 0.0;
+        foreach ($grantRecipients as $recipient) {
+            if ($recipient->grant) {
+                $calculated = $recipient->grant->calculateDiscount((float) $totalAmount);
+                if ((float) $recipient->discount_amount !== $calculated) {
+                    $recipient->discount_amount = $calculated;
+                    $recipient->save();
+                }
+                $grantDiscount += $calculated;
+            }
+        }
 
-        // Get total paid for this school year
-        // First, try to get from student_fees if it exists
+        // Get or create the student_fees record for tracking payments
         $studentFee = StudentFee::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
             ->first();
 
-        $totalPaid = $studentFee ? (float) $studentFee->total_paid : 0;
         $isOverdue = $studentFee ? $studentFee->is_overdue : false;
         $dueDate = $studentFee?->due_date;
         $studentFeeId = $studentFee?->id;
 
-        // If no student_fee record exists, create one for tracking payments
+        // Total paid = sum of actual payment records (always fresh)
+        $totalPaid = $studentFee ? (float) $studentFee->payments()->sum('amount') : 0.0;
+
         if (!$studentFee) {
             $studentFee = StudentFee::create([
-                'student_id' => $student->id,
-                'school_year' => $schoolYear,
-                'total_amount' => $totalAmount,
+                'student_id'     => $student->id,
+                'school_year'    => $schoolYear,
+                'total_amount'   => $totalAmount,
                 'grant_discount' => $grantDiscount,
-                'total_paid' => 0,
-                'balance' => $totalAmount - $grantDiscount,
+                'total_paid'     => 0,
+                'balance'        => max(0, $totalAmount - $grantDiscount),
             ]);
             $studentFeeId = $studentFee->id;
         } else {
-            // Keep stored record in sync with freshly calculated amounts
+            // Sync stored record: check total_amount, grant_discount, and balance for correctness
             $freshTotal    = (float) $totalAmount;
             $freshDiscount = (float) $grantDiscount;
-            if ((float) $studentFee->total_amount !== $freshTotal
-                || (float) $studentFee->grant_discount !== $freshDiscount) {
+            $freshBalance  = max(0, $freshTotal - $freshDiscount - $totalPaid);
+            if ((float) $studentFee->total_amount   !== $freshTotal
+                || (float) $studentFee->grant_discount !== $freshDiscount
+                || (float) $studentFee->balance        !== $freshBalance) {
                 $studentFee->total_amount    = $freshTotal;
+                $studentFee->total_paid      = $totalPaid;
                 $studentFee->grant_discount  = $freshDiscount;
-                $studentFee->balance         = max(0, $freshTotal - $freshDiscount - $totalPaid);
+                $studentFee->balance         = $freshBalance;
                 $studentFee->save();
             }
         }
@@ -799,20 +816,25 @@ class StudentPaymentController extends Controller
             })
             ->sum('selling_price');
 
-        // Get grant discount
-        $grantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
+        // Get grant discount from Grant model (always fresh, not stale discount_amount)
+        $grantRecipients = GrantRecipient::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
             ->where('status', 'active')
-            ->sum('discount_amount');
+            ->with('grant')
+            ->get();
+        $grantDiscount = 0.0;
+        foreach ($grantRecipients as $recipient) {
+            if ($recipient->grant) {
+                $grantDiscount += $recipient->grant->calculateDiscount((float) $totalAmount);
+            }
+        }
 
-        // Get total paid from student_fees (if exists)
+        // Get total paid from actual payment records (always fresh)
         $studentFee = StudentFee::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
             ->first();
+        $totalPaid = $studentFee ? (float) $studentFee->payments()->sum('amount') : 0.0;
 
-        $totalPaid = $studentFee ? (float) $studentFee->total_paid : 0;
-
-        // Calculate balance
         return max(0, $totalAmount - $grantDiscount - $totalPaid);
     }
 
