@@ -84,6 +84,8 @@ interface DocumentRequest {
     fee: string;
     total_fee: number;
     receipt_number: string | null;
+    payment_type: string | null;
+    bank_name: string | null;
     receipt_file_path: string | null;
     is_paid: boolean;
     or_number: string | null;
@@ -94,6 +96,7 @@ interface DocumentRequest {
     accounting_status: 'pending' | 'approved' | 'rejected';
     accounting_remarks: string | null;
     accounting_approved_at: string | null;
+    accounting_approved_by: { name: string } | null;
     status: string;
     expected_completion_date: string | null;
     request_date: string | null;
@@ -114,8 +117,6 @@ interface Props {
         approved: number;
         rejected: number;
         releasing: number;
-        ready: number;
-        released: number;
     };
     documentTypes: Record<string, string>;
     tab: string;
@@ -144,28 +145,6 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
     });
 
     const [markReadyProcessing, setMarkReadyProcessing] = useState(false);
-    const [releaseProcessing, setReleaseProcessing] = useState(false);
-
-    const handleMarkReady = (request: DocumentRequest) => {
-        if (!confirm(`Mark document for ${request.student.full_name} as ready for pickup?`)) return;
-        setMarkReadyProcessing(true);
-        router.post(`/accounting/document-approvals/${request.id}/mark-ready`, {}, {
-            preserveScroll: true,
-            onSuccess: () => { toast.success('Document marked as ready for pickup.'); },
-            onFinish: () => setMarkReadyProcessing(false),
-        });
-    };
-
-    const handleRelease = (request: DocumentRequest) => {
-        if (!confirm(`Release document to ${request.student.full_name}?`)) return;
-        setReleaseProcessing(true);
-        router.post(`/accounting/document-approvals/${request.id}/release`, {}, {
-            preserveScroll: true,
-            onSuccess: () => { toast.success('Document released to student.'); },
-            onFinish: () => setReleaseProcessing(false),
-        });
-    };
-
     const handleTabChange = (newTab: string) => {
         setActiveTab(newTab);
         router.get(
@@ -276,26 +255,6 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                             <p className="text-xs text-muted-foreground">Being processed</p>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Ready</CardTitle>
-                            <PackageCheck className="h-4 w-4 text-purple-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-purple-600">{stats.ready}</div>
-                            <p className="text-xs text-muted-foreground">Ready for pickup</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Released</CardTitle>
-                            <Send className="h-4 w-4 text-gray-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-gray-600">{stats.released}</div>
-                            <p className="text-xs text-muted-foreground">Picked up by student</p>
-                        </CardContent>
-                    </Card>
                 </div>
 
                 {/* Main Content */}
@@ -369,17 +328,6 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                     {stats.releasing > 0 && (
                                         <Badge variant="secondary">{stats.releasing}</Badge>
                                     )}
-                                </TabsTrigger>
-                                <TabsTrigger value="ready" className="flex gap-2">
-                                    <PackageCheck className="h-4 w-4" />
-                                    Ready
-                                    {stats.ready > 0 && (
-                                        <Badge variant="secondary">{stats.ready}</Badge>
-                                    )}
-                                </TabsTrigger>
-                                <TabsTrigger value="released" className="flex gap-2">
-                                    <Send className="h-4 w-4" />
-                                    Released
                                 </TabsTrigger>
                             </TabsList>
 
