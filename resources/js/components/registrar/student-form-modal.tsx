@@ -126,8 +126,10 @@ export function StudentFormModal({
         email: student?.email || '',
         phone: student?.phone || '',
         date_of_birth: student?.date_of_birth ? format(new Date(student.date_of_birth), 'yyyy-MM-dd') : '',
+        place_of_birth: student?.place_of_birth || '',
         gender: student?.gender || '',
-        religion: student?.religion || '',
+        nationality: student?.nationality || '',
+        religion: student?.religion || '',,
         mother_tongue: student?.mother_tongue || '',
         dialects: student?.dialects || '',
         ethnicities: student?.ethnicities || '',
@@ -135,6 +137,7 @@ export function StudentFormModal({
         street_address: student?.street_address || '',
         barangay: student?.barangay || '',
         city_municipality: student?.city_municipality || '',
+        province: student?.province || '',
         zip_code: student?.zip_code || '',
         last_school_attended: student?.last_school_attended || '',
         school_address_attended: student?.school_address_attended || '',
@@ -712,6 +715,16 @@ export function StudentFormModal({
                             </div>
 
                             <div className="space-y-2">
+                                <Label htmlFor="place_of_birth">Place of Birth</Label>
+                                <Input
+                                    id="place_of_birth"
+                                    value={data.place_of_birth}
+                                    onChange={e => setData('place_of_birth', e.target.value)}
+                                    placeholder="Enter place of birth"
+                                />
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label htmlFor="gender">Gender *</Label>
                                 <Select value={data.gender} onValueChange={value => setData('gender', value)}>
                                     <SelectTrigger className={errors.gender ? 'border-red-500' : ''}>
@@ -726,6 +739,16 @@ export function StudentFormModal({
                                 {errors.gender && (
                                     <p className="text-xs text-red-500">{errors.gender}</p>
                                 )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="nationality">Nationality</Label>
+                                <Input
+                                    id="nationality"
+                                    value={data.nationality}
+                                    onChange={e => setData('nationality', e.target.value)}
+                                    placeholder="e.g. Filipino"
+                                />
                             </div>
                         </div>
 
@@ -834,6 +857,16 @@ export function StudentFormModal({
                                 {errors.city_municipality && (
                                     <p className="text-xs text-red-500">{errors.city_municipality}</p>
                                 )}
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="province">Province</Label>
+                                <Input
+                                    id="province"
+                                    value={data.province}
+                                    onChange={e => setData('province', e.target.value)}
+                                    placeholder="Enter province"
+                                />
                             </div>
 
                             <div className="space-y-2">
