@@ -87,6 +87,7 @@ class OnlinePaymentController extends Controller
             'reference_number' => 'required|string|max:255',
             'receipt_image' => 'required|image|max:5120', // 5MB max
             'notes' => 'nullable|string|max:500',
+            'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
         ]);
 
         // Store the receipt image
@@ -105,6 +106,7 @@ class OnlinePaymentController extends Controller
             'amount' => $validated['amount'],
             'payment_method' => $validated['payment_method'],
             'reference_number' => $validated['reference_number'],
+            'bank_name' => $validated['bank_name'] ?? null,
             'payment_proof' => $receiptPath,
             'transaction_date' => now(),
             'status' => 'pending',
