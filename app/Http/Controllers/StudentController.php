@@ -86,6 +86,16 @@ class StudentController extends Controller
                 });
             }
 
+            // Program filter
+            if ($request->filled('program') && $request->program !== 'all') {
+                $specialQuery->where('program', $request->program);
+            }
+
+            // Year level filter
+            if ($request->filled('year_level') && $request->year_level !== 'all') {
+                $specialQuery->where('year_level', $request->year_level);
+            }
+
             // School year filter
             if ($request->filled('school_year') && $request->school_year !== 'all') {
                 $specialQuery->where('school_year', $request->school_year);
@@ -123,7 +133,7 @@ class StudentController extends Controller
                 'programs'      => $programs,
                 'yearLevels'    => $yearLevels,
                 'schoolYears'   => $schoolYears,
-                'filters'       => $request->only(['search', 'school_year', 'tab']),
+                'filters'       => $request->only(['search', 'school_year', 'program', 'year_level', 'tab']),
                 'departments'   => $departments,
                 'allPrograms'   => $allPrograms,
                 'allYearLevels' => $allYearLevels,
