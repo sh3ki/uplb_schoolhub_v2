@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
-import { AlertTriangle, CheckCircle, Clock, DollarSign, Download, FileText, RefreshCw, TrendingUp, Users, XCircle, BarChart3 } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Clock, Download, FileText, RefreshCw, TrendingUp, Users, XCircle, BarChart3 } from 'lucide-react';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -193,7 +194,7 @@ export default function MainDashboard({
                                     <p className="text-sm text-muted-foreground">Outstanding Balance</p>
                                     <p className="text-2xl font-bold text-red-700">{formatCurrency(totalOutstanding)}</p>
                                 </div>
-                                <DollarSign className="h-8 w-8 text-red-400" />
+                                <PhilippinePeso className="h-8 w-8 text-red-400" />
                             </div>
                         </CardContent>
                     </Card>
@@ -227,7 +228,7 @@ export default function MainDashboard({
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2">
-                                <DollarSign className="h-5 w-5" />
+                                <PhilippinePeso className="h-5 w-5" />
                                 Monthly Collection
                             </CardTitle>
                             <CardDescription>
@@ -274,7 +275,7 @@ export default function MainDashboard({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <DollarSign className="h-5 w-5" />
+                            <PhilippinePeso className="h-5 w-5" />
                             Outstanding Balance by Department
                         </CardTitle>
                     </CardHeader>
