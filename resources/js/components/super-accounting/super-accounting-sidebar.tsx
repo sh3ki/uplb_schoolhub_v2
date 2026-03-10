@@ -84,6 +84,18 @@ export function SuperAccountingSidebar() {
             href: '/super-accounting/online-transactions',
             icon: Globe,
         },
+        {
+            title: 'Document Approvals',
+            href: '/super-accounting/document-approvals',
+            icon: FileCheck,
+            badge: pendingDocumentCount || undefined,
+        },
+        {
+            title: 'Drop Approvals',
+            href: '/super-accounting/drop-approvals',
+            icon: UserX,
+            badge: pendingDropRequestCount || undefined,
+        },
     ];
 
     const adminNavItems: NavItem[] = [
