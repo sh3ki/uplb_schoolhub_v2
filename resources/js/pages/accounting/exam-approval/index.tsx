@@ -103,6 +103,7 @@ interface FullyPaidStudent {
     total_amount: number;
     total_paid: number;
     balance: number;
+    payment_status: string;
     school_year: string;
 }
 
@@ -714,6 +715,7 @@ export default function ExamApprovalIndex({
                                                     <TableHead>Year / Section</TableHead>
                                                     <TableHead className="text-right">Total Paid</TableHead>
                                                     <TableHead className="text-right">Balance</TableHead>
+                                                    <TableHead>Status</TableHead>
                                                     <TableHead>School Year</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -746,6 +748,15 @@ export default function ExamApprovalIndex({
                                                             <TableCell className="text-sm">{[student.year_level, student.section].filter(Boolean).join(' – ') || '—'}</TableCell>
                                                             <TableCell className="text-right text-green-600 font-medium text-sm">{formatCurrency(student.total_paid)}</TableCell>
                                                             <TableCell className={`text-right font-medium text-sm ${student.balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>{student.balance > 0 ? formatCurrency(student.balance) : 'Paid'}</TableCell>
+                                                            <TableCell>
+                                                                {student.payment_status === 'paid' ? (
+                                                                    <Badge className="bg-green-500 text-xs">Fully Paid</Badge>
+                                                                ) : student.payment_status === 'partial' ? (
+                                                                    <Badge className="bg-yellow-500 text-xs">Partial</Badge>
+                                                                ) : (
+                                                                    <Badge variant="outline" className="text-xs">Unpaid</Badge>
+                                                                )}
+                                                            </TableCell>
                                                             <TableCell className="text-sm">{student.school_year}</TableCell>
                                                         </TableRow>
                                                     ))
