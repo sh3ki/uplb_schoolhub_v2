@@ -25,6 +25,7 @@ interface StudentFiltersProps {
         requirements_status?: string;
         needs_sectioning?: string;
         school_year?: string;
+        tab?: string;
     };
 }
 
@@ -50,7 +51,7 @@ export function StudentFilters({ programs = [], yearLevels = [], schoolYears = [
 
     const handleClearFilters = () => {
         setLocalSearch('');
-        router.get(studentsIndex.url());
+        router.get(studentsIndex.url({ query: filters?.tab ? { tab: filters.tab } : {} }));
     };
 
     return (
