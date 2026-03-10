@@ -46,10 +46,16 @@ class ExamApprovalController extends Controller
 
         $approvals = $query->latest()->paginate(20)->withQueryString();
 
-        // Get all students eligible for exam approval: everyone except those marked overdue
+        // Get all students eligible for exam approval:
+        // same as student-accounts "all" tab (registrar cleared, past pre-enrollment stages) minus overdue.
+        // A student is overdue only when is_overdue=true AND total_paid=0 (partial payers are NOT overdue).
         $eligibleStudents = Student::whereNull('deleted_at')
+            ->whereHas('enrollmentClearance', function ($q) {
+                $q->where('registrar_clearance', true);
+            })
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->whereDoesntHave('fees', function ($fq) {
-                $fq->where('is_overdue', true);
+                $fq->where('is_overdue', true)->where('total_paid', '<=', 0);
             })
             ->with('fees')
             ->get()
@@ -66,10 +72,14 @@ class ExamApprovalController extends Controller
                 ];
             });
 
-        // Eligible students split by gender — all except those with overdue fees
+        // Eligible students split by gender — same base as student-accounts, minus truly overdue
         $fullyPaidQuery = Student::whereNull('deleted_at')
+            ->whereHas('enrollmentClearance', function ($q) {
+                $q->where('registrar_clearance', true);
+            })
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->whereDoesntHave('fees', function ($fq) {
-                $fq->where('is_overdue', true);
+                $fq->where('is_overdue', true)->where('total_paid', '<=', 0);
             })
             ->with(['fees' => function ($q) {
                 $q->latest();
