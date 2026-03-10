@@ -55,7 +55,7 @@ class ExamApprovalController extends Controller
             })
             ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->whereDoesntHave('fees', function ($fq) {
-                $fq->where('is_overdue', true)->where('total_paid', '<=', 0);
+                $fq->where('is_overdue', true);
             })
             ->with('fees')
             ->get()
@@ -79,7 +79,7 @@ class ExamApprovalController extends Controller
             })
             ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->whereDoesntHave('fees', function ($fq) {
-                $fq->where('is_overdue', true)->where('total_paid', '<=', 0);
+                $fq->where('is_overdue', true);
             })
             ->with(['fees' => function ($q) {
                 $q->latest();
@@ -116,6 +116,14 @@ class ExamApprovalController extends Controller
                     'total_amount'      => (float) ($fee?->total_amount ?? 0),
                     'total_paid'        => (float) ($fee?->total_paid ?? 0),
                     'balance'           => max(0, (float) ($fee?->balance ?? 0)),
+                    'payment_status'    => (function () use ($fee): string {
+                        $balance = max(0, (float) ($fee?->balance ?? 0));
+                        $total   = (float) ($fee?->total_amount ?? 0);
+                        $paid    = (float) ($fee?->total_paid ?? 0);
+                        if ($balance <= 0 && $total > 0) return 'paid';
+                        if ($paid > 0) return 'partial';
+                        return 'unpaid';
+                    })(),
                     'school_year'       => $fee?->school_year ?? '',
                 ];
             });
