@@ -440,6 +440,7 @@ class StudentAccountController extends Controller
 
     /**
      * Bulk mark accounts as overdue based on filters.
+     * Iterates eligible students dynamically so stale DB balances never cause skips.
      */
     public function bulkMarkOverdue(Request $request): RedirectResponse
     {
@@ -450,12 +451,20 @@ class StudentAccountController extends Controller
             'overdue_date' => 'required|date',
         ]);
 
-        $query = StudentFee::where('balance', '>', 0)
-            ->where('is_overdue', false);
+        // Use app-configured school year so we target the active year
+        $schoolYear = \App\Models\AppSetting::current()?->school_year
+            ?? now()->format('Y') . '-' . (now()->year + 1);
+
+        // Build the same eligible-students base query as the index
+        $studentsQuery = Student::with(['department'])
+            ->whereHas('enrollmentClearance', function ($q) {
+                $q->where('registrar_clearance', true);
+            })
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar']);
 
         if ($classification = $request->classification) {
             if ($classification !== 'all') {
-                $query->whereHas('student', function ($q) use ($classification) {
+                $studentsQuery->whereHas('department', function ($q) use ($classification) {
                     $q->where('classification', $classification);
                 });
             }
@@ -463,27 +472,48 @@ class StudentAccountController extends Controller
 
         if ($departmentId = $request->department_id) {
             if ($departmentId !== 'all') {
-                $query->whereHas('student', function ($q) use ($departmentId) {
-                    $q->where('department_id', $departmentId);
-                });
+                $studentsQuery->where('department_id', $departmentId);
             }
         }
 
         if ($yearLevel = $request->year_level) {
             if ($yearLevel !== 'all') {
-                $query->whereHas('student', function ($q) use ($yearLevel) {
-                    $q->where('year_level', $yearLevel);
-                });
+                $studentsQuery->where('year_level', $yearLevel);
             }
         }
 
-        $count = $query->count();
-        
-        $query->update([
-            'is_overdue' => true,
-            'due_date' => $request->overdue_date,
-            'payment_status' => 'overdue',
-        ]);
+        $count = 0;
+
+        foreach ($studentsQuery->get() as $student) {
+            $feeData = $this->calculateStudentFees($student, $schoolYear);
+
+            // Skip already-overdue or fully-paid students
+            if ($feeData['is_overdue'] || $feeData['balance'] <= 0) {
+                continue;
+            }
+
+            // Upsert the student_fees record so it always exists
+            $studentFee = StudentFee::firstOrCreate(
+                ['student_id' => $student->id, 'school_year' => $schoolYear],
+                [
+                    'total_amount'   => $feeData['total_amount'],
+                    'grant_discount' => $feeData['grant_discount'],
+                    'total_paid'     => $feeData['total_paid'],
+                    'balance'        => $feeData['balance'],
+                ]
+            );
+
+            $studentFee->update([
+                'is_overdue'     => true,
+                'due_date'       => $request->overdue_date,
+                'payment_status' => 'overdue',
+                'total_amount'   => $feeData['total_amount'],
+                'grant_discount' => $feeData['grant_discount'],
+                'balance'        => $feeData['balance'],
+            ]);
+
+            $count++;
+        }
 
         return redirect()->back()->with('success', "{$count} accounts marked as overdue.");
     }
