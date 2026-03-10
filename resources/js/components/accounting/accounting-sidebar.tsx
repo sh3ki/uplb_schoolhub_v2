@@ -67,7 +67,7 @@ export function AccountingSidebar() {
         },
         {
             title: 'Student Accounts',
-            href: '/accounting/student-accounts',
+            href: '/accounting/student-accounts?status=overdue',
             icon: Users,
         },
         {
