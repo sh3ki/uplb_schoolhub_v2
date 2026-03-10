@@ -58,7 +58,6 @@ class OnlinePaymentController extends Controller
         // Payment methods
         $paymentMethods = [
             ['value' => 'gcash', 'label' => 'GCash'],
-            ['value' => 'paymaya', 'label' => 'PayMaya'],
             ['value' => 'bank_transfer', 'label' => 'Bank Transfer'],
         ];
 
@@ -84,7 +83,7 @@ class OnlinePaymentController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
-            'payment_method' => 'required|string|in:gcash,paymaya,bank_transfer',
+            'payment_method' => 'required|string|in:gcash,bank_transfer',
             'reference_number' => 'required|string|max:255',
             'receipt_image' => 'required|image|max:5120', // 5MB max
             'notes' => 'nullable|string|max:500',
