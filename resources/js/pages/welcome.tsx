@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import React from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { login, register } from '@/routes';
+import { login } from '@/routes';
 
 const ICON_MAP: Record<string, React.ElementType> = {
     Users, TrendingUp, BookOpen, CheckCircle, Shield, GraduationCap, BarChart2,
@@ -45,7 +45,7 @@ interface FacultyMember { id: number; full_name: string; specialization: string 
 interface AlumniItem    { name: string; description: string; batch: string; photo_url?: string | null; }
 interface NavLink       { label: string; href: string; }
 
-type Props = { canRegister: boolean; faculty?: Record<string, FacultyMember[]>; };
+type Props = { faculty?: Record<string, FacultyMember[]>; };
 
 const DEFAULT_NAV: NavLink[] = [
     { label: 'Home',     href: '#home' },
@@ -54,7 +54,7 @@ const DEFAULT_NAV: NavLink[] = [
     { label: 'Contact',  href: '#contact' },
 ];
 
-export default function Welcome({ canRegister, faculty = {} }: Props) {
+export default function Welcome({ faculty = {} }: Props) {
     const { appSettings } = usePage<{ appSettings?: AppSettings }>().props;
 
     const appName    = appSettings?.app_name || 'SchoolHub';
@@ -172,14 +172,6 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                                 asChild>
                                 <Link href={login()}>Sign In</Link>
                             </Button>
-                            {canRegister && (
-                                <Button size="sm" className="text-white px-5 shadow-sm hover:opacity-90 transition-opacity"
-                                    style={{ backgroundColor: primary }} asChild>
-                                    <Link href={register()}>
-                                        Get Started <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                                    </Link>
-                                </Button>
-                            )}
                         </div>
 
                         {/* Mobile toggle */}
@@ -209,11 +201,6 @@ export default function Welcome({ canRegister, faculty = {} }: Props) {
                                 <Button variant="outline" size="sm" className="w-full" asChild>
                                     <Link href={login()}>Sign In</Link>
                                 </Button>
-                                {canRegister && (
-                                    <Button size="sm" className="w-full text-white" style={{ backgroundColor: primary }} asChild>
-                                        <Link href={register()}>Get Started</Link>
-                                    </Button>
-                                )}
                             </div>
                         </div>
                     )}
