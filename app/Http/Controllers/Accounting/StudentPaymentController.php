@@ -55,16 +55,17 @@ class StudentPaymentController extends Controller
         $students->through(function ($student) {
             $currentYear = $student->school_year ?? date('Y') . '-' . (date('Y') + 1);
             
-            // Calculate current year balance dynamically
-            $currentBalance = $this->calculateStudentBalance($student, $currentYear);
+            // Get current fee record
+            $currentFee = StudentFee::where('student_id', $student->id)
+                ->where('school_year', $currentYear)
+                ->first();
             
-            // Get all previous years' balances from student_fees table
-            $previousBalance = StudentFee::where('student_id', $student->id)
-                ->where('school_year', '!=', $currentYear)
-                ->sum('balance');
+            $totalFees = $currentFee ? (float) $currentFee->total_amount + (float) $currentFee->grant_discount : 0;
+            $discounts = $currentFee ? (float) $currentFee->grant_discount : 0;
+            $totalPaid = $currentFee ? (float) $currentFee->total_paid : 0;
+            $balance   = $currentFee ? (float) $currentFee->balance : 0;
 
             // Determine status
-            $totalBalance = $currentBalance + (float) $previousBalance;
             $status = 'pending';
             
             // Check for approved promissory notes
@@ -72,12 +73,7 @@ class StudentPaymentController extends Controller
                 ->where('status', 'approved')
                 ->exists();
             
-            // Get current fee record to check is_overdue
-            $currentFee = StudentFee::where('student_id', $student->id)
-                ->where('school_year', $currentYear)
-                ->first();
-            
-            if ($totalBalance <= 0) {
+            if ($balance <= 0) {
                 $status = 'fully_paid';
             } elseif ($hasApprovedPromissory) {
                 $status = 'approved'; // Has approved promissory note
@@ -98,9 +94,10 @@ class StudentPaymentController extends Controller
                 'department' => $student->department?->name,
                 'enrollment_status' => $student->enrollment_status,
                 'enrollment_progress' => $student->enrollmentClearance,
-                'current_balance' => $currentBalance,
-                'previous_balance' => (float) $previousBalance,
-                'total_balance' => $totalBalance,
+                'total_fees' => $totalFees,
+                'discounts' => $discounts,
+                'total_paid' => $totalPaid,
+                'balance' => $balance,
                 'status' => $status,
             ];
         });
