@@ -125,6 +125,11 @@ export function StudentSidebar() {
             icon: UserMinus,
         },
         {
+            title: 'Chat',
+            href: '/student/chat',
+            icon: MessageCircle,
+        },
+        {
             title: 'Profile',
             href: '/student/profile',
             icon: User,
