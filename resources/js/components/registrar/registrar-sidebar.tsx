@@ -9,6 +9,7 @@ import {
     LayoutGrid,
     ListChecks,
     Megaphone,
+    MessageCircle,
     Settings,
     UserCog,
     UserMinus,
