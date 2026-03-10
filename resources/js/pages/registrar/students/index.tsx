@@ -615,20 +615,9 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                     </div>
                 )}
 
-                {/* Search bar for special tabs */}
+                {/* Filters for special tabs */}
                 {activeTab !== 'active' && (
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Search by name, LRN or email..."
-                            defaultValue={filters.search || ''}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    router.get('/registrar/students', { tab: activeTab, search: (e.target as HTMLInputElement).value }, { replace: true });
-                                }
-                            }}
-                            className="max-w-sm"
-                        />
-                    </div>
+                    <StudentFilters programs={programs} yearLevels={yearLevels} schoolYears={schoolYears} filters={{ ...filters, tab: activeTab }} />
                 )}
 
                 {viewMode === 'classlist' ? (
