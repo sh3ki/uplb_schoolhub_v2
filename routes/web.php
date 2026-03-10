@@ -398,7 +398,10 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     // Dashboard exports
     Route::get('dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'export'])->name('dashboard.export');
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
-    
+
+    // Chat
+    Route::get('chat', fn () => \Inertia\Inertia::render('accounting/chat/index'))->name('chat.index');
+
 });
 
 // Student Portal Routes
@@ -456,6 +459,9 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'verified', 'rol
         Route::post('quizzes/take/{attempt}/submit', [App\Http\Controllers\Student\QuizController::class, 'submit'])->name('quizzes.submit');
         Route::get('quizzes/result/{attempt}', [App\Http\Controllers\Student\QuizController::class, 'result'])->name('quizzes.result');
     });
+
+    // Chat
+    Route::get('chat', fn () => \Inertia\Inertia::render('student/chat/index'))->name('chat.index');
 });
 
 // Teacher Portal Routes
