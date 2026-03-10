@@ -6,6 +6,9 @@ use App\Models\Announcement;
 use App\Models\AppSetting;
 use App\Models\DocumentRequest;
 use App\Models\DropRequest;
+use App\Models\OnlineTransaction;
+use App\Models\PromissoryNote;
+use App\Models\RefundRequest;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -84,6 +87,9 @@ class HandleInertiaRequests extends Middleware
             'announcementCount' => $this->getAnnouncementCount($user),
             'pendingDocumentCount' => $this->getPendingDocumentCount($user),
             'pendingDropRequestCount' => $this->getPendingDropRequestCount($user),
+            'pendingOnlineTransactionCount' => $this->getPendingOnlineTransactionCount($user),
+            'pendingRefundCount' => $this->getPendingRefundCount($user),
+            'pendingPromissoryCount' => $this->getPendingPromissoryCount($user),
             'appSettings' => $this->getAppSettings(),
         ];
     }
@@ -231,5 +237,41 @@ class HandleInertiaRequests extends Middleware
             })
             ->forRole($user->role)
             ->count();
+    }
+
+    protected function getPendingOnlineTransactionCount($user): int
+    {
+        if (!$user || !in_array($user->role, ['accounting', 'super-accounting'])) {
+            return 0;
+        }
+        try {
+            return OnlineTransaction::where('status', 'pending')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    protected function getPendingRefundCount($user): int
+    {
+        if (!$user || !in_array($user->role, ['accounting', 'super-accounting'])) {
+            return 0;
+        }
+        try {
+            return RefundRequest::where('status', 'pending')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    protected function getPendingPromissoryCount($user): int
+    {
+        if (!$user || !in_array($user->role, ['accounting', 'super-accounting'])) {
+            return 0;
+        }
+        try {
+            return PromissoryNote::where('status', 'pending')->count();
+        } catch (\Exception $e) {
+            return 0;
+        }
     }
 }
