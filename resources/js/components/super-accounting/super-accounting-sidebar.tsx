@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    FileCheck,
     Globe,
     LayoutDashboard,
     LayoutGrid,
@@ -8,6 +9,7 @@ import {
     RotateCcw,
     ScrollText,
     Settings,
+    UserX,
     Users,
 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
@@ -33,7 +35,7 @@ interface AppSettings {
 }
 
 export function SuperAccountingSidebar() {
-    const { announcementCount, appSettings } = usePage<{ announcementCount: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
