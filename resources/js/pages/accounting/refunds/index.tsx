@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Clock, CheckCircle2, XCircle, Search, RefreshCw, Plus, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Search, RefreshCw, Plus, Loader2, List } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -31,6 +31,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountingLayout from '@/layouts/accounting-layout';
 
 type Student = {
@@ -233,6 +234,31 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                         Create Request
                     </Button>
                 </div>
+
+                {/* Status Tabs */}
+                <Tabs value={filters.status || 'all'} onValueChange={v => handleFilter('status', v === 'all' ? '' : v)}>
+                    <TabsList>
+                        <TabsTrigger value="all" className="gap-1.5">
+                            <List className="h-4 w-4" />
+                            All
+                        </TabsTrigger>
+                        <TabsTrigger value="pending" className="gap-1.5">
+                            <Clock className="h-4 w-4" />
+                            Pending
+                            {stats.pending > 0 && <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{stats.pending}</Badge>}
+                        </TabsTrigger>
+                        <TabsTrigger value="approved" className="gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Approved
+                            {stats.approved > 0 && <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{stats.approved}</Badge>}
+                        </TabsTrigger>
+                        <TabsTrigger value="rejected" className="gap-1.5">
+                            <XCircle className="h-4 w-4" />
+                            Rejected
+                            {stats.rejected > 0 && <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0">{stats.rejected}</Badge>}
+                        </TabsTrigger>
+                    </TabsList>
+                </Tabs>
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
