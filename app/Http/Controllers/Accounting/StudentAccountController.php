@@ -515,7 +515,12 @@ class StudentAccountController extends Controller
             $count++;
         }
 
-        return redirect()->back()->with('success', "{$count} accounts marked as overdue.");
+        $prefix = str_starts_with(request()->route()->getName(), 'super-accounting.')
+            ? 'super-accounting'
+            : 'accounting';
+
+        return redirect()->route("{$prefix}.student-accounts.index", ['status' => 'overdue'])
+            ->with('success', "{$count} accounts marked as overdue.");
     }
 
     /**
