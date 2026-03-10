@@ -508,30 +508,100 @@ class AccountingDashboardController extends Controller
     }
 
     /**
-     * Export dashboard data.
+     * Export dashboard data (main dashboard — monthly collections).
      */
     public function export(Request $request)
     {
-        $type = $request->input('type', 'excel');
-        
-        // Placeholder for export functionality
-        return response()->json([
-            'message' => 'Export functionality - implement with Laravel Excel package',
-            'type' => $type,
-        ]);
+        $selectedYear = $request->get('year', date('Y'));
+
+        $rows = [];
+        $rows[] = ['Month', 'Amount Collected'];
+
+        for ($month = 1; $month <= 12; $month++) {
+            $monthStart = Carbon::create($selectedYear, $month, 1)->startOfMonth();
+            $monthEnd   = Carbon::create($selectedYear, $month, 1)->endOfMonth();
+            $amount     = StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount');
+            $rows[]     = [Carbon::create($selectedYear, $month, 1)->format('F Y'), number_format((float) $amount, 2, '.', '')];
+        }
+
+        return $this->streamCsv("dashboard-export-{$selectedYear}.csv", $rows);
     }
 
     /**
-     * Export account dashboard data.
+     * Export account dashboard data (transactions for a period).
      */
     public function exportAccountDashboard(Request $request)
     {
-        $type = $request->input('type', 'excel');
-        
-        // Placeholder for export functionality
-        return response()->json([
-            'message' => 'Export functionality - implement with Laravel Excel package',
-            'type' => $type,
+        // Re-use the same demographic / date filters as the accountDashboard view
+        $classification = $request->get('classification');
+        $departmentId   = $request->get('department_id');
+        $program        = $request->get('program');
+        $yearLevel      = $request->get('year_level');
+        $section        = $request->get('section');
+        $dateFrom       = $request->get('date_from');
+        $dateTo         = $request->get('date_to');
+        $selectedMonth  = (int) $request->get('month', date('n'));
+        $selectedYear   = (int) $request->get('year', date('Y'));
+
+        if ($dateFrom && $dateTo) {
+            $periodStart = Carbon::parse($dateFrom)->startOfDay();
+            $periodEnd   = Carbon::parse($dateTo)->endOfDay();
+        } else {
+            $periodStart = Carbon::create($selectedYear, $selectedMonth, 1)->startOfMonth();
+            $periodEnd   = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
+        }
+
+        $studentQ = Student::select('id');
+        if ($classification) {
+            $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
+        }
+        if ($departmentId) $studentQ->where('department_id', $departmentId);
+        if ($program)      $studentQ->where('program', $program);
+        if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
+        if ($section)      $studentQ->where('section', $section);
+        $studentIds = $studentQ->pluck('id');
+
+        $payments = StudentPayment::with(['student', 'recordedBy'])
+            ->whereIn('student_id', $studentIds)
+            ->whereBetween('payment_date', [$periodStart, $periodEnd])
+            ->orderBy('payment_date', 'desc')
+            ->get();
+
+        $rows = [];
+        $rows[] = ['Date', 'Time', 'Student', 'LRN', 'OR Number', 'Mode', 'Reference', 'Amount', 'Processed By'];
+
+        foreach ($payments as $p) {
+            $rows[] = [
+                Carbon::parse($p->payment_date)->format('Y-m-d'),
+                $p->created_at->format('h:i A'),
+                $p->student?->full_name ?? 'Unknown',
+                $p->student?->lrn ?? 'N/A',
+                $p->or_number ?? 'N/A',
+                strtoupper($p->payment_mode ?? $p->payment_method ?? 'CASH'),
+                $p->reference_number ?? '',
+                number_format((float) $p->amount, 2, '.', ''),
+                $p->recordedBy?->name ?? 'N/A',
+            ];
+        }
+
+        $filename = 'account-dashboard-export-' . $periodStart->format('Ymd') . '-' . $periodEnd->format('Ymd') . '.csv';
+
+        return $this->streamCsv($filename, $rows);
+    }
+
+    /**
+     * Stream an array of rows as a CSV download.
+     */
+    private function streamCsv(string $filename, array $rows): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        return response()->streamDownload(function () use ($rows) {
+            $handle = fopen('php://output', 'w');
+            foreach ($rows as $row) {
+                fputcsv($handle, $row);
+            }
+            fclose($handle);
+        }, $filename, [
+            'Content-Type' => 'text/csv',
         ]);
     }
 }
