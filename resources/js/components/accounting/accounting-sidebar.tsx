@@ -124,7 +124,7 @@ export function AccountingSidebar() {
             title: 'Fee Management',
             href: '/accounting/fee-management',
             icon: Calculator,
-        },y
+        },
         {
             title: 'Refunds',
             href: '/accounting/refunds',
