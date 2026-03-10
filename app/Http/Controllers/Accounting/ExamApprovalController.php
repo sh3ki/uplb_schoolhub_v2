@@ -127,8 +127,6 @@ class ExamApprovalController extends Controller
                     'school_year'       => $fee?->school_year ?? '',
                 ];
             })
-            // Exclude fully-paid students — they don't need exam approval
-            ->filter(fn ($s) => $s['payment_status'] !== 'paid')
             ->values();
 
         $fullyPaidMale   = $fullyPaidStudents->where('gender', 'male')->values();
