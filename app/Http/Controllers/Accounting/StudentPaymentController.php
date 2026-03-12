@@ -412,10 +412,12 @@ class StudentPaymentController extends Controller
         $totalDiscount = $fees->sum('grant_discount');
         $totalPaid = $payments->sum('amount');
         
-        // Calculate previous balance (from previous school years) and current fees balance
+        // Calculate previous balance (from school years before the student's latest enrolled year)
         $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
-        $previousBalance = $fees->where('school_year', '!=', $currentSchoolYear)->sum('balance');
-        $currentFeesBalance = $fees->where('school_year', $currentSchoolYear)->sum('balance');
+        // Use the highest school year in fees as the "current" year — avoids treating future-year fees as previous
+        $latestYear = $fees->isEmpty() ? $currentSchoolYear : $fees->sortByDesc('school_year')->first()['school_year'];
+        $previousBalance = $fees->filter(fn($f) => $f['school_year'] < $latestYear)->sum('balance');
+        $currentFeesBalance = $fees->where('school_year', $latestYear)->sum('balance');
         
         $summary = [
             'total_fees' => $totalFees,
