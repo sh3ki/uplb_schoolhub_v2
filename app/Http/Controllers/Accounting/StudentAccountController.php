@@ -118,7 +118,7 @@ class StudentAccountController extends Controller
                     'section' => $student->section,
                     'department' => $student->department?->name,
                 ],
-                'school_year' => $selectedSchoolYear,
+                'school_year' => $student->school_year ?? $selectedSchoolYear,
                 'total_amount' => $combinedTotal,
                 'grant_discount' => $combinedDiscount,
                 'total_paid' => $allPaymentSum,
