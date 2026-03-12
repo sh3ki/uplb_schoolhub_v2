@@ -28,7 +28,7 @@ class AppSettingsController extends Controller
                 'secondary_color'           => $settings->secondary_color,
                 'sidebar_color'             => $settings->sidebar_color ?? '#1e293b',
                 'sidebar_font_size'         => $settings->sidebar_font_size ?? '14',
-                'school_year'               => $settings->school_year ?? '2024-2025',
+                'school_year'               => $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1)),
                 'active_semester'           => (int) ($settings->active_semester ?? 1),
                 'has_k12'                   => (bool) $settings->has_k12,
                 'has_college'               => (bool) $settings->has_college,

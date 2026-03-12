@@ -35,7 +35,7 @@ class FeesController extends Controller
 
     private function buildChildFees(Student $student): array
     {
-        $schoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $schoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         $totalFees     = $this->calculateTotalFees($student, $schoolYear);
         $totalDiscount = (float) GrantRecipient::where('student_id', $student->id)->where('status', 'active')->sum('discount_amount');

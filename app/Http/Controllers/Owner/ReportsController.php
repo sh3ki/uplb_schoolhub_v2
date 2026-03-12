@@ -23,7 +23,7 @@ class ReportsController extends Controller
 {
     public function index(): InertiaResponse
     {
-        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         // Summary stats for reports page
         $totalStudents = Student::count();
@@ -236,7 +236,7 @@ class ReportsController extends Controller
     public function exportFinancial(Request $request)
     {
         $format = $request->get('format', 'csv'); // csv or pdf
-        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         $data = StudentPayment::with(['student', 'studentFee'])
             ->whereHas('studentFee', function ($query) use ($currentSchoolYear) {

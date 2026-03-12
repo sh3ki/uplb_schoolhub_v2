@@ -413,7 +413,7 @@ class StudentPaymentController extends Controller
         $totalPaid = $payments->sum('amount');
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
-        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
         // Use the highest school year in fees as the "current" year — avoids treating future-year fees as previous
         $latestYear = $fees->isEmpty() ? $currentSchoolYear : $fees->sortByDesc('school_year')->first()['school_year'];
         $previousBalance = $fees->filter(fn($f) => $f['school_year'] < $latestYear)->sum('balance');
@@ -506,8 +506,13 @@ class StudentPaymentController extends Controller
      */
     private function getApplicableSchoolYears(Student $student): array
     {
-        return \App\Models\FeeItem::where('is_active', true)
+        // Only auto-generate fee records from the student's enrolled year onwards.
+        // Prevents creating historical fee records for students enrolled in a later year.
+        $enrolledYear = $student->school_year ?? \App\Models\AppSetting::current()?->school_year;
+
+        $feeItemYears = \App\Models\FeeItem::where('is_active', true)
             ->whereNotNull('school_year')
+            ->when($enrolledYear, fn($q) => $q->where('school_year', '>=', $enrolledYear))
             ->where(function ($query) use ($student) {
                 // 'all' scope only if no explicit per-group assignments override it
                 $query->where(function ($inner) {
@@ -532,7 +537,14 @@ class StudentPaymentController extends Controller
                     });
             })
             ->distinct()
-            ->pluck('school_year')
+            ->pluck('school_year');
+
+        // Always include years that already have StudentFee records
+        // (preserves existing payment history even if fee items no longer apply)
+        $existingYears = StudentFee::where('student_id', $student->id)->pluck('school_year');
+
+        return $feeItemYears->merge($existingYears)
+            ->unique()
             ->sort()
             ->values()
             ->toArray();

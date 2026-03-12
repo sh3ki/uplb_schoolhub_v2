@@ -38,7 +38,7 @@ class DashboardController extends Controller
         $requirementsPercentage = $totalRequirements > 0 ? round(($completedRequirements / $totalRequirements) * 100) : 0;
 
         // Get current school year
-        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         // Get payment info using same logic as online payments
         $paymentInfo = $this->getPaymentSummary($student);
@@ -79,7 +79,7 @@ class DashboardController extends Controller
      */
     private function getPaymentSummary(Student $student): ?array
     {
-        $currentSchoolYear = \App\Models\AppSetting::current()->school_year ?? '2024-2025';
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         // Sync grant discounts: recalculate from Grant model so stale discount_amount never causes issues.
         // For the current school year apply ALL active grants (fixes year-label mismatch from form default).

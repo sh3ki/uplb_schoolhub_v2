@@ -1103,7 +1103,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <TableHead>School Year</TableHead>
                                                 <TableHead className="text-right">Total Fees</TableHead>
                                                 <TableHead className="text-right">Discount</TableHead>
-                                                <TableHead className="text-right">Carried Fwd</TableHead>
                                                 <TableHead className="text-right">Paid</TableHead>
                                                 <TableHead className="text-right">Balance</TableHead>
                                                 <TableHead>Status</TableHead>
@@ -1114,19 +1113,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             {filteredFees.map((fee) => (
                                                 <TableRow key={fee.id} className={fee.is_overdue ? 'bg-red-50' : ''}>
                                                     <TableCell className="font-medium">
-                                                        <div>{fee.school_year}</div>
-                                                        {fee.carried_forward_from && (
-                                                            <div className="text-xs text-amber-600">
-                                                                ↩ From {fee.carried_forward_from}
-                                                            </div>
-                                                        )}
+                                                        {fee.school_year}
                                                     </TableCell>
                                                     <TableCell className="text-right">{formatCurrency(fee.total_amount)}</TableCell>
                                                     <TableCell className="text-right text-green-600">
                                                         {fee.grant_discount > 0 ? `-${formatCurrency(fee.grant_discount)}` : '-'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-amber-600">
-                                                        {fee.carried_forward_balance > 0 ? formatCurrency(fee.carried_forward_balance) : '-'}
                                                     </TableCell>
                                                     <TableCell className="text-right text-blue-600">{formatCurrency(fee.total_paid)}</TableCell>
                                                     <TableCell className="text-right font-medium text-red-600">
@@ -1139,6 +1130,24 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 </TableRow>
                                             ))}
                                         </TableBody>
+                                        {filteredFees.length > 0 && (
+                                            <tfoot>
+                                                <TableRow className="font-semibold bg-muted/50 border-t-2">
+                                                    <TableCell className="text-muted-foreground text-sm">TOTAL</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_amount, 0))}</TableCell>
+                                                    <TableCell className="text-right text-green-600">
+                                                        {filteredFees.reduce((s, f) => s + f.grant_discount, 0) > 0
+                                                            ? `-${formatCurrency(filteredFees.reduce((s, f) => s + f.grant_discount, 0))}`
+                                                            : '-'}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-blue-600">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_paid, 0))}</TableCell>
+                                                    <TableCell className="text-right font-bold text-red-600">
+                                                        {formatCurrency(selectedSchoolYear === 'all' ? summary.total_balance : filteredFees.reduce((s, f) => s + f.balance, 0))}
+                                                    </TableCell>
+                                                    <TableCell colSpan={2} />
+                                                </TableRow>
+                                            </tfoot>
+                                        )}
                                     </Table>
                                 )}
                             </CardContent>
