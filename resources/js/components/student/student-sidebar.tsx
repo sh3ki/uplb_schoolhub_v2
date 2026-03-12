@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    BookOpen,
     Calendar,
     GraduationCap,
     LayoutGrid,
@@ -101,6 +102,12 @@ export function StudentSidebar() {
             title: 'Schedules',
             href: '/student/schedules',
             icon: Calendar,
+            locked: !isEnrolled,
+        },
+        {
+            title: 'Subjects',
+            href: '/student/subjects',
+            icon: BookOpen,
             locked: !isEnrolled,
         },
         {
