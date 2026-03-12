@@ -444,7 +444,7 @@ class AccountingDashboardController extends Controller
                 'time'         => Carbon::parse($doc->created_at)->format('h:i A'),
                 'type'         => 'Document',
                 'or_number'    => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
-                'mode'         => 'CASH',
+                'mode'         => strtoupper($doc->payment_type ?? 'CASH'),
                 'reference'    => $doc->document_type,
                 'amount'       => (float) $doc->fee,
                 'student_id'   => $doc->student_id,
