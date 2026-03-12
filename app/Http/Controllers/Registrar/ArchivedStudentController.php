@@ -106,7 +106,8 @@ class ArchivedStudentController extends Controller
             'student_id'   => $student->id,
             'user_id'      => Auth::id(),
             'action'       => 'restored',
-            'details'      => [
+            'details'      => 'Restored by ' . Auth::user()->name,
+            'changes'      => [
                 'restored_by' => Auth::user()->name,
                 'restored_at' => now()->toDateTimeString(),
             ],
@@ -128,7 +129,8 @@ class ArchivedStudentController extends Controller
             'student_id'   => $student->id,
             'user_id'      => Auth::id(),
             'action'       => 'permanently_deleted',
-            'details'      => [
+            'details'      => 'Permanently deleted by ' . Auth::user()->name,
+            'changes'      => [
                 'deleted_by'  => Auth::user()->name,
                 'deleted_at'  => now()->toDateTimeString(),
                 'student_lrn' => $student->lrn,
@@ -160,7 +162,8 @@ class ArchivedStudentController extends Controller
                 'student_id' => $studentId,
                 'user_id'    => Auth::id(),
                 'action'     => 'restored',
-                'details'    => [
+                'details'    => 'Bulk restored by ' . Auth::user()->name,
+                'changes'    => [
                     'restored_by'  => Auth::user()->name,
                     'bulk_restore' => true,
                 ],
