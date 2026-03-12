@@ -526,6 +526,7 @@ class StudentController extends Controller
             'actionLogs.performer',
             'enrollmentHistories.enrolledBy',
             'user',
+            'department',
         ]);
         
         // Auto-assign requirements if none exist for this student
