@@ -680,6 +680,18 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                         <dt className="text-sm font-medium text-muted-foreground">School Year</dt>
                                         <dd className="mt-1">{student.school_year || 'N/A'}</dd>
                                     </div>
+                                    {student.department && (
+                                        <div>
+                                            <dt className="text-sm font-medium text-muted-foreground">Classification</dt>
+                                            <dd className="mt-1 capitalize">{student.department.classification || 'N/A'}</dd>
+                                        </div>
+                                    )}
+                                    {student.department && (
+                                        <div>
+                                            <dt className="text-sm font-medium text-muted-foreground">Department</dt>
+                                            <dd className="mt-1">{student.department.name || 'N/A'}</dd>
+                                        </div>
+                                    )}
                                     <div>
                                         <dt className="text-sm font-medium text-muted-foreground">Program / Track</dt>
                                         <dd className="mt-1">{student.program || 'N/A'}</dd>
