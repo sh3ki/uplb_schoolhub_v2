@@ -38,6 +38,15 @@ class ReportsController extends Controller
         if ($to) {
             $paymentQuery->whereDate('payment_date', '<=', $to);
         }
+        if ($schoolYear) {
+            $paymentQuery->whereHas('studentFee', fn($q) => $q->where('school_year', $schoolYear));
+        }
+        if ($departmentId = $request->input('department_id')) {
+            $paymentQuery->whereHas('student', fn($q) => $q->where('department_id', $departmentId));
+        }
+        if ($classification = $request->input('classification')) {
+            $paymentQuery->whereHas('student.department', fn($q) => $q->where('classification', $classification));
+        }
 
         $paymentSummary = $paymentQuery
             ->select(
@@ -70,21 +79,16 @@ class ReportsController extends Controller
             });
         }
 
-        // Filter by payment status
-        if ($status === 'paid') {
-            $balanceQuery->where('balance', '<=', 0)->where('total_amount', '>', 0);
-        } elseif ($status === 'partial') {
-            $balanceQuery->where('total_paid', '>', 0)->where('balance', '>', 0);
-        } elseif ($status === 'unpaid') {
-            $balanceQuery->where('total_paid', 0);
-        }
-
-        $balanceReport = $balanceQuery
+        $balanceRows = $balanceQuery
             ->whereHas('student')
             ->orderBy('balance', 'desc')
-            ->get()
-            ->map(function ($fee) {
+            ->get();
+
+        $mappedBalanceReport = $balanceRows->map(function ($fee) {
                 /** @var \App\Models\StudentFee $fee */
+                $freshPaid = (float) $fee->payments()->sum('amount');
+                $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshPaid);
+                $paymentStatus = $this->resolvePaymentStatus((float) $fee->total_amount, $freshPaid, $freshBalance);
                 return [
                     'student' => [
                         'id' => $fee->student->id,
@@ -98,19 +102,28 @@ class ReportsController extends Controller
                     ],
                     'school_year' => $fee->school_year,
                     'total_amount' => $fee->total_amount,
-                    'total_paid' => $fee->total_paid,
-                    'balance' => max(0, (float) $fee->balance),
-                    'payment_status' => $fee->getPaymentStatus(),
+                    'total_paid' => $freshPaid,
+                    'balance' => $freshBalance,
+                    'payment_status' => $paymentStatus,
                 ];
             });
 
+        $balanceReport = $mappedBalanceReport;
+        if ($status) {
+            $balanceReport = $mappedBalanceReport->filter(fn($row) => $row['payment_status'] === $status)->values();
+        }
+
         // Summary Statistics
+        $summarySource = $mappedBalanceReport;
+        $fullyPaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'paid')->count();
+        $partialCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'partial')->count();
+        $unpaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'unpaid')->count();
         $summaryStats = [
-            'total_collectibles' => StudentFee::where('balance', '>', 0)->sum('balance'),
-            'total_collected' => StudentPayment::sum('amount'),
-            'fully_paid_count' => StudentFee::where('balance', '<=', 0)->where('total_amount', '>', 0)->count(),
-            'partial_paid_count' => StudentFee::where('total_paid', '>', 0)->where('balance', '>', 0)->count(),
-            'unpaid_count' => StudentFee::where('total_paid', 0)->count(),
+            'total_collectibles' => (float) $summarySource->sum('balance'),
+            'total_collected' => (float) $paymentQuery->sum('amount'),
+            'fully_paid_count' => $fullyPaidCount,
+            'partial_paid_count' => $partialCount,
+            'unpaid_count' => $unpaidCount,
         ];
 
         // Get all school years
@@ -249,6 +262,17 @@ class ReportsController extends Controller
             ->sortByDesc('collected')
             ->values()
             ->toArray();
+    }
+
+    private function resolvePaymentStatus(float $totalAmount, float $totalPaid, float $balance): string
+    {
+        if ($totalAmount > 0 && $balance <= 0) {
+            return 'paid';
+        }
+        if ($totalPaid > 0 && $balance > 0) {
+            return 'partial';
+        }
+        return 'unpaid';
     }
 
     public function export(Request $request)
