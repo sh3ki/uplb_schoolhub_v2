@@ -200,12 +200,16 @@ class StudentPaymentController extends Controller
                         ];
                     }),
                     'transactions' => $transactions->map(function ($transaction) {
+                        $normalizedMode = strtoupper((string) ($transaction->payment_mode ?? $transaction->payment_method ?? 'CASH'));
+                        if ($normalizedMode === 'BANK_TRANSFER') {
+                            $normalizedMode = 'BANK';
+                        }
                         return [
                             'id' => $transaction->id,
                             'date_time' => $transaction->payment_date . ' ' . $transaction->created_at->format('H:i A'),
                             'payment_date' => $transaction->payment_date,
                             'or_number' => $transaction->or_number,
-                            'mode' => $transaction->payment_mode ?? 'CASH',
+                            'mode' => $normalizedMode,
                             'reference' => $transaction->reference_number ?? 'N/A',
                             'amount' => $transaction->amount,
                             'school_year' => $transaction->studentFee?->school_year,
@@ -374,13 +378,17 @@ class StudentPaymentController extends Controller
             ->orderBy('payment_date', 'desc')
             ->get()
             ->map(function ($payment) {
+                $normalizedMode = strtoupper((string) ($payment->payment_mode ?? $payment->payment_method ?? 'CASH'));
+                if ($normalizedMode === 'BANK_TRANSFER') {
+                    $normalizedMode = 'BANK';
+                }
                 return [
                     'id' => $payment->id,
                     'payment_date' => $payment->payment_date,
                     'or_number' => $payment->or_number,
                     'amount' => (float) $payment->amount,
                     'payment_for' => $payment->payment_for,
-                    'payment_mode' => $payment->payment_mode ?? $payment->payment_method ?? 'CASH',
+                    'payment_mode' => $normalizedMode,
                     'notes' => $payment->notes,
                     'recorded_by' => $payment->recordedBy?->name,
                     'school_year' => $payment->studentFee?->school_year,
@@ -547,6 +555,7 @@ class StudentPaymentController extends Controller
             ->pluck('school_year');
 
         return $feeItemYears->merge($existingYears)
+            ->when($enrolledYear, fn($years) => $years->push($enrolledYear))
             ->unique()
             ->sort()
             ->values()
@@ -558,9 +567,14 @@ class StudentPaymentController extends Controller
      */
     private function calculateFeesForSchoolYear(Student $student, string $schoolYear): ?array
     {
+        $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
+        if (!$templateYear) {
+            return null;
+        }
+
         // Get applicable fee items (exclude Drop category - those are only charged via drop requests)
         $feeItems = \App\Models\FeeItem::with('category')
-            ->where('school_year', $schoolYear)
+            ->where('school_year', $templateYear)
             ->where('is_active', true)
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
@@ -704,6 +718,51 @@ class StudentPaymentController extends Controller
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
+    }
+
+    private function resolveFeeTemplateYear(Student $student, string $targetYear): ?string
+    {
+        $candidateYears = \App\Models\FeeItem::where('is_active', true)
+            ->whereNotNull('school_year')
+            ->where(function ($query) use ($student, $targetYear) {
+                $query->where(function ($inner) {
+                        $inner->where('assignment_scope', 'all')
+                              ->whereDoesntHave('assignments');
+                    })
+                    ->orWhere(function ($q) use ($student) {
+                        $q->where('assignment_scope', 'specific')
+                          ->where(function ($inner) {
+                              $inner->whereNotNull('classification')
+                                    ->orWhereNotNull('department_id')
+                                    ->orWhereNotNull('program_id')
+                                    ->orWhereNotNull('year_level_id')
+                                    ->orWhereNotNull('section_id');
+                          });
+                        $this->applyStudentFilters($q, $student);
+                    })
+                    ->orWhereHas('assignments', function ($q) use ($student, $targetYear) {
+                        $this->applyAssignmentFilters($q, $student, $targetYear);
+                    });
+            })
+            ->distinct()
+            ->pluck('school_year')
+            ->filter()
+            ->values();
+
+        if ($candidateYears->isEmpty()) {
+            return null;
+        }
+
+        if ($candidateYears->contains($targetYear)) {
+            return $targetYear;
+        }
+
+        $fallback = $candidateYears
+            ->filter(fn($year) => strcmp((string) $year, $targetYear) <= 0)
+            ->sortDesc()
+            ->first();
+
+        return $fallback ?: $candidateYears->sortDesc()->first();
     }
 
     /**
