@@ -631,6 +631,7 @@ class StudentPaymentController extends Controller
             ->get();
         $grantDiscount = 0.0;
         foreach ($grantRecipients as $recipient) {
+            /** @var \App\Models\GrantRecipient $recipient */
             if ($recipient->grant) {
                 $calculated = $recipient->grant->calculateDiscount((float) $totalAmount);
                 if ((float) $recipient->discount_amount !== $calculated) {
@@ -1058,14 +1059,14 @@ class StudentPaymentController extends Controller
         $oldDueDate  = $fee->due_date;
 
         if (isset($validated['grant_discount'])) {
-            $fee->grant_discount = (float) $validated['grant_discount'];
+            $fee->grant_discount = (string) ((float) $validated['grant_discount']);
         }
         if (array_key_exists('due_date', $validated)) {
             $fee->due_date = $validated['due_date'];
         }
 
         // Recalculate balance
-        $fee->balance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid);
+        $fee->balance = (string) max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid);
         $fee->save();
 
         // Log the change
@@ -1103,7 +1104,7 @@ class StudentPaymentController extends Controller
 
         // Prevent deletion if payments have been made
         if ((float) $fee->total_paid > 0) {
-            return redirect()->back()->with('error', "Cannot delete fee record for {$fee->school_year} — payments of ₱" . number_format($fee->total_paid, 2) . " already recorded.");
+            return redirect()->back()->with('error', "Cannot delete fee record for {$fee->school_year} — payments of ₱" . number_format((float) $fee->total_paid, 2) . " already recorded.");
         }
 
         $schoolYear = $fee->school_year;
