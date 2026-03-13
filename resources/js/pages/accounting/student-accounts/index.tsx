@@ -128,6 +128,7 @@ interface Props {
         school_year?: string;
         department_id?: string;
         classification?: string;
+        sort_school_year?: 'asc' | 'desc';
     };
     classListMale: {
         id: number;
@@ -162,6 +163,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     const [search, setSearch] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.status || 'all');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
+    const [schoolYearSort, setSchoolYearSort] = useState<'asc' | 'desc'>(filters.sort_school_year || 'desc');
     const [departmentId, setDepartmentId] = useState(filters.department_id || 'all');
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [isOverdueDialogOpen, setIsOverdueDialogOpen] = useState(false);
@@ -180,6 +182,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             search: searchValue || undefined,
             status: activeTab !== 'all' ? activeTab : undefined,
             school_year: schoolYear !== 'all' ? schoolYear : undefined,
+            sort_school_year: schoolYearSort,
             department_id: departmentId !== 'all' ? departmentId : undefined,
             classification: classification !== 'all' ? classification : undefined,
         }, {
@@ -194,6 +197,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             search: search || undefined,
             status: value !== 'all' ? value : undefined,
             school_year: schoolYear !== 'all' ? schoolYear : undefined,
+            sort_school_year: schoolYearSort,
             department_id: departmentId !== 'all' ? departmentId : undefined,
             classification: classification !== 'all' ? classification : undefined,
         }, {
@@ -206,6 +210,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         setSearch('');
         setActiveTab('all');
         setSchoolYear('all');
+        setSchoolYearSort('desc');
         setDepartmentId('all');
         setClassification('all');
         router.get('/accounting/student-accounts');
@@ -485,6 +490,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: value !== 'all' ? value : undefined,
+                                sort_school_year: schoolYearSort,
                                 department_id: departmentId !== 'all' ? departmentId : undefined,
                                 classification: classification !== 'all' ? classification : undefined,
                             }, { preserveState: true, preserveScroll: true });
@@ -501,6 +507,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
+                                sort_school_year: schoolYearSort,
                                 department_id: value !== 'all' ? value : undefined,
                                 classification: classification !== 'all' ? classification : undefined,
                             }, { preserveState: true, preserveScroll: true });
@@ -517,8 +524,30 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
+                                sort_school_year: schoolYearSort,
                                 department_id: departmentId !== 'all' ? departmentId : undefined,
                                 classification: value !== 'all' ? value : undefined,
+                            }, { preserveState: true, preserveScroll: true });
+                        }}
+                    />
+                    <FilterDropdown
+                        label="Sort School Year"
+                        value={schoolYearSort}
+                        options={[
+                            { value: 'desc', label: 'Newest First' },
+                            { value: 'asc', label: 'Oldest First' },
+                        ]}
+                        onChange={(value) => {
+                            const sortValue = value as 'asc' | 'desc';
+                            setSchoolYearSort(sortValue);
+                            setViewMode('accounts');
+                            router.get('/accounting/student-accounts', {
+                                search: search || undefined,
+                                status: activeTab !== 'all' ? activeTab : undefined,
+                                school_year: schoolYear !== 'all' ? schoolYear : undefined,
+                                sort_school_year: sortValue,
+                                department_id: departmentId !== 'all' ? departmentId : undefined,
+                                classification: classification !== 'all' ? classification : undefined,
                             }, { preserveState: true, preserveScroll: true });
                         }}
                     />
