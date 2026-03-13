@@ -591,7 +591,7 @@ class StudentPaymentController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student, $schoolYear, $templateYear) {
+            ->where(function ($query) use ($student, $schoolYear, $templateYear, $hasExplicitAssignmentMatch) {
 
                 $query->where(function ($q) use ($student, $templateYear, $hasExplicitAssignmentMatch) {
                         $q->where('school_year', $templateYear);
