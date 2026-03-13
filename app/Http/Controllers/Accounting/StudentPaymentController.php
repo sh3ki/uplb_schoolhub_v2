@@ -591,50 +591,31 @@ class StudentPaymentController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student, $schoolYear, $templateYear, $hasExplicitAssignmentMatch) {
-
-                $query->where(function ($q) use ($student, $templateYear, $hasExplicitAssignmentMatch) {
-                        $q->where('school_year', $templateYear);
-
-                        if (! $hasExplicitAssignmentMatch) {
-                            $q->where(function ($inner) use ($student) {
-                                $inner->where(function ($allScope) {
-                                    $allScope->where('assignment_scope', 'all')
-                                        ->whereDoesntHave('assignments');
-                                })->orWhere(function ($specificScope) use ($student) {
-                                    $specificScope->where('assignment_scope', 'specific')
-                                        ->where(function ($hasDirectFilters) {
-                                            $hasDirectFilters->whereNotNull('classification')
-                                                ->orWhereNotNull('department_id')
-                                                ->orWhereNotNull('program_id')
-                                                ->orWhereNotNull('year_level_id')
-                                                ->orWhereNotNull('section_id');
-                                        });
-                                    $this->applyStudentFilters($specificScope, $student);
-                                });
-                            });
-                        } else {
-                            $q->where(function ($specificScope) use ($student) {
-                                $specificScope->where('assignment_scope', 'specific')
-                                    ->where(function ($hasDirectFilters) {
-                                        $hasDirectFilters->whereNotNull('classification')
-                                            ->orWhereNotNull('department_id')
-                                            ->orWhereNotNull('program_id')
-                                            ->orWhereNotNull('year_level_id')
-                                            ->orWhereNotNull('section_id');
-                                    });
-                                $this->applyStudentFilters($specificScope, $student);
-                            });
-                        }
-                    })
-                    ->orWhere(function ($q) use ($student, $schoolYear, $templateYear) {
-                        // Keep assignment-based matching in the same template school year
-                        // so older/newer fee templates don't get summed into this year.
-                        $q->where('school_year', $templateYear)
-                          ->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
-                            $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
-                        });
+            ->where('school_year', $templateYear)
+            ->where(function ($query) use ($student, $schoolYear, $hasExplicitAssignmentMatch) {
+                if ($hasExplicitAssignmentMatch) {
+                    // Strict mode: explicit assignments override all/specific templates.
+                    $query->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                        $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
                     });
+
+                    return;
+                }
+
+                $query->where(function ($inner) {
+                    $inner->where('assignment_scope', 'all')
+                        ->whereDoesntHave('assignments');
+                })->orWhere(function ($specificScope) use ($student) {
+                    $specificScope->where('assignment_scope', 'specific')
+                        ->where(function ($hasDirectFilters) {
+                            $hasDirectFilters->whereNotNull('classification')
+                                ->orWhereNotNull('department_id')
+                                ->orWhereNotNull('program_id')
+                                ->orWhereNotNull('year_level_id')
+                                ->orWhereNotNull('section_id');
+                        });
+                    $this->applyStudentFilters($specificScope, $student);
+                });
             })
             ->get();
 
@@ -1033,27 +1014,30 @@ class StudentPaymentController extends Controller
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student, $schoolYear, $hasExplicitAssignmentMatch) {
-                if (! $hasExplicitAssignmentMatch) {
-                    $query->where(function ($inner) {
-                        $inner->where('assignment_scope', 'all')
-                            ->whereDoesntHave('assignments');
-                    });
-                }
-
-                $query->orWhere(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific')
-                          ->where(function ($inner) {
-                              $inner->whereNotNull('classification')
-                                    ->orWhereNotNull('department_id')
-                                    ->orWhereNotNull('program_id')
-                                    ->orWhereNotNull('year_level_id')
-                                    ->orWhereNotNull('section_id');
-                          });
-                        $this->applyStudentFilters($q, $student);
-                    })
-                    ->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
+                if ($hasExplicitAssignmentMatch) {
+                    $query->whereHas('assignments', function ($q) use ($student, $schoolYear) {
                         $this->applyAssignmentFilters($q, $student, $schoolYear);
                     });
+
+                    return;
+                }
+
+                $query->where(function ($inner) {
+                    $inner->where('assignment_scope', 'all')
+                        ->whereDoesntHave('assignments');
+                })->orWhere(function ($q) use ($student) {
+                    $q->where('assignment_scope', 'specific')
+                        ->where(function ($inner) {
+                            $inner->whereNotNull('classification')
+                                ->orWhereNotNull('department_id')
+                                ->orWhereNotNull('program_id')
+                                ->orWhereNotNull('year_level_id')
+                                ->orWhereNotNull('section_id');
+                        });
+                    $this->applyStudentFilters($q, $student);
+                })->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
+                    $this->applyAssignmentFilters($q, $student, $schoolYear);
+                });
             })
             ->sum('selling_price');
 
