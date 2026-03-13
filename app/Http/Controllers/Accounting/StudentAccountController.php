@@ -213,7 +213,7 @@ class StudentAccountController extends Controller
         // Calculate total from applicable fee items (exclude Drop category - those are only charged via drop requests)
         $totalAmount = 0.0;
         if ($templateYear) {
-            $totalAmount = (float) FeeItem::where('school_year', $templateYear)
+            $feeItems = FeeItem::where('school_year', $templateYear)
                 ->where('is_active', true)
                 ->whereDoesntHave('category', function ($q) {
                     $q->where('name', 'like', '%Drop%');
@@ -238,7 +238,23 @@ class StudentAccountController extends Controller
                             $this->applyAssignmentFilters($q, $student, $schoolYear);
                         });
                 })
-                ->sum('selling_price');
+                ->get();
+
+            $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+                ->where('school_year', $schoolYear)
+                ->whereIn('status', ['enrolled'])
+                ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+                ->sum('subjects.units');
+
+            $totalAmount = (float) $feeItems->sum(function ($item) use ($enrolledUnits) {
+                if ($item->is_per_unit) {
+                    if ((float) $enrolledUnits > 0) {
+                        return (float) $item->unit_price * (float) $enrolledUnits;
+                    }
+                    return (float) $item->selling_price;
+                }
+                return (float) $item->selling_price;
+            });
         }
 
         // Get grant discount — recalculate from Grant model to fix stale discount_amount=0 records.
