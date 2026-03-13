@@ -22,8 +22,14 @@ class ExamApprovalController extends Controller
                 $q->where('registrar_clearance', true);
             })
             ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
-            ->whereDoesntHave('fees', function ($fq) {
-                $fq->where('is_overdue', true);
+            ->whereHas('fees', function ($fq) {
+                $fq->where('is_overdue', false)
+                    ->where(function ($sq) {
+                        $sq->where(function ($paid) {
+                            $paid->where('total_amount', '>', 0)
+                                ->where('balance', '<=', 0);
+                        })->orWhere('total_paid', '>', 0);
+                    });
             })
             ->with(['fees' => function ($q) {
                 $q->latest();
