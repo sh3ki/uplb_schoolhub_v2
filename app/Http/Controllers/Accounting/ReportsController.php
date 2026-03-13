@@ -227,7 +227,7 @@ class ReportsController extends Controller
             })
             ->values();
 
-        return Inertia::render($this->viewPrefix() . '/reports', [
+        return Inertia::render($this->reportsView(), [
             'paymentSummary' => $paymentSummary,
             'balanceReport' => $balanceReport,
             'filters' => $request->only(['from', 'to', 'school_year', 'status', 'department_id', 'classification']),
@@ -239,6 +239,11 @@ class ReportsController extends Controller
             'documentFeeReport' => $documentFeeReport,
             'departmentAnalysis' => $this->buildDepartmentAnalysis(),
         ]);
+    }
+
+    protected function reportsView(): string
+    {
+        return $this->viewPrefix() . '/reports';
     }
 
     private function buildDepartmentAnalysis(): array
