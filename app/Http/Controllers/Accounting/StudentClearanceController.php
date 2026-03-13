@@ -91,7 +91,7 @@ class StudentClearanceController extends Controller
                 ->whereDoesntHave('category', function ($q) {
                     $q->where('name', 'like', '%Drop%');
                 })
-                ->where(function ($query) use ($student) {
+                ->where(function ($query) use ($student, $schoolYear) {
                     $query->where(function ($inner) {
                             $inner->where('assignment_scope', 'all')
                                   ->whereDoesntHave('assignments');
@@ -107,8 +107,8 @@ class StudentClearanceController extends Controller
                               });
                             $this->applyStudentFilters($q, $student);
                         })
-                        ->orWhereHas('assignments', function ($q) use ($student) {
-                            $this->applyAssignmentFilters($q, $student);
+                        ->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
+                            $this->applyAssignmentFilters($q, $student, $schoolYear);
                         });
                 })
                 ->sum('selling_price');
@@ -192,7 +192,7 @@ class StudentClearanceController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student) {
+            ->where(function ($query) use ($student, $schoolYear) {
                 $query->where(function ($inner) {
                         $inner->where('assignment_scope', 'all')
                               ->whereDoesntHave('assignments');
@@ -208,8 +208,8 @@ class StudentClearanceController extends Controller
                           });
                         $this->applyStudentFilters($q, $student);
                     })
-                    ->orWhereHas('assignments', function ($q) use ($student) {
-                        $this->applyAssignmentFilters($q, $student);
+                    ->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
+                        $this->applyAssignmentFilters($q, $student, $schoolYear);
                     });
             })
             ->sum('selling_price');
@@ -342,8 +342,13 @@ class StudentClearanceController extends Controller
         // department_id provides sufficient program-level scoping for College.
 
         $query->where(function ($sq) use ($student) {
-            $sq->whereNull('year_level_id')
-                ->orWhere('year_level_id', $student->year_level_id);
+            $sq->whereNull('year_level_id');
+
+            if ($student->year_level_id) {
+                $sq->orWhere('year_level_id', $student->year_level_id);
+            } elseif ($student->year_level) {
+                $sq->orWhereRaw('LOWER(TRIM(year_level)) = ?', [strtolower(trim((string) $student->year_level))]);
+            }
         });
 
         $query->where(function ($sq) use ($student) {
@@ -355,7 +360,7 @@ class StudentClearanceController extends Controller
     /**
      * Apply assignment-specific filters to fee_item_assignments query.
      */
-    private function applyAssignmentFilters($query, Student $student): void
+    private function applyAssignmentFilters($query, Student $student, ?string $schoolYear = null): void
     {
         $query->where('is_active', true);
 
@@ -370,8 +375,20 @@ class StudentClearanceController extends Controller
 
         $query->where('department_id', $student->department_id);
 
-        if ($student->year_level_id) {
-            $query->where('year_level_id', $student->year_level_id);
+        $resolvedYearLevelId = $student->year_level_id;
+        if (!$resolvedYearLevelId && $student->year_level) {
+            $resolvedYearLevelId = \App\Models\YearLevel::where('department_id', $student->department_id)
+                ->where('name', $student->year_level)
+                ->value('id');
+        }
+
+        if ($resolvedYearLevelId) {
+            $query->where(function ($sq) use ($resolvedYearLevelId) {
+                $sq->whereNull('year_level_id')
+                    ->orWhere('year_level_id', $resolvedYearLevelId);
+            });
+        } else {
+            $query->whereNull('year_level_id');
         }
     }
 }
