@@ -27,14 +27,14 @@ class ReportsController extends Controller
         // Get filters
         $from = $request->input('from');
         $to = $request->input('to');
-        $schoolYear = $request->input('schoo
+        $schoolYear = $request->input('school_year');
+        $status = $request->input('status');
         
         // If no school year is specified, use the current/active school year to prevent duplicates
         if (!$schoolYear) {
             $settings = AppSetting::first();
             $schoolYear = $settings?->school_year;
-        }l_year');
-        $status = $request->input('status');
+        }
 
         // Payment Collection Summary (grouped by date)
         $paymentQuery = StudentPayment::query();
