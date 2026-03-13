@@ -131,26 +131,26 @@ class DashboardController extends Controller
             ->orderBy('school_year', 'desc')
             ->get();
 
-        // Calculate summary stats from up-to-date fee records
-        $totalFees = $fees->sum('total_amount');
-        $totalDiscount = $fees->sum('grant_discount');
-        $totalPaid = $fees->flatMap->payments->sum('amount');
+        // Calculate summary stats from active/current school year only.
+        $normalizedCurrentYear = trim((string) $currentSchoolYear);
+        $currentFees = $fees->filter(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear);
+
+        $totalFees = (float) $currentFees->sum('total_amount');
+        $totalDiscount = (float) $currentFees->sum('grant_discount');
+        $totalPaid = (float) $currentFees->flatMap->payments->sum('amount');
         
         // Calculate previous balance (from previous school years) and current fees balance
-        $normalizedCurrentYear = trim((string) $currentSchoolYear);
         $previousBalance = $fees
             ->filter(fn($fee) => trim((string) $fee->school_year) !== $normalizedCurrentYear)
             ->sum('balance');
-        $currentFeesBalance = $fees
-            ->filter(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear)
-            ->sum('balance');
+        $currentFeesBalance = (float) $currentFees->sum('balance');
 
         // Always compute balance dynamically: total_fees - grant_discount - total_paid
         // (never trust the stored balance column alone as it can be stale before sync)
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         // Get StudentFee record for overdue status
-        $studentFee = $fees->first(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear);
+        $studentFee = $currentFees->first();
 
         // Get approved promissory notes
         $approvedPromissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
@@ -165,7 +165,7 @@ class DashboardController extends Controller
                      $studentFee?->due_date && now()->gt($studentFee->due_date);
 
         // Only fully paid if fee records exist AND balance is zero
-        $isFullyPaid = !$fees->isEmpty() && $balance <= 0;
+        $isFullyPaid = !$currentFees->isEmpty() && $balance <= 0;
 
         return [
             'total_fees' => $totalFees,
