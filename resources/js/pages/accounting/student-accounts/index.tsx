@@ -213,7 +213,10 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
 
     const handleBulkOverdue = (e: React.FormEvent) => {
         e.preventDefault();
-        overdueForm.post('/accounting/student-accounts/bulk-mark-overdue', {
+        overdueForm.transform((data) => ({
+            ...data,
+            school_year: schoolYear !== 'all' ? schoolYear : 'all',
+        })).post('/accounting/student-accounts/bulk-mark-overdue', {
             onSuccess: () => {
                 toast.success('Changes saved successfully');
                 setIsOverdueDialogOpen(false);

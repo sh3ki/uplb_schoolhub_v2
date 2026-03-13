@@ -718,12 +718,17 @@ class StudentAccountController extends Controller
             'classification' => 'nullable|string',
             'department_id' => 'nullable|string',
             'year_level' => 'nullable|string',
+            'school_year' => 'nullable|string',
             'overdue_date' => 'required|date',
         ]);
 
-        // Use app-configured school year so we target the active year
-        $schoolYear = \App\Models\AppSetting::current()?->school_year
+        $appSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? now()->format('Y') . '-' . (now()->year + 1);
+
+        $requestedSchoolYear = $request->input('school_year');
+        if ($requestedSchoolYear === 'all' || blank($requestedSchoolYear)) {
+            $requestedSchoolYear = null;
+        }
 
         // Build the same eligible-students base query as the index
         $studentsQuery = Student::with(['department'])
@@ -752,13 +757,23 @@ class StudentAccountController extends Controller
             }
         }
 
+        if ($requestedSchoolYear) {
+            $studentsQuery->where('school_year', $requestedSchoolYear);
+        }
+
         $count = 0;
 
         foreach ($studentsQuery->get() as $student) {
             if (! $student instanceof Student) {
                 continue;
             }
-            $feeData = $this->calculateStudentFees($student, $schoolYear);
+
+            // Mark overdue on the student's actual fee year to avoid updating the wrong ledger row.
+            $targetSchoolYear = $requestedSchoolYear
+                ?? $student->school_year
+                ?? $appSchoolYear;
+
+            $feeData = $this->calculateStudentFees($student, $targetSchoolYear);
 
             // Skip already-overdue or fully-paid students
             if ($feeData['is_overdue'] || $feeData['balance'] <= 0) {
@@ -767,7 +782,7 @@ class StudentAccountController extends Controller
 
             // Upsert the student_fees record so it always exists
             $studentFee = StudentFee::firstOrCreate(
-                ['student_id' => $student->id, 'school_year' => $schoolYear],
+                ['student_id' => $student->id, 'school_year' => $targetSchoolYear],
                 [
                     'total_amount'   => $feeData['total_amount'],
                     'grant_discount' => $feeData['grant_discount'],
