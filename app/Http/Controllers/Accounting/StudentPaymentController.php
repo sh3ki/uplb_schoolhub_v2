@@ -1089,14 +1089,14 @@ class StudentPaymentController extends Controller
         $oldDueDate  = $fee->due_date;
 
         if (isset($validated['grant_discount'])) {
-            $fee->grant_discount = (string) ((float) $validated['grant_discount']);
+            $fee->setAttribute('grant_discount', (float) $validated['grant_discount']);
         }
         if (array_key_exists('due_date', $validated)) {
             $fee->due_date = $validated['due_date'];
         }
 
         // Recalculate balance
-        $fee->balance = (string) max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid);
+        $fee->setAttribute('balance', max(0, (float) $fee->total_amount - (float) $fee->grant_discount - (float) $fee->total_paid));
         $fee->save();
 
         // Log the change
