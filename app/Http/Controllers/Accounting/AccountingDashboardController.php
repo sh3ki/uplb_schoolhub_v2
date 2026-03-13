@@ -165,13 +165,47 @@ class AccountingDashboardController extends Controller
         if ($section)      $studentQ->where('section', $section);
         $filteredIds = $studentQ->pluck('id');
 
+        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
+            ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $yearFeeRows = StudentFee::with('payments')
+            ->whereIn('student_id', $filteredIds)
+            ->where('school_year', $currentSchoolYear)
+            ->get()
+            ->groupBy('student_id');
+
+        $fullyPaid = 0;
+        $partialPaid = 0;
+        $unpaid = 0;
+        $totalCollectibles = 0.0;
+
+        foreach ($yearFeeRows as $rows) {
+            $totalAmount = (float) $rows->sum('total_amount');
+            $discount = (float) $rows->sum('grant_discount');
+            $paid = (float) $rows->flatMap->payments->sum('amount');
+            $balance = max(0, $totalAmount - $discount - $paid);
+
+            $totalCollectibles += $balance;
+
+            if ($totalAmount <= 0) {
+                continue;
+            }
+
+            if ($balance <= 0) {
+                $fullyPaid++;
+            } elseif ($paid > 0) {
+                $partialPaid++;
+            } else {
+                $unpaid++;
+            }
+        }
+
         // Get stats scoped to filtered students
         $totalStudents       = $filteredIds->count();
-        $fullyPaid           = StudentFee::whereIn('student_id', $filteredIds)->where('balance', '<=', 0)->count();
-        $partialPaid         = StudentFee::whereIn('student_id', $filteredIds)->where('total_paid', '>', 0)->where('balance', '>', 0)->count();
-        $unpaid              = StudentFee::whereIn('student_id', $filteredIds)->where('total_paid', 0)->where('balance', '>', 0)->count();
-        $totalCollectibles   = StudentFee::whereIn('student_id', $filteredIds)->where('balance', '>', 0)->sum('balance');
-        $totalCollectedToday = StudentPayment::whereIn('student_id', $filteredIds)->whereDate('payment_date', today())->sum('amount');
+        $totalCollectedToday = StudentPayment::whereIn('student_id', $filteredIds)
+            ->whereDate('payment_date', today())
+            ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
+            ->sum('amount');
 
         $stats = [
             'total_students' => $totalStudents,
@@ -393,9 +427,9 @@ class AccountingDashboardController extends Controller
         ];
 
         $paymentSummary = [
-            'cash'  => (float) $payments->filter(fn($p) => strtoupper($p->payment_mode ?? $p->payment_method ?? '') === 'CASH')->sum('amount'),
-            'gcash' => (float) $payments->filter(fn($p) => strtoupper($p->payment_mode ?? $p->payment_method ?? '') === 'GCASH')->sum('amount'),
-            'bank'  => (float) $payments->filter(fn($p) => strtoupper($p->payment_mode ?? $p->payment_method ?? '') === 'BANK')->sum('amount'),
+            'cash'  => (float) $payments->filter(fn($p) => $this->normalizePaymentMode($p->payment_mode, $p->payment_method) === 'CASH')->sum('amount'),
+            'gcash' => (float) $payments->filter(fn($p) => $this->normalizePaymentMode($p->payment_mode, $p->payment_method) === 'GCASH')->sum('amount'),
+            'bank'  => (float) $payments->filter(fn($p) => $this->normalizePaymentMode($p->payment_mode, $p->payment_method) === 'BANK')->sum('amount'),
         ];
 
         // Daily collections across the period
@@ -430,7 +464,7 @@ class AccountingDashboardController extends Controller
                 'time'         => Carbon::parse($p->created_at)->format('h:i A'),
                 'type'         => 'Fee',
                 'or_number'    => $p->or_number ?? 'N/A',
-                'mode'         => strtoupper($p->payment_mode ?? $p->payment_method ?? 'CASH'),
+                'mode'         => $this->normalizePaymentMode($p->payment_mode, $p->payment_method),
                 'reference'    => $p->reference_number,
                 'amount'       => (float) $p->amount,
                 'student_id'   => $p->student_id,
@@ -577,7 +611,7 @@ class AccountingDashboardController extends Controller
                 $p->student?->full_name ?? 'Unknown',
                 $p->student?->lrn ?? 'N/A',
                 $p->or_number ?? 'N/A',
-                strtoupper($p->payment_mode ?? $p->payment_method ?? 'CASH'),
+                $this->normalizePaymentMode($p->payment_mode, $p->payment_method),
                 $p->reference_number ?? '',
                 number_format((float) $p->amount, 2, '.', ''),
                 $p->recordedBy?->name ?? 'N/A',
@@ -603,5 +637,15 @@ class AccountingDashboardController extends Controller
         }, $filename, [
             'Content-Type' => 'text/csv',
         ]);
+    }
+
+    private function normalizePaymentMode(?string $paymentMode, ?string $paymentMethod): string
+    {
+        $raw = strtoupper((string) ($paymentMode ?: $paymentMethod ?: 'CASH'));
+        return match ($raw) {
+            'GCASH' => 'GCASH',
+            'BANK', 'BANK_TRANSFER' => 'BANK',
+            default => 'CASH',
+        };
     }
 }
