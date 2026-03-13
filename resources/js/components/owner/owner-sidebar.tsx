@@ -114,7 +114,7 @@ export function OwnerSidebar() {
             badge: announcementCount || undefined,
         },
         {
-            title: 'Export Reports',
+            title: 'Audit Reports',
             href: '/owner/reports',
             icon: FileText,
         },
