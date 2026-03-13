@@ -135,15 +135,20 @@ class DashboardController extends Controller
         $totalPaid = $fees->flatMap->payments->sum('amount');
         
         // Calculate previous balance (from previous school years) and current fees balance
-        $previousBalance = $fees->where('school_year', '!=', $currentSchoolYear)->sum('balance');
-        $currentFeesBalance = $fees->where('school_year', $currentSchoolYear)->sum('balance');
+        $normalizedCurrentYear = trim((string) $currentSchoolYear);
+        $previousBalance = $fees
+            ->filter(fn($fee) => trim((string) $fee->school_year) !== $normalizedCurrentYear)
+            ->sum('balance');
+        $currentFeesBalance = $fees
+            ->filter(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear)
+            ->sum('balance');
 
         // Always compute balance dynamically: total_fees - grant_discount - total_paid
         // (never trust the stored balance column alone as it can be stale before sync)
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         // Get StudentFee record for overdue status
-        $studentFee = $fees->where('school_year', $currentSchoolYear)->first();
+        $studentFee = $fees->first(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear);
 
         // Get approved promissory notes
         $approvedPromissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
@@ -182,7 +187,7 @@ class DashboardController extends Controller
     private function getPreviousSchoolYearBalances(Student $student, string $currentSchoolYear): array
     {
         return StudentFee::where('student_id', $student->id)
-            ->where('school_year', '!=', $currentSchoolYear)
+            ->whereRaw('TRIM(school_year) != ?', [trim((string) $currentSchoolYear)])
             ->where('balance', '>', 0)
             ->orderBy('school_year', 'desc')
             ->get()
