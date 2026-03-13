@@ -575,6 +575,14 @@ class StudentPaymentController extends Controller
             return null;
         }
 
+        // If this student/year has explicit assignment matches, do not also include global all-scope items.
+        $hasExplicitAssignmentMatch = \App\Models\FeeItem::where('is_active', true)
+            ->where('school_year', $templateYear)
+            ->whereHas('assignments', function ($q) use ($student, $schoolYear) {
+                $this->applyAssignmentFilters($q, $student, $schoolYear);
+            })
+            ->exists();
+
         // Get applicable fee items (exclude Drop category - those are only charged via drop requests).
         // Important: assignment-based items are matched using assignment.school_year,
         // not only fee_items.school_year, to prevent missing assigned tuition rows.
@@ -585,14 +593,17 @@ class StudentPaymentController extends Controller
             })
             ->where(function ($query) use ($student, $schoolYear, $templateYear) {
 
-                $query->where(function ($q) use ($student, $templateYear) {
+                $query->where(function ($q) use ($student, $templateYear, $hasExplicitAssignmentMatch) {
                         $q->where('school_year', $templateYear)
                           ->where(function ($inner) use ($student) {
-                              $inner->where(function ($allScope) {
-                                        $allScope->where('assignment_scope', 'all')
-                                            ->whereDoesntHave('assignments');
-                                    })
-                                    ->orWhere(function ($specificScope) use ($student) {
+                              if (! $hasExplicitAssignmentMatch) {
+                                  $inner->where(function ($allScope) {
+                                      $allScope->where('assignment_scope', 'all')
+                                          ->whereDoesntHave('assignments');
+                                  });
+                              }
+
+                              $inner->orWhere(function ($specificScope) use ($student) {
                                         $specificScope->where('assignment_scope', 'specific')
                                             ->where(function ($hasDirectFilters) {
                                                 $hasDirectFilters->whereNotNull('classification')
@@ -997,18 +1008,28 @@ class StudentPaymentController extends Controller
      */
     private function calculateStudentBalance(Student $student, string $schoolYear): float
     {
+        $hasExplicitAssignmentMatch = \App\Models\FeeItem::where('is_active', true)
+            ->where('school_year', $schoolYear)
+            ->whereHas('assignments', function ($q) use ($student, $schoolYear) {
+                $this->applyAssignmentFilters($q, $student, $schoolYear);
+            })
+            ->exists();
+
         // Calculate total from applicable fee items (exclude Drop category - those are only charged via drop requests)
         $totalAmount = \App\Models\FeeItem::where('school_year', $schoolYear)
             ->where('is_active', true)
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student, $schoolYear) {
-                $query->where(function ($inner) {
+            ->where(function ($query) use ($student, $schoolYear, $hasExplicitAssignmentMatch) {
+                if (! $hasExplicitAssignmentMatch) {
+                    $query->where(function ($inner) {
                         $inner->where('assignment_scope', 'all')
-                              ->whereDoesntHave('assignments');
-                    })
-                    ->orWhere(function ($q) use ($student) {
+                            ->whereDoesntHave('assignments');
+                    });
+                }
+
+                $query->orWhere(function ($q) use ($student) {
                         $q->where('assignment_scope', 'specific')
                           ->where(function ($inner) {
                               $inner->whereNotNull('classification')
@@ -1134,11 +1155,12 @@ class StudentPaymentController extends Controller
 
         $exact = (clone $baseQuery)
             ->where('school_year', $schoolYear)
+            ->orderByDesc('id')
             ->with('grant')
             ->get();
 
         if ($exact->isNotEmpty()) {
-            return $exact;
+            return $exact->unique('grant_id')->values();
         }
 
         $primaryYear = $student->school_year
@@ -1146,7 +1168,12 @@ class StudentPaymentController extends Controller
             ?? $schoolYear;
 
         if ($schoolYear === $primaryYear) {
-            return $baseQuery->with('grant')->get();
+            return $baseQuery
+                ->orderByDesc('id')
+                ->with('grant')
+                ->get()
+                ->unique('grant_id')
+                ->values();
         }
 
         return collect();
