@@ -136,10 +136,7 @@ class StudentClearanceController extends Controller
                 });
 
             // Grant discount
-            $grantDiscount = GrantRecipient::where('student_id', $student->id)
-                ->where('school_year', $schoolYear)
-                ->where('status', 'active')
-                ->sum('discount_amount');
+            $grantDiscount = $this->calculateGrantDiscountForFeeYear($student, $schoolYear, (float) $totalFees);
 
             // Total paid from student_fees
             $studentFee = StudentFee::where('student_id', $student->id)
@@ -257,10 +254,7 @@ class StudentClearanceController extends Controller
                 return (float) $item->selling_price;
             });
 
-        $grantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
-            ->where('status', 'active')
-            ->sum('discount_amount');
+        $grantDiscount = $this->calculateGrantDiscountForFeeYear($student, $schoolYear, (float) $totalFees);
 
         $studentFee = StudentFee::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
@@ -385,13 +379,16 @@ class StudentClearanceController extends Controller
         // department_id provides sufficient program-level scoping for College.
 
         $resolvedYearLevelId = $this->resolveStudentYearLevelId($student);
-        $query->where(function ($sq) use ($student, $resolvedYearLevelId) {
+        $yearLevelCandidates = $this->buildYearLevelCandidates((string) ($student->year_level ?? ''));
+        $query->where(function ($sq) use ($student, $resolvedYearLevelId, $yearLevelCandidates) {
             $sq->whereNull('year_level_id');
 
             if ($resolvedYearLevelId) {
                 $sq->orWhere('year_level_id', $resolvedYearLevelId);
-            } elseif ($student->year_level) {
-                $sq->orWhereRaw('LOWER(TRIM(year_level)) = ?', [strtolower(trim((string) $student->year_level))]);
+            } elseif (!empty($yearLevelCandidates)) {
+                foreach ($yearLevelCandidates as $candidate) {
+                    $sq->orWhereRaw('LOWER(TRIM(year_level)) = ?', [strtolower($candidate)]);
+                }
             }
         });
 
@@ -449,26 +446,102 @@ class StudentClearanceController extends Controller
             return null;
         }
 
+        $candidates = $this->buildYearLevelCandidates($rawYearLevel);
+        if (empty($candidates)) {
+            return null;
+        }
+
+        $normalizedCandidates = array_values(array_unique(array_filter(array_map(
+            fn(string $value) => preg_replace('/[^a-z0-9]/', '', strtolower($value)),
+            $candidates
+        ))));
+
         $exact = \App\Models\YearLevel::where('department_id', $student->department_id)
-            ->whereRaw('LOWER(TRIM(name)) = ?', [strtolower($rawYearLevel)])
+            ->where(function ($query) use ($candidates) {
+                foreach ($candidates as $candidate) {
+                    $query->orWhereRaw('LOWER(TRIM(name)) = ?', [strtolower($candidate)]);
+                }
+            })
             ->value('id');
 
         if ($exact) {
             return (int) $exact;
         }
 
-        $normalized = preg_replace('/[^a-z0-9]/', '', strtolower($rawYearLevel));
-        if ($normalized === '') {
-            return null;
-        }
-
         $yearLevel = \App\Models\YearLevel::where('department_id', $student->department_id)
             ->get(['id', 'name'])
-            ->first(function ($level) use ($normalized) {
+            ->first(function ($level) use ($normalizedCandidates) {
                 $candidate = preg_replace('/[^a-z0-9]/', '', strtolower((string) $level->name));
-                return $candidate === $normalized;
+                if ($candidate === '' || empty($normalizedCandidates)) {
+                    return false;
+                }
+
+                foreach ($normalizedCandidates as $normalizedCandidate) {
+                    if ($normalizedCandidate === '') {
+                        continue;
+                    }
+
+                    if ($candidate === $normalizedCandidate
+                        || str_contains($candidate, $normalizedCandidate)
+                        || str_contains($normalizedCandidate, $candidate)) {
+                        return true;
+                    }
+                }
+
+                return false;
             });
 
         return $yearLevel ? (int) $yearLevel->id : null;
+    }
+
+    /**
+     * Build candidate year-level strings from student data (e.g. "2nd Year - TBA" -> "2nd Year").
+     */
+    private function buildYearLevelCandidates(string $rawYearLevel): array
+    {
+        $rawYearLevel = trim($rawYearLevel);
+        if ($rawYearLevel === '') {
+            return [];
+        }
+
+        $primary = trim((string) preg_replace('/\s*-\s*.*/', '', $rawYearLevel));
+
+        return array_values(array_unique(array_filter([
+            $rawYearLevel,
+            $primary,
+        ], fn($value) => trim((string) $value) !== '')));
+    }
+
+    /**
+     * Calculate grant discount for a fee year, with fallback to active grants on the student's primary year.
+     */
+    private function calculateGrantDiscountForFeeYear(Student $student, string $schoolYear, float $totalFees): float
+    {
+        $baseQuery = GrantRecipient::where('student_id', $student->id)
+            ->where('status', 'active')
+            ->with('grant');
+
+        $recipients = (clone $baseQuery)
+            ->where('school_year', $schoolYear)
+            ->get();
+
+        if ($recipients->isEmpty()) {
+            $primaryYear = $student->school_year
+                ?? \App\Models\AppSetting::current()?->school_year
+                ?? $schoolYear;
+
+            if ($schoolYear === $primaryYear) {
+                $recipients = $baseQuery->get();
+            }
+        }
+
+        $discount = 0.0;
+        foreach ($recipients as $recipient) {
+            if ($recipient->grant) {
+                $discount += $recipient->grant->calculateDiscount($totalFees);
+            }
+        }
+
+        return $discount;
     }
 }
