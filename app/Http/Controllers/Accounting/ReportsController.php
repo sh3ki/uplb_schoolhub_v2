@@ -34,9 +34,9 @@ class ReportsController extends Controller
         $schoolYear = $request->input('school_year');
         $status = $request->input('status');
         
-        // Keep reports aligned with accounting dashboard default scope.
-        if ($schoolYear === 'all' || $schoolYear === '' || !$schoolYear) {
-            $schoolYear = $currentSchoolYear;
+        // "All" means cross-year. Only restrict when user explicitly picks a school year.
+        if ($schoolYear === 'all' || $schoolYear === '') {
+            $schoolYear = null;
         }
 
         // Ensure report statuses reflect due-date overdue transitions.
@@ -93,6 +93,15 @@ class ReportsController extends Controller
             ->whereHas('student')
             ->orderBy('balance', 'desc')
             ->get();
+
+        if (!$schoolYear) {
+            // In all-years mode, keep one row per student using latest school-year ledger.
+            $balanceRows = $balanceRows
+                ->sortByDesc('school_year', SORT_NATURAL)
+                ->groupBy('student_id')
+                ->map(fn($rows) => $rows->first())
+                ->values();
+        }
 
         $mappedBalanceReport = $balanceRows->map(function ($fee) {
                 /** @var \App\Models\StudentFee $fee */

@@ -449,36 +449,39 @@ class StudentAccountController extends Controller
             ];
         }
 
-        $effectiveYear = $schoolYear ?: (\App\Models\AppSetting::current()?->school_year);
-        if (!$effectiveYear) {
-            return [
-                'total_students' => $studentIds->count(),
-                'total_receivables' => 0,
-                'total_collected' => 0,
-                'total_balance' => 0,
-                'overdue_count' => 0,
-                'fully_paid' => 0,
-            ];
+        $currentAppYear = \App\Models\AppSetting::current()?->school_year;
+
+        $totalReceivables = 0.0;
+        $totalCollected = 0.0;
+        $totalBalance = 0.0;
+        $overdueCount = 0;
+        $fullyPaidCount = 0;
+
+        foreach ($studentIds as $studentId) {
+            $student = Student::with('department')->find($studentId);
+            if (!$student) {
+                continue;
+            }
+
+            $targetSchoolYear = $schoolYear ?: ($student->school_year ?: $currentAppYear);
+            if (!$targetSchoolYear) {
+                continue;
+            }
+
+            $feeData = $this->calculateStudentFees($student, $targetSchoolYear);
+
+            $totalReceivables += (float) $feeData['total_amount'];
+            $totalCollected += (float) $feeData['total_paid'];
+            $totalBalance += (float) $feeData['balance'];
+
+            if (!empty($feeData['is_overdue']) && (float) $feeData['balance'] > 0) {
+                $overdueCount++;
+            }
+
+            if ((float) $feeData['total_amount'] > 0 && (float) $feeData['balance'] <= 0) {
+                $fullyPaidCount++;
+            }
         }
-
-        $feeRows = StudentFee::query()
-            ->whereIn('student_id', $studentIds)
-            ->where('school_year', $effectiveYear)
-            ->get();
-
-        $totalReceivables = (float) $feeRows->sum('total_amount');
-        $totalBalance = (float) $feeRows->sum('balance');
-        $overdueCount = (int) $feeRows->where('is_overdue', true)->where('balance', '>', 0)->count();
-        $fullyPaidCount = (int) $feeRows
-            ->filter(fn($fee) => (float) $fee->total_amount > 0 && (float) $fee->balance <= 0)
-            ->count();
-
-        $totalCollected = (float) StudentPayment::query()
-            ->whereIn('student_id', $studentIds)
-            ->whereHas('studentFee', function ($q) use ($effectiveYear) {
-                $q->where('school_year', $effectiveYear);
-            })
-            ->sum('amount');
 
         return [
             'total_students' => $studentIds->count(),
