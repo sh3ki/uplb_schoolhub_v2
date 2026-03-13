@@ -583,8 +583,7 @@ class StudentPaymentController extends Controller
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
-            ->where(function ($query) use ($student, $schoolYear) {
-                $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
+            ->where(function ($query) use ($student, $schoolYear, $templateYear) {
 
                 $query->where(function ($q) use ($student, $templateYear) {
                         $q->where('school_year', $templateYear)
@@ -606,8 +605,11 @@ class StudentPaymentController extends Controller
                                     });
                           });
                     })
-                    ->orWhere(function ($q) use ($student, $schoolYear) {
-                        $q->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                    ->orWhere(function ($q) use ($student, $schoolYear, $templateYear) {
+                        // Keep assignment-based matching in the same template school year
+                        // so older/newer fee templates don't get summed into this year.
+                        $q->where('school_year', $templateYear)
+                          ->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
                             $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
                         });
                     });
