@@ -311,7 +311,7 @@ export default function OwnerAuditReports({
                                 <Label htmlFor="schoolYear">School Year</Label>
                                 <Select value={schoolYear} onValueChange={setSchoolYear}>
                                     <SelectTrigger id="schoolYear">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select school year..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Years</SelectItem>
@@ -325,7 +325,7 @@ export default function OwnerAuditReports({
                                 <Label htmlFor="status">Payment Status</Label>
                                 <Select value={status} onValueChange={setStatus}>
                                     <SelectTrigger id="status">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select status..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Status</SelectItem>
@@ -339,7 +339,7 @@ export default function OwnerAuditReports({
                                 <Label htmlFor="classification">Classification</Label>
                                 <Select value={classification} onValueChange={setClassification}>
                                     <SelectTrigger id="classification">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select classification..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Classifications</SelectItem>
@@ -353,7 +353,7 @@ export default function OwnerAuditReports({
                                 <Label htmlFor="department">Department</Label>
                                 <Select value={departmentId} onValueChange={setDepartmentId}>
                                     <SelectTrigger id="department">
-                                        <SelectValue />
+                                        <SelectValue placeholder="Select department..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">All Departments</SelectItem>
