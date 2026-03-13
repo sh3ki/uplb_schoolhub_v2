@@ -595,7 +595,7 @@ class StudentPaymentController extends Controller
 
                 $query->where(function ($q) use ($student, $templateYear, $hasExplicitAssignmentMatch) {
                         $q->where('school_year', $templateYear)
-                          ->where(function ($inner) use ($student) {
+                          ->where(function ($inner) use ($student, $hasExplicitAssignmentMatch) {
                               if (! $hasExplicitAssignmentMatch) {
                                   $inner->where(function ($allScope) {
                                       $allScope->where('assignment_scope', 'all')
