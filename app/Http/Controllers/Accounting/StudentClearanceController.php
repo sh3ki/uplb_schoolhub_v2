@@ -85,33 +85,55 @@ class StudentClearanceController extends Controller
         $students->getCollection()->transform(function ($student) {
             $schoolYear = $student->school_year ?? date('Y') . '-' . (date('Y') + 1);
 
+            $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+                ->where('school_year', $schoolYear)
+                ->where('status', 'enrolled')
+                ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+                ->sum('subjects.units');
+
             // Dynamic total from applicable fee items (exclude Drop category)
-            $totalFees = FeeItem::where('school_year', $schoolYear)
+            // Include assignment-based items by assignment.school_year.
+            $totalFees = FeeItem::query()
                 ->where('is_active', true)
                 ->whereDoesntHave('category', function ($q) {
                     $q->where('name', 'like', '%Drop%');
                 })
                 ->where(function ($query) use ($student, $schoolYear) {
-                    $query->where(function ($inner) {
-                            $inner->where('assignment_scope', 'all')
-                                  ->whereDoesntHave('assignments');
+                    $query->where(function ($scope) use ($student, $schoolYear) {
+                            $scope->where('school_year', $schoolYear)
+                                ->where(function ($inner) use ($student) {
+                                    $inner->where(function ($allScope) {
+                                            $allScope->where('assignment_scope', 'all')
+                                                ->whereDoesntHave('assignments');
+                                        })
+                                        ->orWhere(function ($specificScope) use ($student) {
+                                            $specificScope->where('assignment_scope', 'specific')
+                                                ->where(function ($hasDirectFilters) {
+                                                    $hasDirectFilters->whereNotNull('classification')
+                                                        ->orWhereNotNull('department_id')
+                                                        ->orWhereNotNull('program_id')
+                                                        ->orWhereNotNull('year_level_id')
+                                                        ->orWhereNotNull('section_id');
+                                                });
+                                            $this->applyStudentFilters($specificScope, $student);
+                                        });
+                                });
                         })
-                        ->orWhere(function ($q) use ($student) {
-                            $q->where('assignment_scope', 'specific')
-                              ->where(function ($inner) {
-                                  $inner->whereNotNull('classification')
-                                        ->orWhereNotNull('department_id')
-                                        ->orWhereNotNull('program_id')
-                                        ->orWhereNotNull('year_level_id')
-                                        ->orWhereNotNull('section_id');
-                              });
-                            $this->applyStudentFilters($q, $student);
-                        })
-                        ->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
-                            $this->applyAssignmentFilters($q, $student, $schoolYear);
+                        ->orWhere(function ($scope) use ($student, $schoolYear) {
+                            $scope->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                                $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
+                            });
                         });
                 })
-                ->sum('selling_price');
+                ->get()
+                ->sum(function ($item) use ($enrolledUnits) {
+                    if ($item->is_per_unit) {
+                        return (float) $enrolledUnits > 0
+                            ? (float) $item->unit_price * (float) $enrolledUnits
+                            : (float) $item->selling_price;
+                    }
+                    return (float) $item->selling_price;
+                });
 
             // Grant discount
             $grantDiscount = GrantRecipient::where('student_id', $student->id)
@@ -186,33 +208,54 @@ class StudentClearanceController extends Controller
 
         $schoolYear = $student->school_year ?? date('Y') . '-' . (date('Y') + 1);
 
+        $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+            ->where('school_year', $schoolYear)
+            ->where('status', 'enrolled')
+            ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+            ->sum('subjects.units');
+
         // Dynamic fee calculation (same as index, excluding Drop fees)
-        $totalFees = FeeItem::where('school_year', $schoolYear)
+        $totalFees = FeeItem::query()
             ->where('is_active', true)
             ->whereDoesntHave('category', function ($q) {
                 $q->where('name', 'like', '%Drop%');
             })
             ->where(function ($query) use ($student, $schoolYear) {
-                $query->where(function ($inner) {
-                        $inner->where('assignment_scope', 'all')
-                              ->whereDoesntHave('assignments');
+                $query->where(function ($scope) use ($student, $schoolYear) {
+                        $scope->where('school_year', $schoolYear)
+                            ->where(function ($inner) use ($student) {
+                                $inner->where(function ($allScope) {
+                                        $allScope->where('assignment_scope', 'all')
+                                            ->whereDoesntHave('assignments');
+                                    })
+                                    ->orWhere(function ($specificScope) use ($student) {
+                                        $specificScope->where('assignment_scope', 'specific')
+                                            ->where(function ($hasDirectFilters) {
+                                                $hasDirectFilters->whereNotNull('classification')
+                                                    ->orWhereNotNull('department_id')
+                                                    ->orWhereNotNull('program_id')
+                                                    ->orWhereNotNull('year_level_id')
+                                                    ->orWhereNotNull('section_id');
+                                            });
+                                        $this->applyStudentFilters($specificScope, $student);
+                                    });
+                            });
                     })
-                    ->orWhere(function ($q) use ($student) {
-                        $q->where('assignment_scope', 'specific')
-                          ->where(function ($inner) {
-                              $inner->whereNotNull('classification')
-                                    ->orWhereNotNull('department_id')
-                                    ->orWhereNotNull('program_id')
-                                    ->orWhereNotNull('year_level_id')
-                                    ->orWhereNotNull('section_id');
-                          });
-                        $this->applyStudentFilters($q, $student);
-                    })
-                    ->orWhereHas('assignments', function ($q) use ($student, $schoolYear) {
-                        $this->applyAssignmentFilters($q, $student, $schoolYear);
+                    ->orWhere(function ($scope) use ($student, $schoolYear) {
+                        $scope->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                            $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
+                        });
                     });
             })
-            ->sum('selling_price');
+            ->get()
+            ->sum(function ($item) use ($enrolledUnits) {
+                if ($item->is_per_unit) {
+                    return (float) $enrolledUnits > 0
+                        ? (float) $item->unit_price * (float) $enrolledUnits
+                        : (float) $item->selling_price;
+                }
+                return (float) $item->selling_price;
+            });
 
         $grantDiscount = \App\Models\GrantRecipient::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
@@ -364,6 +407,10 @@ class StudentClearanceController extends Controller
     private function applyAssignmentFilters($query, Student $student, ?string $schoolYear = null): void
     {
         $query->where('is_active', true);
+
+        if ($schoolYear) {
+            $query->where('school_year', $schoolYear);
+        }
 
         if (!$student->department_id) {
             $query->whereRaw('1 = 0');
