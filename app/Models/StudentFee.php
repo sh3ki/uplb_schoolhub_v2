@@ -76,6 +76,16 @@ class StudentFee extends Model
     {
         $this->total_paid = $this->payments()->sum('amount');
         $this->balance = max(0, (float) $this->total_amount - (float) $this->grant_discount - $this->total_paid);
+
+        // Once any payment is made, or balance is fully settled, the account is no longer overdue.
+        if ($this->total_paid > 0 || $this->balance <= 0) {
+            $this->is_overdue = false;
+        }
+
+        $this->payment_status = $this->is_overdue
+            ? 'overdue'
+            : ($this->balance <= 0 ? 'paid' : ($this->total_paid > 0 ? 'partial' : 'unpaid'));
+
         $this->save();
     }
 
