@@ -13,6 +13,7 @@ use App\Models\Student;
 use App\Models\StudentActionLog;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
+use App\Models\AppSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -27,6 +28,7 @@ class StudentPaymentController extends Controller
     public function index(Request $request): Response
     {
         $selectedStudentId = $request->input('student_id');
+        $activeSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         // Get students from student-accounts (registrar-cleared, in accounting queue or beyond)
         $query = Student::with(['department', 'enrollmentClearance'])
@@ -52,13 +54,14 @@ class StudentPaymentController extends Controller
         $students = $query->latest()->paginate(20)->withQueryString();
 
         // Transform students for list — aggregate ALL school years to match process page logic
-        $students->through(function ($student) {
-            // Combined calculation across ALL school years (same approach as process page)
-            $allFees   = StudentFee::where('student_id', $student->id)->get();
-            $totalFees = (float) $allFees->sum('total_amount');
-            $discounts = (float) $allFees->sum('grant_discount');
-            $totalPaid = (float) StudentPayment::where('student_id', $student->id)->sum('amount');
-            $balance   = max(0, $totalFees - $discounts - $totalPaid);
+        $students->through(function ($student) use ($activeSchoolYear) {
+            $targetSchoolYear = $student->school_year ?: $activeSchoolYear;
+            // Use registrar-assigned student year (fallback to active app year) for consistent billing.
+            $currentFee = $this->calculateFeesForSchoolYear($student, $targetSchoolYear);
+            $totalFees = (float) ($currentFee['total_amount'] ?? 0);
+            $discounts = (float) ($currentFee['grant_discount'] ?? 0);
+            $totalPaid = (float) ($currentFee['total_paid'] ?? 0);
+            $balance   = (float) ($currentFee['balance'] ?? max(0, $totalFees - $discounts - $totalPaid));
 
             // Determine status
             $status = 'pending';
@@ -72,7 +75,7 @@ class StudentPaymentController extends Controller
                 $status = 'fully_paid';
             } elseif ($hasApprovedPromissory) {
                 $status = 'approved';
-            } elseif ($allFees->where('is_overdue', true)->isNotEmpty() && $totalPaid <= 0) {
+            } elseif (($currentFee['is_overdue'] ?? false) && $totalPaid <= 0) {
                 $status = 'overdue';
             }
 
@@ -223,24 +226,11 @@ class StudentPaymentController extends Controller
         }
 
         // Calculate aggregate financial statistics for all students
-        $currentYear = \App\Models\AppSetting::current()?->school_year ?? date('Y') . '-' . (date('Y') + 1);
-        
-        // Get all fees for current year to calculate statistics
-        $allCurrentFees = StudentFee::where('school_year', $currentYear)->get();
-        
-        // Calculate original tuition (tuition_fee before grant discount)
-        $totalTuitionFees = $allCurrentFees->sum('tuition_fee');
-        $totalGrantDiscounts = $allCurrentFees->sum('grant_discount');
-        
-        // Calculate total fees after discount (registration + tuition + misc + books + other)
-        $totalFeesAfterDiscount = $allCurrentFees->sum('total_amount');
-        
-        // Calculate previous balance (from all previous years)
-        $totalPreviousBalance = StudentFee::where('school_year', '!=', $currentYear)->sum('balance');
-        
-        // Calculate total balance to pay (current year balance + previous balance)
-        $totalCurrentBalance = $allCurrentFees->sum('balance');
-        $totalBalanceToPay = $totalCurrentBalance + $totalPreviousBalance;
+        $studentRows = collect($students->items());
+        $totalTuitionFees = (float) $studentRows->sum('total_fees');
+        $totalGrantDiscounts = (float) $studentRows->sum('discounts');
+        $totalPaidCollected = (float) $studentRows->sum('total_paid');
+        $totalBalanceToPay = (float) $studentRows->sum('balance');
 
         return Inertia::render($this->viewPrefix() . '/payments/index', [
             'students' => $students,
@@ -250,8 +240,8 @@ class StudentPaymentController extends Controller
                 'original_tuition' => $totalTuitionFees,
                 'grant_deduction' => $totalGrantDiscounts,
                 'total_tuition_fees' => $totalTuitionFees - $totalGrantDiscounts,
-                'total_paid' => $allCurrentFees->sum('total_paid'),
-                'previous_balance' => $totalPreviousBalance,
+                'total_paid' => $totalPaidCollected,
+                'previous_balance' => 0,
                 'total_balance_to_pay' => $totalBalanceToPay,
             ],
         ]);
@@ -516,7 +506,7 @@ class StudentPaymentController extends Controller
      */
     private function getApplicableSchoolYears(Student $student): array
     {
-        // Anchor to the registrar-assigned year to avoid auto-creating future-year fees.
+        // Anchor to registrar-assigned year (fallback to app year).
         $enrolledYear = $student->school_year ?? \App\Models\AppSetting::current()?->school_year;
 
         $feeItemYears = \App\Models\FeeItem::where('is_active', true)
@@ -612,10 +602,14 @@ class StudentPaymentController extends Controller
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
-        // Calculate total from fee items (per-unit items use unit_price × enrolled_units)
+        // Calculate total from fee items.
+        // For per-unit items with zero enrolled units, fall back to selling_price to avoid dropping assigned fees to zero.
         $totalAmount = $feeItems->sum(function ($item) use ($enrolledUnits) {
             if ($item->is_per_unit) {
-                return (float) $item->unit_price * (float) $enrolledUnits;
+                if ((float) $enrolledUnits > 0) {
+                    return (float) $item->unit_price * (float) $enrolledUnits;
+                }
+                return (float) $item->selling_price;
             }
             return (float) $item->selling_price;
         });
@@ -690,9 +684,12 @@ class StudentPaymentController extends Controller
                 'category_id'   => $categoryId,
                 'category_name' => $category->name ?? 'Other',
                 'items'         => $items->map(function ($item) use ($enrolledUnits) {
-                    $amount = $item->is_per_unit
-                        ? (float) $item->unit_price * (float) $enrolledUnits
-                        : (float) $item->selling_price;
+                    $amount = (float) $item->selling_price;
+                    if ($item->is_per_unit) {
+                        $amount = (float) $enrolledUnits > 0
+                            ? (float) $item->unit_price * (float) $enrolledUnits
+                            : (float) $item->selling_price;
+                    }
                     return [
                         'id'           => $item->id,
                         'name'         => $item->name,
