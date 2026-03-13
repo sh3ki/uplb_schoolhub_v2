@@ -44,6 +44,9 @@ class StudentAccountController extends Controller
         $selectedSchoolYear = $request->input('school_year');
         if ($selectedSchoolYear === 'all' || $selectedSchoolYear === '') {
             $selectedSchoolYear = null;
+        } elseif (!$selectedSchoolYear && $currentAppYear) {
+            // Keep totals aligned with accounting dashboard/reports default scope.
+            $selectedSchoolYear = $currentAppYear;
         }
 
         // Auto-apply overdue status when due date is reached.
@@ -430,37 +433,36 @@ class StudentAccountController extends Controller
             ];
         }
 
-        $totalReceivables = 0;
-        $totalCollected = 0;
-        $totalBalance = 0;
-        $overdueCount = 0;
-        $fullyPaidCount = 0;
-
-        foreach ($studentIds as $studentId) {
-            $student = Student::with('department')->find($studentId);
-            if (!$student) continue;
-
-            $effectiveYear = $schoolYear
-                ?: ($student->school_year ?: (\App\Models\AppSetting::current()?->school_year));
-
-            if (!$effectiveYear) {
-                continue;
-            }
-
-            $feeData = $this->calculateStudentFees($student, $effectiveYear);
-            
-            $totalReceivables += $feeData['total_amount'];
-            $totalCollected += $feeData['total_paid'];
-            $totalBalance += $feeData['balance'];
-            
-            if ($feeData['is_overdue']) {
-                $overdueCount++;
-            }
-            
-            if ($feeData['total_amount'] > 0 && $feeData['balance'] <= 0) {
-                $fullyPaidCount++;
-            }
+        $effectiveYear = $schoolYear ?: (\App\Models\AppSetting::current()?->school_year);
+        if (!$effectiveYear) {
+            return [
+                'total_students' => $studentIds->count(),
+                'total_receivables' => 0,
+                'total_collected' => 0,
+                'total_balance' => 0,
+                'overdue_count' => 0,
+                'fully_paid' => 0,
+            ];
         }
+
+        $feeRows = StudentFee::query()
+            ->whereIn('student_id', $studentIds)
+            ->where('school_year', $effectiveYear)
+            ->get();
+
+        $totalReceivables = (float) $feeRows->sum('total_amount');
+        $totalBalance = (float) $feeRows->sum('balance');
+        $overdueCount = (int) $feeRows->where('is_overdue', true)->where('balance', '>', 0)->count();
+        $fullyPaidCount = (int) $feeRows
+            ->filter(fn($fee) => (float) $fee->total_amount > 0 && (float) $fee->balance <= 0)
+            ->count();
+
+        $totalCollected = (float) StudentPayment::query()
+            ->whereIn('student_id', $studentIds)
+            ->whereHas('studentFee', function ($q) use ($effectiveYear) {
+                $q->where('school_year', $effectiveYear);
+            })
+            ->sum('amount');
 
         return [
             'total_students' => $studentIds->count(),

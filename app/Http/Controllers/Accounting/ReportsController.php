@@ -34,9 +34,9 @@ class ReportsController extends Controller
         $schoolYear = $request->input('school_year');
         $status = $request->input('status');
         
-        // Show all school years by default; only narrow when a specific year is chosen.
-        if ($schoolYear === 'all' || $schoolYear === '') {
-            $schoolYear = null;
+        // Keep reports aligned with accounting dashboard default scope.
+        if ($schoolYear === 'all' || $schoolYear === '' || !$schoolYear) {
+            $schoolYear = $currentSchoolYear;
         }
 
         // Ensure report statuses reflect due-date overdue transitions.

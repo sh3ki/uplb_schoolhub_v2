@@ -353,19 +353,19 @@ class StudentPaymentController extends Controller
         // Load student with department for classification matching
         $student->load(['department', 'enrollmentClearance']);
 
-        // Keep this student's fee statuses in sync with due date rules.
-        StudentFee::syncOverdueByDueDate($student->school_year ?? null);
+        $activeSchoolYear = $request->input('school_year')
+            ?: ($student->school_year
+                ?: (\App\Models\AppSetting::current()?->school_year
+                    ?: date('Y') . '-' . (date('Y') + 1)));
 
-        // Get unique school years from fee_items that apply to this student
-        $schoolYears = $this->getApplicableSchoolYears($student);
+        // Keep this student's active school-year status in sync with due date rules.
+        StudentFee::syncOverdueByDueDate($activeSchoolYear);
 
-        // Build fees array dynamically from fee_items
+        // Simplified flow: process payments against the active school year only.
         $fees = collect();
-        foreach ($schoolYears as $schoolYear) {
-            $feeData = $this->calculateFeesForSchoolYear($student, $schoolYear);
-            if ($feeData) {
-                $fees->push($feeData);
-            }
+        $feeData = $this->calculateFeesForSchoolYear($student, $activeSchoolYear);
+        if ($feeData) {
+            $fees->push($feeData);
         }
 
         // Get all payments

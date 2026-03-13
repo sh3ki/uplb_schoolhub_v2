@@ -98,6 +98,17 @@ class StudentFee extends Model
     {
         $today = now()->toDateString();
 
+        // Clear stale overdue flags when payment already exists and balance is still outstanding.
+        static::query()
+            ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
+            ->where('is_overdue', true)
+            ->where('balance', '>', 0)
+            ->where('total_paid', '>', 0)
+            ->update([
+                'is_overdue' => false,
+                'payment_status' => 'partial',
+            ]);
+
         static::query()
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->whereNotNull('due_date')
