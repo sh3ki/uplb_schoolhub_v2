@@ -168,7 +168,7 @@ export default function AccountingReports({
             {
                 from: from || undefined,
                 to: to || undefined,
-                school_year: schoolYear !== 'all' ? schoolYear : undefined,
+                school_year: schoolYear || undefined,
                 status: status !== 'all' ? status : undefined,
                 department_id: departmentId !== 'all' ? departmentId : undefined,
                 classification: classification !== 'all' ? classification : undefined,
@@ -354,7 +354,6 @@ export default function AccountingReports({
                                         <SelectValue placeholder="Select school year..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Years</SelectItem>
                                         {schoolYears.map((year) => (
                                             <SelectItem key={year} value={year}>
                                                 {year}
