@@ -785,13 +785,12 @@ class StudentAccountController extends Controller
             $studentsQuery->where('school_year', $requestedSchoolYear);
         }
 
-        $targetSchoolYear = $requestedSchoolYear ?: $appSchoolYear;
         $eligibleStudentIds = $studentsQuery->pluck('id');
 
         // Mark all partial/unpaid accounts with outstanding balance as overdue for the target year.
         $count = StudentFee::query()
             ->whereIn('student_id', $eligibleStudentIds)
-            ->where('school_year', $targetSchoolYear)
+            ->when($requestedSchoolYear, fn($q) => $q->where('school_year', $requestedSchoolYear))
             ->where('balance', '>', 0)
             ->where(function ($q) {
                 $q->where('is_overdue', false)

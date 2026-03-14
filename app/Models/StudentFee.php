@@ -77,9 +77,11 @@ class StudentFee extends Model
         $this->total_paid = $this->payments()->sum('amount');
         $this->balance = max(0, (float) $this->total_amount - (float) $this->grant_discount - $this->total_paid);
 
-        // Once any payment is made, or balance is fully settled, the account is no longer overdue.
+        // Once any payment is made, or balance is fully settled, clear overdue and due date.
+        // This lets accounting set a new overdue cycle explicitly via Mark Overdue.
         if ($this->total_paid > 0 || $this->balance <= 0) {
             $this->is_overdue = false;
+            $this->due_date = null;
         }
 
         $this->payment_status = $this->is_overdue
@@ -98,25 +100,11 @@ class StudentFee extends Model
     {
         $today = now()->toDateString();
 
-        // Clear stale overdue flags when payment already exists and balance is still outstanding.
-        static::query()
-            ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
-            ->where('is_overdue', true)
-            ->where('balance', '>', 0)
-            ->where('total_paid', '>', 0)
-            ->update([
-                'is_overdue' => false,
-                'payment_status' => 'partial',
-            ]);
-
         static::query()
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->whereNotNull('due_date')
             ->whereDate('due_date', '<=', $today)
             ->where('balance', '>', 0)
-            // Overdue is auto-applied only to unpaid balances. Once a payment exists,
-            // account stays partial unless accounting manually marks overdue again.
-            ->where('total_paid', '<=', 0)
             ->update([
                 'is_overdue' => true,
                 'payment_status' => 'overdue',
