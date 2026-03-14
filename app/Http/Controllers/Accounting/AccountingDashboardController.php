@@ -26,7 +26,8 @@ class AccountingDashboardController extends Controller
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
 
-        $eligibleStudentIds = Student::query()
+        $eligibleStudents = Student::query()
+            ->with('department:id,name')
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
@@ -34,37 +35,32 @@ class AccountingDashboardController extends Controller
                 });
             })
             ->where('enrollment_status', '!=', 'not-enrolled')
-            ->pluck('id');
+            ->get(['id', 'school_year', 'department_id']);
 
-        $schoolYearFeeRows = StudentFee::with('payments')
-            ->whereIn('student_id', $eligibleStudentIds)
-            ->get()
-            ->sortByDesc('school_year', SORT_NATURAL)
-            ->groupBy('student_id');
+        $eligibleStudentIds = $eligibleStudents->pluck('id');
+        $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, null, $currentSchoolYear);
 
         $fullyPaid = 0;
         $partialPayment = 0;
         $unpaid = 0;
         $totalOutstanding = 0.0;
         $projectedRevenue = 0.0;
+        $totalCollected = 0.0;
 
-        foreach ($schoolYearFeeRows as $rows) {
-            $latestRow = $rows->first();
-            if (!$latestRow) {
-                continue;
-            }
-
-            $totalAmount = (float) $latestRow->total_amount;
-            $grantDiscount = (float) $latestRow->grant_discount;
-            $paid = (float) $latestRow->payments()->sum('amount');
-            $balance = max(0, $totalAmount - $grantDiscount - $paid);
-
+        foreach ($snapshots as $snapshot) {
+            $totalAmount = (float) $snapshot['total_amount'];
+            $paid = (float) $snapshot['total_paid'];
+            $balance = (float) $snapshot['balance'];
+            $isOverdueOutstanding = (bool) $snapshot['is_overdue'] && $balance > 0;
             if ($totalAmount <= 0) {
                 continue;
             }
 
-            $projectedRevenue += max(0, $totalAmount - $grantDiscount);
-            $totalOutstanding += $balance;
+            $projectedRevenue += $totalAmount;
+            $totalCollected += $paid;
+            if ($isOverdueOutstanding) {
+                $totalOutstanding += $balance;
+            }
 
             if ($balance <= 0) {
                 $fullyPaid++;
@@ -76,18 +72,12 @@ class AccountingDashboardController extends Controller
         }
 
         $totalStudents = $eligibleStudentIds->count();
-
-        $totalCollected = StudentPayment::whereIn('student_id', $eligibleStudentIds)->sum('amount');
         
         $stats = [
             'total_students' => $totalStudents,
             'fully_paid' => $fullyPaid,
             'partial_payment' => $partialPayment,
-            'overdue' => StudentFee::whereIn('student_id', $eligibleStudentIds)
-                ->where('school_year', $currentSchoolYear)
-                ->where('is_overdue', true)
-                ->where('balance', '>', 0)
-                ->count(),
+            'overdue' => collect($snapshots)->filter(fn($row) => (bool) $row['is_overdue'] && (float) $row['balance'] > 0)->count(),
             'document_payments' => DocumentRequest::where('is_paid', true)->count(),
         ];
 
@@ -119,26 +109,23 @@ class AccountingDashboardController extends Controller
         }
 
         // Outstanding balance by department
-        $departmentBalances = Department::select('departments.name as department')
-            ->selectRaw('COUNT(DISTINCT students.id) as student_count')
-            ->selectRaw('COALESCE(SUM(student_fees.balance), 0) as balance')
-            ->leftJoin('students', 'departments.id', '=', 'students.department_id')
-            ->leftJoin('student_fees', 'students.id', '=', 'student_fees.student_id')
-            ->where(function ($q) {
-                $q->whereNull('student_fees.balance')
-                  ->orWhere('student_fees.balance', '>', 0);
-            })
-            ->groupBy('departments.id', 'departments.name')
-            ->orderBy('balance', 'desc')
-            ->take(6)
-            ->get()
-            ->map(function ($dept) {
+        $departmentBalances = collect($snapshots)
+            ->groupBy('department')
+            ->map(function ($rows, $department) {
+                $studentCount = $rows->pluck('student_id')->unique()->count();
+                $overdueBalance = $rows
+                    ->filter(fn($row) => (bool) $row['is_overdue'] && (float) $row['balance'] > 0)
+                    ->sum('balance');
+
                 return [
-                    'department' => $dept->department,
-                    'student_count' => (int) $dept->student_count,
-                    'balance' => (float) $dept->balance,
+                    'department' => (string) ($department ?: 'Unassigned'),
+                    'student_count' => (int) $studentCount,
+                    'balance' => (float) $overdueBalance,
                 ];
             })
+            ->sortByDesc('balance')
+            ->take(6)
+            ->values()
             ->toArray();
 
         // Recent payment activities
@@ -194,6 +181,46 @@ class AccountingDashboardController extends Controller
             'projectedRevenue' => (float) $projectedRevenue,
             'totalCollected' => (float) $totalCollected,
         ]);
+    }
+
+    private function buildStudentAccountSnapshots($students, ?string $forcedSchoolYear, string $fallbackSchoolYear): array
+    {
+        $studentIds = $students->pluck('id')->filter()->values();
+        if ($studentIds->isEmpty()) {
+            return [];
+        }
+
+        $feesByStudentYear = StudentFee::query()
+            ->with('payments:id,student_fee_id,amount')
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->groupBy(function (StudentFee $fee) {
+                return $fee->student_id . '|' . trim((string) $fee->school_year);
+            });
+
+        $snapshots = [];
+        foreach ($students as $student) {
+            $targetSchoolYear = $forcedSchoolYear ?: ($student->school_year ?: $fallbackSchoolYear);
+            $key = $student->id . '|' . trim((string) $targetSchoolYear);
+            /** @var StudentFee|null $fee */
+            $fee = $feesByStudentYear->get($key)?->first();
+
+            $totalAmount = (float) ($fee?->total_amount ?? 0);
+            $totalPaid = (float) ($fee ? $fee->payments->sum('amount') : 0);
+            $balance = max(0, $totalAmount - (float) ($fee?->grant_discount ?? 0) - $totalPaid);
+
+            $snapshots[] = [
+                'student_id' => (int) $student->id,
+                'department' => $student->department?->name,
+                'school_year' => $targetSchoolYear,
+                'total_amount' => $totalAmount,
+                'total_paid' => $totalPaid,
+                'balance' => $balance,
+                'is_overdue' => (bool) ($fee?->is_overdue ?? false),
+            ];
+        }
+
+        return $snapshots;
     }
 
     /**
