@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\FeeItem;
 use App\Models\FeeItemAssignment;
-use App\Models\GrantRecipient;
 use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
@@ -32,8 +31,8 @@ class OnlinePaymentController extends Controller
         }
 
         // Get fee items based on student's classification/department/year_level
-        $targetSchoolYear = $student->school_year
-            ?: (\App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
+        $activeSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+        $targetSchoolYear = $student->school_year ?: $activeSchoolYear;
         $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
 
         // Get student's fee summary
@@ -173,18 +172,37 @@ class OnlinePaymentController extends Controller
      */
     private function getFeeSummary(Student $student, string $targetSchoolYear): array
     {
-        $fees = StudentFee::where('student_id', $student->id)
+        $fees = StudentFee::with('payments')
+            ->where('student_id', $student->id)
             ->where('school_year', $targetSchoolYear)
             ->get();
 
         $totalFees = (float) $fees->sum('total_amount');
         $totalDiscount = (float) $fees->sum('grant_discount');
-        $totalPaid = (float) StudentPayment::query()
-            ->where('student_id', $student->id)
-            ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
-                $q->where('school_year', $targetSchoolYear);
-            })
-            ->sum('amount');
+        $totalPaid = (float) $fees->flatMap->payments->sum('amount');
+
+        // Fallback: if the year has no student_fees row yet, compute totals from assigned fee items
+        // so students don't see zeros while accounting computes the same cycle.
+        if ($fees->isEmpty()) {
+            $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
+            $totalFees = (float) collect($feeItems)->sum('amount');
+
+            $grantRecipients = $this->getGrantRecipientsForFeeYear($student, $targetSchoolYear);
+            $totalDiscount = 0.0;
+            foreach ($grantRecipients as $recipient) {
+                if ($recipient->grant) {
+                    $totalDiscount += $recipient->grant->calculateDiscount($totalFees);
+                }
+            }
+
+            $totalPaid = (float) StudentPayment::query()
+                ->where('student_id', $student->id)
+                ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
+                    $q->where('school_year', $targetSchoolYear);
+                })
+                ->sum('amount');
+        }
+
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         return [
@@ -193,5 +211,39 @@ class OnlinePaymentController extends Controller
             'total_paid'     => $totalPaid,
             'balance'        => $balance,
         ];
+    }
+
+    /**
+     * Get grant recipients for a fee year with a safe fallback to active grants on the student's primary year.
+     */
+    private function getGrantRecipientsForFeeYear(Student $student, string $schoolYear)
+    {
+        $baseQuery = \App\Models\GrantRecipient::where('student_id', $student->id)
+            ->where('status', 'active');
+
+        $exact = (clone $baseQuery)
+            ->where('school_year', $schoolYear)
+            ->orderByDesc('id')
+            ->with('grant')
+            ->get();
+
+        if ($exact->isNotEmpty()) {
+            return $exact->unique('grant_id')->values();
+        }
+
+        $primaryYear = $student->school_year
+            ?? \App\Models\AppSetting::current()?->school_year
+            ?? $schoolYear;
+
+        if ($schoolYear === $primaryYear) {
+            return $baseQuery
+                ->orderByDesc('id')
+                ->with('grant')
+                ->get()
+                ->unique('grant_id')
+                ->values();
+        }
+
+        return collect();
     }
 }
