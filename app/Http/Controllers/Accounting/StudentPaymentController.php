@@ -390,6 +390,7 @@ class StudentPaymentController extends Controller
                     'amount' => (float) $payment->amount,
                     'payment_for' => $payment->payment_for,
                     'payment_mode' => $normalizedMode,
+                    'bank_name' => $payment->bank_name,
                     'notes' => $payment->notes,
                     'recorded_by' => $payment->recordedBy?->name,
                     'school_year' => $payment->studentFee?->school_year,
