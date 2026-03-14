@@ -118,6 +118,7 @@ interface Payment {
     amount: number;
     payment_for: string;
     payment_mode: string;
+    bank_name?: string | null;
     notes: string | null;
     recorded_by: string;
     created_at: string;
@@ -200,6 +201,17 @@ function formatDate(dateString: string): string {
 }
 
 export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], enrollmentClearance = null, currentUser }: Props) {
+    const defaultTab = useMemo(() => {
+        if (typeof window === 'undefined') {
+            return 'make-payment';
+        }
+
+        const requestedTab = new URLSearchParams(window.location.search).get('tab') || '';
+        const allowedTabs = ['make-payment', 'breakdown', 'school-year', 'promissory', 'transactions'];
+        return allowedTabs.includes(requestedTab) ? requestedTab : 'make-payment';
+    }, []);
+
+    const [activeTab, setActiveTab] = useState<string>(defaultTab);
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [clearanceDialog, setClearanceDialog] = useState(false);
@@ -693,7 +705,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                 </Card>
 
                 {/* Tabs */}
-                <Tabs defaultValue="make-payment" className="w-full">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-5">
                         <TabsTrigger value="make-payment" className="flex items-center gap-2">
                             <CreditCard className="h-4 w-4" />
@@ -1412,7 +1424,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         {payment.payment_mode || 'CASH'}
                                                     </TableCell>
                                                     <TableCell className="max-w-xs truncate text-muted-foreground">
-                                                        {payment.notes || '-'}
+                                                        {payment.payment_mode === 'BANK' && payment.bank_name
+                                                            ? `Bank: ${payment.bank_name}${payment.notes ? ` · ${payment.notes}` : ''}`
+                                                            : (payment.notes || '-')}
                                                     </TableCell>
                                                     <TableCell>{payment.recorded_by}</TableCell>
                                                 </TableRow>
