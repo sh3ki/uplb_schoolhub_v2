@@ -13,7 +13,6 @@ use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\DB;
@@ -325,22 +324,8 @@ class ReportsController extends Controller
             ->get();
 
         return $departments
-            ->map(function ($dept) {
-                return [
-                    'department'      => $dept->name,
-                    'students'        => 0,
-                    'billed'          => 0.0,
-                    'collected'       => 0.0,
-                    'balance'         => 0.0,
-                    'collection_rate' => 0.0,
-                ];
-            })
-            ->map(function ($row) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear) {
-                $deptStudents = $students->where('department_id', function ($value) use ($row) {
-                    return $value !== null;
-                })->filter(function ($student) use ($row) {
-                    return $student->department?->name === $row['department'];
-                })->values();
+            ->map(function ($dept) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear) {
+                $deptStudents = $students->where('department_id', $dept->id)->values();
 
                 $billed = 0.0;
                 $collected = 0.0;
@@ -370,7 +355,7 @@ class ReportsController extends Controller
                 $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
 
                 return [
-                    'department'      => $row['department'],
+                    'department'      => $dept->name,
                     'students'        => $deptStudents->count(),
                     'billed'          => round($billed, 2),
                     'collected'       => round($collected, 2),
