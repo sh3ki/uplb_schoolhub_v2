@@ -13,6 +13,7 @@ use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
 use Illuminate\Support\Facades\DB;
@@ -276,7 +277,11 @@ class ReportsController extends Controller
             'classifications' => $classifications,
             'feeReport' => $feeReport,
             'documentFeeReport' => $documentFeeReport,
-            'departmentAnalysis' => $this->buildDepartmentAnalysis(),
+            'departmentAnalysis' => $this->buildDepartmentAnalysis(
+                $schoolYear,
+                $request->input('department_id') ? (int) $request->input('department_id') : null,
+                $request->input('classification') ?: null,
+            ),
         ]);
     }
 
@@ -285,21 +290,91 @@ class ReportsController extends Controller
         return $this->viewPrefix() . '/reports';
     }
 
-    private function buildDepartmentAnalysis(): array
+    private function buildDepartmentAnalysis(?string $forcedSchoolYear = null, ?int $departmentId = null, ?string $classification = null): array
     {
-        return Department::all()
+        $activeSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $students = Student::query()
+            ->with('department:id,name,classification')
+            ->whereHas('enrollmentClearance', function ($q) {
+                $q->where(function ($sq) {
+                    $sq->where('registrar_clearance', true)
+                        ->orWhere('enrollment_status', 'completed');
+                });
+            })
+            ->where('enrollment_status', '!=', 'not-enrolled')
+            ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
+            ->when($classification, function ($q) use ($classification) {
+                $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+            })
+            ->get(['id', 'department_id', 'school_year']);
+
+        $studentIds = $students->pluck('id')->filter()->values();
+
+        $feeRows = StudentFee::query()
+            ->with('payments:id,student_fee_id,amount')
+            ->whereIn('student_id', $studentIds)
+            ->get()
+            ->groupBy(function (StudentFee $fee) {
+                return $fee->student_id . '|' . trim((string) $fee->school_year);
+            });
+
+        $departments = Department::query()
+            ->when($departmentId, fn($q) => $q->where('id', $departmentId))
+            ->when($classification, fn($q) => $q->where('classification', $classification))
+            ->get();
+
+        return $departments
             ->map(function ($dept) {
-                $studentIds     = Student::where('department_id', $dept->id)->whereNull('deleted_at')->pluck('id');
-                $totalBilled    = (float) StudentFee::whereIn('student_id', $studentIds)->sum('total_amount');
-                $totalCollected = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount');
-                $totalBalance   = (float) StudentFee::whereIn('student_id', $studentIds)->sum('balance');
-                $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
                 return [
                     'department'      => $dept->name,
-                    'students'        => $studentIds->count(),
-                    'billed'          => round($totalBilled, 2),
-                    'collected'       => round($totalCollected, 2),
-                    'balance'         => round($totalBalance, 2),
+                    'students'        => 0,
+                    'billed'          => 0.0,
+                    'collected'       => 0.0,
+                    'balance'         => 0.0,
+                    'collection_rate' => 0.0,
+                ];
+            })
+            ->map(function ($row) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear) {
+                $deptStudents = $students->where('department_id', function ($value) use ($row) {
+                    return $value !== null;
+                })->filter(function ($student) use ($row) {
+                    return $student->department?->name === $row['department'];
+                })->values();
+
+                $billed = 0.0;
+                $collected = 0.0;
+                $outstanding = 0.0;
+
+                foreach ($deptStudents as $student) {
+                    $targetSchoolYear = $forcedSchoolYear ?: ($student->school_year ?: $activeSchoolYear);
+                    $key = $student->id . '|' . trim((string) $targetSchoolYear);
+                    /** @var StudentFee|null $fee */
+                    $fee = $feeRows->get($key)?->first();
+                    if (!$fee) {
+                        continue;
+                    }
+
+                    $totalAmount = (float) $fee->total_amount;
+                    $totalPaid = (float) $fee->payments->sum('amount');
+                    $balance = max(0, $totalAmount - (float) $fee->grant_discount - $totalPaid);
+                    $isOverdueOutstanding = (bool) $fee->is_overdue && $balance > 0;
+
+                    $billed += $totalAmount;
+                    $collected += $totalPaid;
+                    if ($isOverdueOutstanding) {
+                        $outstanding += $balance;
+                    }
+                }
+
+                $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
+
+                return [
+                    'department'      => $row['department'],
+                    'students'        => $deptStudents->count(),
+                    'billed'          => round($billed, 2),
+                    'collected'       => round($collected, 2),
+                    'balance'         => round($outstanding, 2),
                     'collection_rate' => $collectionRate,
                 ];
             })
