@@ -32,10 +32,12 @@ class OnlinePaymentController extends Controller
         }
 
         // Get fee items based on student's classification/department/year_level
-        $feeItems = $this->getStudentFeeItems($student);
+        $targetSchoolYear = $student->school_year
+            ?: (\App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
+        $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
 
         // Get student's fee summary
-        $summary = $this->getFeeSummary($student);
+        $summary = $this->getFeeSummary($student, $targetSchoolYear);
 
         // Get recent online payments
         $recentPayments = OnlineTransaction::where('student_id', $student->id)
@@ -119,10 +121,9 @@ class OnlinePaymentController extends Controller
     /**
      * Get fee items assigned to this student based on their classification/department/year_level.
      */
-    private function getStudentFeeItems(Student $student): array
+    private function getStudentFeeItems(Student $student, string $schoolYear): array
     {
-        $schoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
-        
+
         // Get fee items from assignments
         $assignedFeeItemIds = FeeItemAssignment::where('school_year', $schoolYear)
             ->where('is_active', true)
@@ -170,46 +171,27 @@ class OnlinePaymentController extends Controller
     /**
      * Get fee summary for the student from StudentFee records (authoritative source).
      */
-    private function getFeeSummary(Student $student): array
+    private function getFeeSummary(Student $student, string $targetSchoolYear): array
     {
-        $fees = StudentFee::where('student_id', $student->id)->get();
+        $fees = StudentFee::where('student_id', $student->id)
+            ->where('school_year', $targetSchoolYear)
+            ->get();
 
-        // Sync grant discounts: recalculate from Grant model to fix stale discount_amount=0 records.
-        // Never apply a grant to a fee record with no fees — prevents double-counting.
-        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year;
-        foreach ($fees as $feeToSync) {
-            if ((float) $feeToSync->total_amount <= 0) {
-                if ((float) $feeToSync->grant_discount !== 0.0 || (float) $feeToSync->balance !== 0.0) {
-                    $feeToSync->grant_discount = 0;
-                    $feeToSync->balance        = 0;
-                    $feeToSync->save();
-                }
-                continue;
-            }
-            $recipients = GrantRecipient::where('student_id', $student->id)
-                ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
-                ->where('status', 'active')
-                ->with('grant')
-                ->get();
-            $freshGrant = 0.0;
-            foreach ($recipients as $r) {
-                if ($r->grant) {
-                    $freshGrant += $r->grant->calculateDiscount((float) $feeToSync->total_amount);
-                }
-            }
-            $expectedBalance = max(0, (float) $feeToSync->total_amount - $freshGrant - (float) $feeToSync->total_paid);
-            if ((float) $feeToSync->grant_discount !== $freshGrant || (float) $feeToSync->balance !== $expectedBalance) {
-                $feeToSync->grant_discount = $freshGrant;
-                $feeToSync->balance = $expectedBalance;
-                $feeToSync->save();
-            }
-        }
+        $totalFees = (float) $fees->sum('total_amount');
+        $totalDiscount = (float) $fees->sum('grant_discount');
+        $totalPaid = (float) StudentPayment::query()
+            ->where('student_id', $student->id)
+            ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
+                $q->where('school_year', $targetSchoolYear);
+            })
+            ->sum('amount');
+        $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         return [
-            'total_fees'     => (float) $fees->sum('total_amount'),
-            'total_discount' => (float) $fees->sum('grant_discount'),
-            'total_paid'     => (float) $fees->sum('total_paid'),
-            'balance'        => (float) $fees->sum('balance'),
+            'total_fees'     => $totalFees,
+            'total_discount' => $totalDiscount,
+            'total_paid'     => $totalPaid,
+            'balance'        => $balance,
         ];
     }
 }

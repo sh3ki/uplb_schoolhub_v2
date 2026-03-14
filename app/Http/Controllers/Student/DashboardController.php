@@ -79,78 +79,26 @@ class DashboardController extends Controller
      */
     private function getPaymentSummary(Student $student): ?array
     {
-        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+        $targetSchoolYear = $student->school_year
+            ?: (\App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
 
-        // Sync grant discounts: recalculate from Grant model so stale discount_amount never causes issues.
-        // For the current school year apply ALL active grants (fixes year-label mismatch from form default).
-        foreach (StudentFee::where('student_id', $student->id)->get() as $feeToSync) {
-            /** @var \App\Models\StudentFee $feeToSync */
-            // Never apply a grant discount to a fee record with no fees — prevents double-counting
-            // when a placeholder record exists for a year with no fee items.
-            if ((float) $feeToSync->total_amount <= 0) {
-                if ((float) $feeToSync->grant_discount !== 0.0 || (float) $feeToSync->balance !== 0.0) {
-                    $feeToSync->grant_discount = 0;
-                    $feeToSync->balance        = 0;
-                    $feeToSync->save();
-                }
-                continue;
-            }
-            $recipients = GrantRecipient::where('student_id', $student->id)
-                ->when($feeToSync->school_year !== $currentSchoolYear, fn($q) => $q->where('school_year', $feeToSync->school_year))
-                ->where('status', 'active')
-                ->with('grant')
-                ->get();
-            $freshGrant = 0.0;
-            foreach ($recipients as $r) {
-                /** @var \App\Models\GrantRecipient $r */
-                if ($r->grant) {
-                    $calculated = $r->grant->calculateDiscount((float) $feeToSync->total_amount);
-                    if ((float) $r->discount_amount !== $calculated) {
-                        $r->discount_amount = $calculated;
-                        $r->save();
-                    }
-                    $freshGrant += $calculated;
-                }
-            }
-            // Use fresh payment sum (never rely on stale total_paid column)
-            $freshPaid = (float) $feeToSync->payments()->sum('amount');
-            $expectedBalance = max(0, (float) $feeToSync->total_amount - $freshGrant - $freshPaid);
-            if ((float) $feeToSync->grant_discount !== $freshGrant
-                || (float) $feeToSync->total_paid  !== $freshPaid
-                || (float) $feeToSync->balance     !== $expectedBalance) {
-                $feeToSync->grant_discount = $freshGrant;
-                $feeToSync->total_paid     = $freshPaid;
-                $feeToSync->balance        = $expectedBalance;
-                $feeToSync->save();
-            }
-        }
-
-        // Re-fetch fees with fresh data
         $fees = StudentFee::with(['payments'])
             ->where('student_id', $student->id)
             ->orderBy('school_year', 'desc')
             ->get();
 
-        // Calculate summary stats from active/current school year only.
-        $normalizedCurrentYear = trim((string) $currentSchoolYear);
-        $currentFees = $fees->filter(fn($fee) => trim((string) $fee->school_year) === $normalizedCurrentYear);
+        $currentFees = $fees->filter(fn($fee) => trim((string) $fee->school_year) === trim((string) $targetSchoolYear));
+        $studentFee = $currentFees->first();
 
         $totalFees = (float) $currentFees->sum('total_amount');
         $totalDiscount = (float) $currentFees->sum('grant_discount');
         $totalPaid = (float) $currentFees->flatMap->payments->sum('amount');
-        
-        // Calculate previous balance (from previous school years) and current fees balance
-        $previousBalance = $fees
-            ->filter(fn($fee) => trim((string) $fee->school_year) !== $normalizedCurrentYear)
-            ->sum('balance');
-        $currentFeesBalance = (float) $currentFees->sum('balance');
-
-        // Always compute balance dynamically: total_fees - grant_discount - total_paid
-        // (never trust the stored balance column alone as it can be stale before sync)
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
-        // Get StudentFee record for overdue status
-        $studentFee = $currentFees->first();
+        $previousBalance = (float) $fees
+            ->filter(fn($fee) => trim((string) $fee->school_year) !== trim((string) $targetSchoolYear))
+            ->sum('balance');
+        $currentFeesBalance = $balance;
 
         // Get approved promissory notes
         $approvedPromissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
