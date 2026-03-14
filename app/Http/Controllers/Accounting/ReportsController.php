@@ -343,11 +343,10 @@ class ReportsController extends Controller
                     $totalAmount = (float) $fee->total_amount;
                     $totalPaid = (float) $fee->payments->sum('amount');
                     $balance = max(0, $totalAmount - (float) $fee->grant_discount - $totalPaid);
-                    $isOverdueOutstanding = (bool) $fee->is_overdue && $balance > 0;
 
                     $billed += $totalAmount;
                     $collected += $totalPaid;
-                    if ($isOverdueOutstanding) {
+                    if ($balance > 0) {
                         $outstanding += $balance;
                     }
                 }
