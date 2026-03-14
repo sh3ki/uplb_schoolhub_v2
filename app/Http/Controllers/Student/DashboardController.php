@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\GrantRecipient;
 use App\Models\Student;
 use App\Models\StudentFee;
 use Illuminate\Support\Facades\Auth;
@@ -38,13 +37,14 @@ class DashboardController extends Controller
         $requirementsPercentage = $totalRequirements > 0 ? round(($completedRequirements / $totalRequirements) * 100) : 0;
 
         // Get current school year
-        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+        $activeSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+        $targetSchoolYear = $student->school_year ?: $activeSchoolYear;
 
         // Get payment info using same logic as online payments
-        $paymentInfo = $this->getPaymentSummary($student);
+        $paymentInfo = $this->getPaymentSummary($student, $targetSchoolYear);
 
         // Get previous school year balances
-        $previousBalances = $this->getPreviousSchoolYearBalances($student, $currentSchoolYear);
+        $previousBalances = $this->getPreviousSchoolYearBalances($student, $targetSchoolYear);
 
         // Check if student has incomplete requirements
         $incompleteRequirements = $student->requirements
@@ -60,7 +60,7 @@ class DashboardController extends Controller
 
         return Inertia::render('student/dashboard', [
             'student' => $student,
-            'currentSchoolYear' => $currentSchoolYear,
+            'currentSchoolYear' => $targetSchoolYear,
             'stats' => [
                 'totalRequirements' => $totalRequirements,
                 'completedRequirements' => $completedRequirements,
@@ -77,11 +77,8 @@ class DashboardController extends Controller
     /**
      * Get payment summary using same logic as accounting payments process.
      */
-    private function getPaymentSummary(Student $student): ?array
+    private function getPaymentSummary(Student $student, string $targetSchoolYear): ?array
     {
-        $targetSchoolYear = $student->school_year
-            ?: (\App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
-
         $fees = StudentFee::with(['payments'])
             ->where('student_id', $student->id)
             ->orderBy('school_year', 'desc')
