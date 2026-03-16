@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\BalanceAdjustment;
 use App\Models\Department;
+use App\Models\DocumentRequest;
 use App\Models\EnrollmentClearance;
 use App\Models\Grant;
 use App\Models\GrantRecipient;
@@ -371,33 +372,77 @@ class StudentPaymentController extends Controller
         }
 
         // Get payments for the active billing year only.
-        $payments = StudentPayment::where('student_id', $student->id)
-            ->whereHas('studentFee', function ($query) use ($activeSchoolYear) {
-                $query->where('school_year', $activeSchoolYear);
-            })
-            ->with(['recordedBy', 'studentFee'])
-            ->orderBy('payment_date', 'desc')
-            ->get()
-            ->map(function ($payment) {
-                $normalizedMode = strtoupper((string) ($payment->payment_mode ?? $payment->payment_method ?? 'CASH'));
-                if ($normalizedMode === 'BANK_TRANSFER') {
-                    $normalizedMode = 'BANK';
-                }
-                return [
-                    'id' => $payment->id,
-                    'payment_date' => $payment->payment_date,
-                    'or_number' => $payment->or_number,
-                    'amount' => (float) $payment->amount,
-                    'payment_for' => $payment->payment_for,
-                    'payment_mode' => $normalizedMode,
-                    'bank_name' => $payment->bank_name,
-                    'notes' => $payment->notes,
-                    'recorded_by' => $payment->recordedBy?->name,
-                    'school_year' => $payment->studentFee?->school_year,
-                    'created_at' => $payment->created_at->format('Y-m-d H:i'),
-                    'type' => 'on-site',
-                ];
-            });
+            // Active-year fee payments for summary computation.
+            $activeYearPayments = StudentPayment::where('student_id', $student->id)
+                ->whereHas('studentFee', function ($query) use ($activeSchoolYear) {
+                    $query->where('school_year', $activeSchoolYear);
+                })
+                ->sum('amount');
+
+            // Transaction history should include all student fee payments and paid document requests.
+            $feeTransactions = StudentPayment::where('student_id', $student->id)
+                ->with(['recordedBy', 'studentFee'])
+                ->orderBy('payment_date', 'desc')
+                ->get()
+                ->map(function ($payment) {
+                    $normalizedMode = strtoupper((string) ($payment->payment_mode ?? $payment->payment_method ?? 'CASH'));
+                    if ($normalizedMode === 'BANK_TRANSFER') {
+                        $normalizedMode = 'BANK';
+                    }
+                    return [
+                        'id' => $payment->id,
+                        'payment_date' => $payment->payment_date,
+                        'or_number' => $payment->or_number,
+                        'amount' => (float) $payment->amount,
+                        'payment_for' => $payment->payment_for,
+                        'payment_mode' => $normalizedMode,
+                        'bank_name' => $payment->bank_name,
+                        'notes' => $payment->notes,
+                        'recorded_by' => $payment->recordedBy?->name,
+                        'school_year' => $payment->studentFee?->school_year,
+                        'created_at' => $payment->created_at->format('h:i A'),
+                        'type' => 'on-site',
+                        'transaction_type' => 'fee',
+                    ];
+                });
+
+            $documentTransactions = DocumentRequest::where('student_id', $student->id)
+                ->where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->get()
+                ->map(function ($request) {
+                    $mode = strtoupper((string) ($request->payment_type ?: 'CASH'));
+                    if ($mode === 'BANK_TRANSFER') {
+                        $mode = 'BANK';
+                    }
+                    $dateTime = $request->accounting_approved_at
+                        ?: $request->updated_at
+                        ?: $request->created_at;
+
+                    return [
+                        'id' => 'document-' . $request->id,
+                        'payment_date' => ($dateTime ?: now())->format('Y-m-d'),
+                        'or_number' => $request->or_number,
+                        'amount' => (float) $request->fee,
+                        'payment_for' => $request->document_type_label ?: 'document',
+                        'payment_mode' => $mode,
+                        'bank_name' => $mode === 'BANK' ? $request->bank_name : null,
+                        'notes' => 'Document request payment',
+                        'recorded_by' => $request->accountingApprovedBy?->name ?? 'N/A',
+                        'school_year' => null,
+                        'created_at' => ($dateTime ?: now())->format('h:i A'),
+                        'transaction_type' => 'document',
+                    ];
+                });
+
+            $payments = $feeTransactions
+                ->concat($documentTransactions)
+                ->sortByDesc(function ($row) {
+                    $date = (string) ($row['payment_date'] ?? '1970-01-01');
+                    $time = (string) ($row['created_at'] ?? '12:00 AM');
+                    return strtotime($date . ' ' . $time) ?: 0;
+                })
+                ->values();
 
         // Include online transactions in the payment history.
         $onlineTransactions = \App\Models\OnlineTransaction::where('student_id', $student->id)
@@ -456,7 +501,7 @@ class StudentPaymentController extends Controller
         // Calculate summary stats dynamically
         $totalFees = $fees->sum('total_amount');
         $totalDiscount = $fees->sum('grant_discount');
-        $totalPaid = $payments->sum('amount');
+        $totalPaid = (float) $activeYearPayments;
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
