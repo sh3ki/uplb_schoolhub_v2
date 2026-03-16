@@ -122,6 +122,7 @@ interface Payment {
     notes: string | null;
     recorded_by: string;
     created_at: string;
+    type?: 'on-site' | 'online';
 }
 
 interface PromissoryNote {
@@ -197,6 +198,15 @@ function formatDate(dateString: string): string {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
+    });
+}
+
+function formatTime(dateTimeString: string): string {
+    const date = new Date(dateTimeString.replace(' ', 'T'));
+    return date.toLocaleTimeString('en-PH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
     });
 }
 
@@ -1395,6 +1405,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <TableHead className="text-right">Amount</TableHead>
                                                 <TableHead>Mode of Payment</TableHead>
                                                 <TableHead>Notes</TableHead>
+                                                <TableHead>Type</TableHead>
                                                 <TableHead>Recorded By</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1405,7 +1416,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         {formatDate(payment.payment_date)}
                                                         {payment.created_at && (
                                                             <span className="block text-xs text-muted-foreground">
-                                                                {payment.created_at.split(' ')[1]}
+                                                                {formatTime(payment.created_at)}
                                                             </span>
                                                         )}
                                                     </TableCell>
@@ -1427,6 +1438,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         {payment.payment_mode === 'BANK' && payment.bank_name
                                                             ? `Bank: ${payment.bank_name}${payment.notes ? ` · ${payment.notes}` : ''}`
                                                             : (payment.notes || '-')}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline" className={payment.type === 'online' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-700'}>
+                                                            {payment.type === 'online' ? 'Online' : 'On-site'}
+                                                        </Badge>
                                                     </TableCell>
                                                     <TableCell>{payment.recorded_by}</TableCell>
                                                 </TableRow>
