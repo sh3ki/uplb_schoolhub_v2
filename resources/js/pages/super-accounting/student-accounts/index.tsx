@@ -218,7 +218,8 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         overdueForm.transform((data) => ({
             ...data,
             school_year: schoolYear !== 'all' ? schoolYear : 'all',
-        })).post('/super-accounting/student-accounts/bulk-mark-overdue', {
+        }));
+        overdueForm.post('/super-accounting/student-accounts/bulk-mark-overdue', {
             onSuccess: () => {
                 setIsOverdueDialogOpen(false);
                 overdueForm.reset();
