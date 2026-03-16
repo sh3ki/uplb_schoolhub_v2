@@ -217,12 +217,15 @@ class ReportsController extends Controller
 
         // Summary Statistics
         $summarySource = $mappedBalanceReport;
+        $totalCollected = (float) (clone $paymentQuery)->sum('amount')
+            + (float) (clone $documentQuery)->sum('fee')
+            + (float) (clone $dropQuery)->sum('fee_amount');
         $fullyPaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'paid')->count();
         $partialCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'partial')->count();
         $unpaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'unpaid')->count();
         $summaryStats = [
             'total_collectibles' => (float) $summarySource->sum('balance'),
-            'total_collected' => (float) (clone $paymentQuery)->sum('amount'),
+            'total_collected' => $totalCollected,
             'fully_paid_count' => $fullyPaidCount,
             'partial_paid_count' => $partialCount,
             'unpaid_count' => $unpaidCount,
@@ -417,6 +420,7 @@ class ReportsController extends Controller
                 $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
 
                 return [
+                    'department_id'   => $dept->id,
                     'department'      => $dept->name,
                     'students'        => $deptStudents->count(),
                     'billed'          => round($billed, 2),
