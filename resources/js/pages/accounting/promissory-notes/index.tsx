@@ -374,7 +374,11 @@ export default function PromissoryNotesIndex({ notes, stats, departments, school
                                     </TableRow>
                                 ) : (
                                     notes.data.map((note) => (
-                                        <TableRow key={note.id}>
+                                        <TableRow
+                                            key={note.id}
+                                            className="cursor-pointer hover:bg-muted/50"
+                                            onClick={() => router.visit(`/accounting/payments/process/${note.student_id}?tab=promissory`)}
+                                        >
                                             <TableCell>
                                                 <div className="flex items-center gap-3">
                                                     <StudentPhoto
@@ -410,7 +414,7 @@ export default function PromissoryNotesIndex({ notes, stats, departments, school
                                                             size="sm"
                                                             variant="default"
                                                             className="h-8"
-                                                            onClick={() => openApproveDialog(note)}
+                                                            onClick={(e) => { e.stopPropagation(); openApproveDialog(note); }}
                                                         >
                                                             <Check className="h-3 w-3 mr-1" />
                                                             Approve
@@ -419,7 +423,7 @@ export default function PromissoryNotesIndex({ notes, stats, departments, school
                                                             size="sm"
                                                             variant="destructive"
                                                             className="h-8"
-                                                            onClick={() => openDeclineDialog(note)}
+                                                            onClick={(e) => { e.stopPropagation(); openDeclineDialog(note); }}
                                                         >
                                                             <X className="h-3 w-3 mr-1" />
                                                             Decline

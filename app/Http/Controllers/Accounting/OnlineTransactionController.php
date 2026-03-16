@@ -60,7 +60,7 @@ class OnlineTransactionController extends Controller
                 'id' => $transaction->id,
                 'student_id' => $transaction->student_id,
                 'transaction_reference' => $transaction->transaction_id,
-                'payment_provider' => $transaction->payment_method,
+                'payment_provider' => $transaction->payment_method === 'bank_transfer' ? 'bank' : $transaction->payment_method,
                 'amount' => $transaction->amount,
                 'fee' => '0.00',
                 'net_amount' => $transaction->amount,

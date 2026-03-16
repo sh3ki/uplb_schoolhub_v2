@@ -165,8 +165,8 @@ export default function AccountDashboard({
             program:        program || undefined,
             year_level:     yearLevel || undefined,
             section:        section || undefined,
-            date_from: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
-            date_to:   dateRange?.to   ? dateRange.to.toISOString().split('T')[0]   : undefined,
+            date_from: dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : undefined,
+            date_to:   dateRange?.to   ? dateRange.to.toLocaleDateString('en-CA')   : undefined,
         }, { preserveState: true, preserveScroll: true });
     };
 
