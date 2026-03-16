@@ -123,6 +123,7 @@ interface Payment {
     recorded_by: string;
     created_at: string;
     type?: 'on-site' | 'online';
+    transaction_type?: 'fee' | 'document';
 }
 
 interface PromissoryNote {
@@ -198,15 +199,6 @@ function formatDate(dateString: string): string {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
-    });
-}
-
-function formatTime(dateTimeString: string): string {
-    const date = new Date(dateTimeString.replace(' ', 'T'));
-    return date.toLocaleTimeString('en-PH', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
     });
 }
 
@@ -1416,7 +1408,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         {formatDate(payment.payment_date)}
                                                         {payment.created_at && (
                                                             <span className="block text-xs text-muted-foreground">
-                                                                {formatTime(payment.created_at)}
+                                                                {payment.created_at}
                                                             </span>
                                                         )}
                                                     </TableCell>
@@ -1440,9 +1432,15 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             : (payment.notes || '-')}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="outline" className={payment.type === 'online' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-700'}>
-                                                            {payment.type === 'online' ? 'Online' : 'On-site'}
-                                                        </Badge>
+                                                        {payment.transaction_type === 'document' ? (
+                                                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
+                                                                Document Request
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant="outline" className={payment.type === 'online' ? 'bg-blue-50 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-700'}>
+                                                                {payment.type === 'online' ? 'Online' : 'On-site'}
+                                                            </Badge>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>{payment.recorded_by}</TableCell>
                                                 </TableRow>
