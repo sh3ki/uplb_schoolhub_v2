@@ -477,7 +477,8 @@ class AccountingDashboardController extends Controller
             ->where('recorded_by', $accountId)
             ->whereBetween('payment_date', [$periodStart, $periodEnd])
             ->get();
-        $documents = DocumentRequest::whereIn('student_id', $studentIds)
+        $documents = DocumentRequest::with(['accountingApprovedBy:id,name', 'processedBy:id,name'])
+            ->whereIn('student_id', $studentIds)
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
                 $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd) {
@@ -605,7 +606,7 @@ class AccountingDashboardController extends Controller
                 'reference'    => $doc->document_type,
                 'amount'       => (float) $doc->fee,
                 'student_id'   => $doc->student_id,
-                'processed_by' => 'N/A',
+                'processed_by' => $doc->accountingApprovedBy?->name ?? $doc->processedBy?->name ?? 'N/A',
             ];
         }
         foreach ($dropRequests->take(10) as $drop) {

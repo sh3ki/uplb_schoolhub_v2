@@ -33,6 +33,8 @@ class ReportsController extends Controller
         $to = $request->input('to');
         $schoolYear = $request->input('school_year');
         $status = $request->input('status');
+        $departmentId = $request->input('department_id');
+        $classification = $request->input('classification');
         
         // "All" means cross-year. Only restrict when user explicitly picks a school year.
         if ($schoolYear === 'all' || $schoolYear === '') {
@@ -42,7 +44,13 @@ class ReportsController extends Controller
         // Ensure report statuses reflect due-date overdue transitions.
         StudentFee::syncOverdueByDueDate($schoolYear);
 
-        // Payment Collection Summary (grouped by date)
+        // Build scoped student IDs for demographic filters
+        $scopedStudentIds = Student::query()
+            ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
+            ->when($classification, fn($q) => $q->whereHas('department', fn($dq) => $dq->where('classification', $classification)))
+            ->pluck('id');
+
+        // Collection Summary (fees + documents + drops), grouped by transaction date
         $paymentQuery = StudentPayment::query();
         
         if ($from) {
@@ -54,22 +62,76 @@ class ReportsController extends Controller
         if ($schoolYear) {
             $paymentQuery->whereHas('studentFee', fn($q) => $q->where('school_year', $schoolYear));
         }
-        if ($departmentId = $request->input('department_id')) {
-            $paymentQuery->whereHas('student', fn($q) => $q->where('department_id', $departmentId));
-        }
-        if ($classification = $request->input('classification')) {
-            $paymentQuery->whereHas('student.department', fn($q) => $q->where('classification', $classification));
+        if ($departmentId || $classification) {
+            $paymentQuery->whereIn('student_id', $scopedStudentIds);
         }
 
-        $paymentSummary = (clone $paymentQuery)
-            ->select(
-                DB::raw('DATE(payment_date) as date'),
-                DB::raw('COUNT(*) as count'),
-                DB::raw('SUM(amount) as total_amount')
-            )
-            ->groupBy(DB::raw('DATE(payment_date)'))
-            ->orderByRaw('DATE(payment_date) DESC')
-            ->get();
+        $documentQuery = DocumentRequest::query()
+            ->where('is_paid', true)
+            ->where('accounting_status', 'approved');
+
+        if ($from) {
+            $documentQuery->whereDate('accounting_approved_at', '>=', $from);
+        }
+        if ($to) {
+            $documentQuery->whereDate('accounting_approved_at', '<=', $to);
+        }
+        if ($schoolYear) {
+            $documentQuery->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
+        }
+        if ($departmentId || $classification) {
+            $documentQuery->whereIn('student_id', $scopedStudentIds);
+        }
+
+        $dropQuery = \App\Models\DropRequest::query()
+            ->where('is_paid', true)
+            ->where('accounting_status', 'approved');
+
+        if ($from) {
+            $dropQuery->whereDate('accounting_approved_at', '>=', $from);
+        }
+        if ($to) {
+            $dropQuery->whereDate('accounting_approved_at', '<=', $to);
+        }
+        if ($schoolYear) {
+            $dropQuery->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
+        }
+        if ($departmentId || $classification) {
+            $dropQuery->whereIn('student_id', $scopedStudentIds);
+        }
+
+        $summaryByDate = collect();
+        $addSummary = function (?string $date, float $amount) use (&$summaryByDate): void {
+            if (!$date) {
+                return;
+            }
+
+            $current = $summaryByDate->get($date, [
+                'date' => $date,
+                'count' => 0,
+                'total_amount' => 0.0,
+            ]);
+
+            $current['count'] += 1;
+            $current['total_amount'] += $amount;
+            $summaryByDate->put($date, $current);
+        };
+
+        foreach ((clone $paymentQuery)->get(['payment_date', 'amount']) as $payment) {
+            $addSummary($payment->payment_date?->toDateString(), (float) $payment->amount);
+        }
+
+        foreach ((clone $documentQuery)->get(['accounting_approved_at', 'fee']) as $document) {
+            $addSummary($document->accounting_approved_at?->toDateString(), (float) $document->fee);
+        }
+
+        foreach ((clone $dropQuery)->get(['accounting_approved_at', 'fee_amount']) as $drop) {
+            $addSummary($drop->accounting_approved_at?->toDateString(), (float) $drop->fee_amount);
+        }
+
+        $paymentSummary = $summaryByDate
+            ->sortKeysDesc()
+            ->values();
 
         // Student Balance Report
         $balanceQuery = StudentFee::with('student.department')
@@ -85,14 +147,14 @@ class ReportsController extends Controller
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear));
 
         // Filter by department
-        if ($departmentId = $request->input('department_id')) {
+        if ($departmentId) {
             $balanceQuery->whereHas('student', function ($q) use ($departmentId) {
                 $q->where('department_id', $departmentId);
             });
         }
 
         // Filter by classification
-        if ($classification = $request->input('classification')) {
+        if ($classification) {
             $balanceQuery->whereHas('student.department', function ($q) use ($classification) {
                 $q->where('classification', $classification);
             });
