@@ -103,6 +103,7 @@ interface Department {
 }
 
 interface DepartmentRow {
+    department_id: number;
     department: string;
     students: number;
     billed: number;
@@ -233,6 +234,11 @@ export default function AccountingReports({
         summaryStats.fully_paid_count +
         summaryStats.partial_paid_count +
         summaryStats.unpaid_count;
+    const balanceTotals = {
+        total_amount: balanceReport.reduce((sum, r) => sum + Number(r.total_amount), 0),
+        total_paid: balanceReport.reduce((sum, r) => sum + Number(r.total_paid), 0),
+        balance: balanceReport.reduce((sum, r) => sum + Number(r.balance), 0),
+    };
 
     return (
         <AccountingLayout>
@@ -516,24 +522,29 @@ export default function AccountingReports({
                                                     </TableRow>
                                                 ))
                                             )}
-                                            {balanceReport.length > 0 && (
-                                                <TableRow className="font-semibold bg-muted/30 border-t-2">
-                                                    <TableCell colSpan={4} className="text-right">Totals</TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.total_amount), 0))}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-green-600">
-                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.total_paid), 0))}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.balance), 0))}
-                                                    </TableCell>
-                                                    <TableCell />
-                                                </TableRow>
-                                            )}
                                         </TableBody>
                                     </Table>
                                 </div>
+                                {balanceReport.length > 0 && (
+                                    <div className="mt-4 flex justify-end">
+                                        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+                                            <div className="flex items-center justify-end gap-6">
+                                                <span>
+                                                    Total Amount:{' '}
+                                                    <span className="font-semibold text-foreground">{formatCurrency(balanceTotals.total_amount)}</span>
+                                                </span>
+                                                <span>
+                                                    Total Paid:{' '}
+                                                    <span className="font-semibold text-green-600">{formatCurrency(balanceTotals.total_paid)}</span>
+                                                </span>
+                                                <span>
+                                                    Balance:{' '}
+                                                    <span className="font-semibold text-red-500">{formatCurrency(balanceTotals.balance)}</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -761,7 +772,11 @@ export default function AccountingReports({
                                                     const rate = d.collection_rate;
                                                     const rateColor = rate >= 80 ? 'bg-green-500' : rate >= 50 ? 'bg-yellow-500' : 'bg-red-500';
                                                     return (
-                                                        <TableRow key={d.department}>
+                                                        <TableRow
+                                                            key={`${d.department_id}-${d.department}`}
+                                                            className="cursor-pointer hover:bg-muted/50"
+                                                            onClick={() => router.visit(`/accounting/student-accounts?status=all&department_id=${d.department_id}&sort_school_year=desc`)}
+                                                        >
                                                             <TableCell className="font-medium">
                                                                 {d.department}
                                                                 <span className="ml-1 text-xs text-muted-foreground">({d.students} students)</span>
