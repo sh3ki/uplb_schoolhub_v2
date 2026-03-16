@@ -354,7 +354,11 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                 const config = statusConfig[request.accounting_status];
                                                 const Icon = config?.icon || Clock;
                                                 return (
-                                                    <TableRow key={request.id}>
+                                                    <TableRow
+                                                        key={request.id}
+                                                        className="cursor-pointer hover:bg-muted/50"
+                                                        onClick={() => router.visit(`/accounting/payments/process/${request.student.id}?tab=transactions`)}
+                                                    >
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <StudentPhoto
@@ -393,7 +397,8 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="icon"
-                                                                            onClick={() => {
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
                                                                                 setSelectedRequest(request);
                                                                                 setShowReceiptModal(true);
                                                                             }}
@@ -462,7 +467,8 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                         variant="outline"
                                                                         size="sm"
                                                                         className="text-green-600 hover:text-green-700"
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
                                                                             setSelectedRequest(request);
                                                                             approveForm.setData('or_number', request.or_number || request.receipt_number || '');
                                                                             setShowApproveModal(true);
@@ -474,7 +480,8 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                         variant="outline"
                                                                         size="sm"
                                                                         className="text-red-600 hover:text-red-700"
-                                                                        onClick={() => {
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
                                                                             setSelectedRequest(request);
                                                                             setShowRejectModal(true);
                                                                         }}

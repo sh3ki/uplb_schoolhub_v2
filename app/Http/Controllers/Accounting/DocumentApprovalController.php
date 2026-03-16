@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Accounting;
 use App\Http\Controllers\Controller;
 use App\Models\DocumentFeeItem;
 use App\Models\DocumentRequest;
+use App\Models\StudentPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -162,6 +163,21 @@ class DocumentApprovalController extends Controller
         }
 
         $documentRequest->approveByAccounting(auth()->id(), $validated['remarks'] ?? null);
+
+        // Record a student payment when approving a document request with a fee
+        if ($documentRequest->fee > 0) {
+            $label = DocumentRequest::DOCUMENT_TYPES[$documentRequest->document_type] ?? $documentRequest->document_type;
+            StudentPayment::create([
+                'student_id'   => $documentRequest->student_id,
+                'payment_date' => now()->toDateString(),
+                'amount'       => $documentRequest->fee,
+                'payment_for'  => 'Document - ' . $label,
+                'payment_mode' => 'cash',
+                'or_number'    => $validated['or_number'] ?? null,
+                'recorded_by'  => auth()->id(),
+            ]);
+        }
+
 
         // Sync students_availed on the DocumentFeeItem from real approved count
         if ($documentRequest->document_fee_item_id) {

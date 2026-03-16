@@ -87,21 +87,14 @@ class ExamApprovalController extends Controller
                 ];
             });
 
-        // Eligible students split by gender — same base as student-accounts, minus truly overdue
+        // All registered students split by gender — includes all payment statuses
         $fullyPaidQuery = Student::whereNull('deleted_at')
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
             ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
             ->whereHas('fees', function ($fq) use ($selectedSchoolYear) {
-                $fq->where('school_year', $selectedSchoolYear)
-                    ->where('is_overdue', false)
-                    ->where(function ($sq) {
-                        $sq->where(function ($paid) {
-                            $paid->where('total_amount', '>', 0)
-                                ->where('balance', '<=', 0);
-                        })->orWhere('total_paid', '>', 0);
-                    });
+                $fq->where('school_year', $selectedSchoolYear);
             })
             ->with(['fees' => function ($q) use ($selectedSchoolYear) {
                 $q->where('school_year', $selectedSchoolYear)->latest();
@@ -139,6 +132,7 @@ class ExamApprovalController extends Controller
                     'total_paid'        => (float) ($fee?->total_paid ?? 0),
                     'balance'           => max(0, (float) ($fee?->balance ?? 0)),
                     'payment_status'    => (function () use ($fee): string {
+                        if ($fee?->is_overdue) return 'overdue';
                         $balance = max(0, (float) ($fee?->balance ?? 0));
                         $total   = (float) ($fee?->total_amount ?? 0);
                         $paid    = (float) ($fee?->total_paid ?? 0);

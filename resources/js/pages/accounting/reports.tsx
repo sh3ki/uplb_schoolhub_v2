@@ -45,6 +45,7 @@ interface Student {
     student_photo_url?: string | null;
     program?: string;
     year_level?: string;
+    department_id?: number | null;
 }
 
 interface PaymentSummary {
@@ -479,7 +480,11 @@ export default function AccountingReports({
                                                 </TableRow>
                                             ) : (
                                                 balanceReport.map((record, index) => (
-                                                    <TableRow key={index}>
+                                                    <TableRow
+                                                        key={index}
+                                                        className="cursor-pointer hover:bg-muted/50"
+                                                        onClick={() => router.visit(`/accounting/student-accounts?${record.student.department_id ? `department_id=${record.student.department_id}&` : ''}sort_school_year=desc`)}
+                                                    >
                                                         <TableCell>
                                                             <div className="flex items-center gap-3">
                                                                 <StudentPhoto
@@ -510,6 +515,21 @@ export default function AccountingReports({
                                                         </TableCell>
                                                     </TableRow>
                                                 ))
+                                            )}
+                                            {balanceReport.length > 0 && (
+                                                <TableRow className="font-semibold bg-muted/30 border-t-2">
+                                                    <TableCell colSpan={4} className="text-right">Totals</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.total_amount), 0))}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-green-600">
+                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.total_paid), 0))}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {formatCurrency(balanceReport.reduce((sum, r) => sum + Number(r.balance), 0))}
+                                                    </TableCell>
+                                                    <TableCell />
+                                                </TableRow>
                                             )}
                                         </TableBody>
                                     </Table>

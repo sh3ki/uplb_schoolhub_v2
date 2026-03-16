@@ -138,6 +138,7 @@ class ReportsController extends Controller
                         'student_photo_url' => $fee->student->student_photo_url,
                         'program' => $fee->student->program,
                         'year_level' => $fee->student->year_level,
+                        'department_id' => $fee->student->department_id,
                     ],
                     'school_year' => $fee->school_year,
                     'total_amount' => $fee->total_amount,

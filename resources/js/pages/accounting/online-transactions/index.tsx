@@ -112,7 +112,7 @@ export default function OnlineTransactionsIndex({
     filters,
 }: Props) {
     const [search, setSearch] = useState(filters.search || '');
-    const [activeTab, setActiveTab] = useState(filters.status || 'pending');
+    const [activeTab, setActiveTab] = useState(filters.status || 'all');
     const [provider, setProvider] = useState(filters.payment_provider || 'all');
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -121,7 +121,7 @@ export default function OnlineTransactionsIndex({
     const handleFilter = () => {
         router.get('/accounting/online-transactions', {
             search: search || undefined,
-            status: activeTab,
+            status: activeTab !== 'all' ? activeTab : undefined,
             payment_provider: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
@@ -133,7 +133,7 @@ export default function OnlineTransactionsIndex({
         setActiveTab(value);
         router.get('/accounting/online-transactions', {
             search: search || undefined,
-            status: value,
+            status: value !== 'all' ? value : undefined,
             payment_provider: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
@@ -143,7 +143,7 @@ export default function OnlineTransactionsIndex({
 
     const handleReset = () => {
         setSearch('');
-        setActiveTab('pending');
+        setActiveTab('all');
         setProvider('all');
         router.get('/accounting/online-transactions');
     };
@@ -316,6 +316,7 @@ export default function OnlineTransactionsIndex({
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
                     <TabsList>
+                        <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="pending">Pending</TabsTrigger>
                         <TabsTrigger value="completed">Completed</TabsTrigger>
                         <TabsTrigger value="failed">Failed</TabsTrigger>
@@ -346,7 +347,11 @@ export default function OnlineTransactionsIndex({
                                 </TableRow>
                             ) : (
                                 transactions.data.map((transaction) => (
-                                    <TableRow key={transaction.id} className={transaction.status === 'pending' ? 'bg-yellow-50/50' : ''}>
+                                    <TableRow
+                                        key={transaction.id}
+                                        className={`cursor-pointer hover:bg-muted/50 ${transaction.status === 'pending' ? 'bg-yellow-50/50' : ''}`}
+                                        onClick={() => router.visit(`/accounting/payments/process/${transaction.student_id}?tab=transactions`)}
+                                    >
                                         <TableCell>
                                             <div className="font-mono text-sm">{transaction.transaction_reference}</div>
                                             {transaction.provider_reference && (
@@ -378,12 +383,12 @@ export default function OnlineTransactionsIndex({
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => {
-                                                        setSelectedTransaction(transaction);
-                                                        setIsDetailModalOpen(true);
+                                                    <DropdownMenuItem onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.visit(`/accounting/payments/process/${transaction.student_id}?tab=transactions`);
                                                     }}>
                                                         <ExternalLink className="h-4 w-4 mr-2" />
-                                                        View Details
+                                                        View Account
                                                     </DropdownMenuItem>
                                                     {transaction.status === 'pending' && (
                                                         <>
