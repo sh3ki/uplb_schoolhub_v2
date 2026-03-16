@@ -127,6 +127,7 @@ interface Props {
         school_year?: string;
         department_id?: string;
         classification?: string;
+
         sort_school_year?: 'asc' | 'desc';
     };
     classListMale: {
