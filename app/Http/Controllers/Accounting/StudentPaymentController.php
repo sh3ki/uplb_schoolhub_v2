@@ -395,8 +395,39 @@ class StudentPaymentController extends Controller
                     'recorded_by' => $payment->recordedBy?->name,
                     'school_year' => $payment->studentFee?->school_year,
                     'created_at' => $payment->created_at->format('Y-m-d H:i'),
+                    'type' => 'on-site',
                 ];
             });
+
+        // Include online transactions in the payment history.
+        $onlineTransactions = \App\Models\OnlineTransaction::where('student_id', $student->id)
+            ->with(['verifiedBy'])
+            ->orderBy('transaction_date', 'desc')
+            ->get()
+            ->map(function ($tx) {
+                $rawMethod = strtolower((string) ($tx->payment_method ?? 'online'));
+                if ($rawMethod === 'bank_transfer') $rawMethod = 'bank';
+                $paymentMode = strtoupper($rawMethod);
+                return [
+                    'id' => $tx->id + 1000000, // offset to avoid ID collision with StudentPayment
+                    'payment_date' => $tx->transaction_date?->format('Y-m-d') ?? $tx->created_at->format('Y-m-d'),
+                    'or_number' => $tx->transaction_id,
+                    'amount' => (float) $tx->amount,
+                    'payment_for' => 'Online Payment (' . ucfirst($tx->status) . ')',
+                    'payment_mode' => $paymentMode,
+                    'bank_name' => $tx->bank_name,
+                    'notes' => $tx->remarks,
+                    'recorded_by' => $tx->verifiedBy?->name ?? 'Online',
+                    'school_year' => null,
+                    'created_at' => $tx->created_at->format('Y-m-d H:i'),
+                    'type' => 'online',
+                ];
+            });
+
+        // Merge on-site and online payments, sorted by date descending.
+        $payments = $payments->concat($onlineTransactions)
+            ->sortByDesc(fn($p) => $p['payment_date'] . ' ' . $p['created_at'])
+            ->values();
 
         // Get promissory notes for the active billing year only.
         $promissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
