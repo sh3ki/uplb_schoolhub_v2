@@ -18,6 +18,7 @@ use App\Models\StudentSubject;
 use App\Models\AppSetting;
 use App\Models\EnrollmentClearance;
 use App\Models\GrantRecipient;
+use App\Models\DocumentRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -51,6 +52,7 @@ class StudentController extends Controller
             'registrarPending'   => Student::where('enrollment_status', 'pending-registrar')->count(),
             'accountingPending'  => Student::where('enrollment_status', 'pending-accounting')->count(),
             'pendingEnrollment'  => Student::where('enrollment_status', 'pending-enrollment')->count(),
+            'documentsRegistrarPending' => DocumentRequest::query()->where('registrar_status', 'pending')->count(),
             'graduated'          => Student::where('enrollment_status', 'graduated')->count(),
             'dropped'            => Student::where('enrollment_status', 'dropped')->count(),
             'archived'           => Student::onlyTrashed()->count(),
@@ -59,7 +61,14 @@ class StudentController extends Controller
 
         $programs    = Student::select('program')->distinct()->pluck('program');
         $yearLevels  = Student::select('year_level')->distinct()->pluck('year_level');
-        $schoolYears = Student::whereNotNull('school_year')->distinct()->pluck('school_year')->sort()->values();
+        $schoolYears = Student::whereNotNull('school_year')
+            ->where('school_year', '!=', '')
+            ->distinct()
+            ->pluck('school_year')
+            ->merge(collect(['2024-2025', '2025-2026']))
+            ->unique()
+            ->sortDesc()
+            ->values();
 
         // ── Special tabs: Dropped / Archived / Deactivated ───────────────────────
         if (in_array($tab, ['dropped', 'archived', 'deactivated'])) {
