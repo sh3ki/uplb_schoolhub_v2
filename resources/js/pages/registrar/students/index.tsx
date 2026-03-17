@@ -99,6 +99,7 @@ interface Stats {
     notEnrolled: number;
     registrarPending: number;
     accountingPending: number;
+    documentsRegistrarPending: number;
     graduated: number;
     dropped: number;
     archived: number;
@@ -524,8 +525,8 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                         label="Pending"
                     />
                     <StudentStatCard
-                        title="Registrar Pending"
-                        value={stats.registrarPending}
+                        title="Documents Registrar Pending"
+                        value={stats.documentsRegistrarPending}
                         color="sky"
                         label="Documents"
                     />
@@ -596,22 +597,26 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                 {/* Filters (active tab only) */}
                 {activeTab === 'active' && <StudentFilters programs={programs} yearLevels={yearLevels} schoolYears={schoolYears} filters={filters} />}
 
-                {/* School Year Tabs (active tab only) + search for special tabs */}
+                {/* School Year selector (active tab only) */}
                 {activeTab === 'active' && schoolYears.length > 0 && (
                     <div className="flex items-center gap-3">
                         <CalendarDays className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                        <Tabs
-                            value={filters.school_year || 'all'}
-                            onValueChange={(val) => router.get('/registrar/students', { ...filters, school_year: val }, { preserveState: true, replace: true })}
-                            className="w-full"
-                        >
-                            <TabsList className="h-auto flex-wrap gap-1 bg-muted/50 p-1">
-                                <TabsTrigger value="all" className="text-xs px-3 py-1.5">All Years</TabsTrigger>
-                                {schoolYears.map((sy) => (
-                                    <TabsTrigger key={sy} value={sy} className="text-xs px-3 py-1.5">{sy}</TabsTrigger>
-                                ))}
-                            </TabsList>
-                        </Tabs>
+                        <div className="w-full max-w-xs">
+                            <Select
+                                value={filters.school_year || 'all'}
+                                onValueChange={(value) => router.get('/registrar/students', { ...filters, school_year: value }, { preserveState: true, replace: true })}
+                            >
+                                <SelectTrigger className="h-9">
+                                    <SelectValue placeholder="All Years" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Years</SelectItem>
+                                    {schoolYears.map((sy) => (
+                                        <SelectItem key={sy} value={sy}>{sy}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </div>
                 )}
 
