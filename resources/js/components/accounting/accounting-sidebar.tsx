@@ -1,19 +1,14 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    BookOpen,
-    Calculator,
     ClipboardCheck,
     CreditCard,
     FileCheck,
-    FileText,
     Gift,
     Globe,
     LayoutDashboard,
     LayoutGrid,
     Megaphone,
     MessageCircle,
-    Receipt,
-    RotateCcw,
     ScrollText,
     Settings,
     UserX,
@@ -43,7 +38,7 @@ interface AppSettings {
 }
 
 export function AccountingSidebar() {
-    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingOnlineTransactionCount, pendingRefundCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingOnlineTransactionCount?: number; pendingRefundCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingOnlineTransactionCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingOnlineTransactionCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -128,22 +123,6 @@ export function AccountingSidebar() {
     ];
 
     const adminNavItems: NavItem[] = [
-        {
-            title: 'Fee Management',
-            href: '/accounting/fee-management',
-            icon: Calculator,
-        },
-        {
-            title: 'Refunds',
-            href: '/accounting/refunds',
-            icon: RotateCcw,
-            badge: pendingRefundCount || undefined,
-        },
-        {
-            title: 'Reports',
-            href: '/accounting/reports',
-            icon: BookOpen,
-        },
         {
             title: 'Settings',
             href: '/accounting/settings',
