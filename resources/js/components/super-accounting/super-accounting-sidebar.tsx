@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    Calculator,
     FileCheck,
     Globe,
     LayoutDashboard,
@@ -58,6 +59,11 @@ export function SuperAccountingSidebar() {
             href: '/super-accounting/announcements',
             icon: Megaphone,
             badge: announcementCount || undefined,
+        },
+        {
+            title: 'Fee Management',
+            href: '/super-accounting/fee-management',
+            icon: Calculator,
         },
         {
             // Physical refund requests — super-accounting exclusive
