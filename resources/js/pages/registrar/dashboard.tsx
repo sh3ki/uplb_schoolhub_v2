@@ -74,6 +74,7 @@ export default function Dashboard({ stats, cards, recentActivity, requirementsSt
                                 <SelectValue placeholder="Select SY" />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="all">All</SelectItem>
                                 {(schoolYears || []).map(sy => (
                                     <SelectItem key={sy} value={sy}>{sy}</SelectItem>
                                 ))}
