@@ -77,21 +77,21 @@ export function OwnerSidebar() {
             href: '/owner/income/expected',
             icon: TrendingUp,
         },
-        {
-            title: 'Academic Structure',
-            icon: Building2,
-            items: academicStructureItems,
-        },
-        {
-            title: 'Subjects',
-            href: '/owner/subjects',
-            icon: BookOpen,
-        },
-        {
-            title: 'Schedules',
-            href: '/owner/schedules',
-            icon: Calendar,
-        },
+        // {
+        //     title: 'Academic Structure',
+        //     icon: Building2,
+        //     items: academicStructureItems,
+        // },
+        // {
+        //     title: 'Subjects',
+        //     href: '/owner/subjects',
+        //     icon: BookOpen,
+        // },
+        // {
+        //     title: 'Schedules',
+        //     href: '/owner/schedules',
+        //     icon: Calendar,
+        // },
         {
             title: 'Calendar View',
             href: '/owner/calendar',
