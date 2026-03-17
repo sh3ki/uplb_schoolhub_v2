@@ -81,6 +81,7 @@ interface Props {
     transactions: Transaction[];
     dailyCollections: DailyCollection[];
     paymentSummary: PaymentSummary;
+    accountingAccounts: FilterOption[];
     departments: FilterOption[];
     programs: FilterOption[];
     yearLevels: FilterOption[];
@@ -95,6 +96,7 @@ interface Props {
         program?: string;
         year_level?: string;
         section?: string;
+        account_id?: string;
         date_from?: string;
         date_to?: string;
         month?: number;
@@ -107,6 +109,7 @@ export default function AccountDashboard({
     transactions,
     dailyCollections,
     paymentSummary,
+    accountingAccounts = [],
     departments = [],
     programs = [],
     yearLevels = [],
@@ -130,6 +133,7 @@ export default function AccountDashboard({
     const [program, setProgram]               = useState(filters.program || '');
     const [yearLevel, setYearLevel]           = useState(filters.year_level || '');
     const [section, setSection]               = useState(filters.section || '');
+    const [accountId, setAccountId]           = useState(filters.account_id || 'all');
     const [dateRange, setDateRange]           = useState<DateRange | undefined>(
         filters.date_from && filters.date_to
             ? { from: new Date(filters.date_from), to: new Date(filters.date_to) }
@@ -162,6 +166,7 @@ export default function AccountDashboard({
             program:        program || undefined,
             year_level:     yearLevel || undefined,
             section:        section || undefined,
+            account_id:     accountId === 'all' ? undefined : accountId,
             date_from: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
             date_to:   dateRange?.to   ? dateRange.to.toISOString().split('T')[0]   : undefined,
         }, { preserveState: true, preserveScroll: true });
@@ -173,6 +178,7 @@ export default function AccountDashboard({
         setProgram('');
         setYearLevel('');
         setSection('');
+        setAccountId('all');
         setDateRange(undefined);
         router.get('/super-accounting/account-dashboard');
     };
@@ -193,7 +199,7 @@ export default function AccountDashboard({
                     <div className="flex gap-2">
                         <ExportButton
                             exportUrl="/super-accounting/account-dashboard/export"
-                            filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section }}
+                            filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section, account_id: accountId === 'all' ? undefined : accountId }}
                             buttonText="Export Data"
                         />
                         <Button variant="outline" onClick={() => window.location.reload()}>
@@ -205,6 +211,13 @@ export default function AccountDashboard({
 
                 {/* Filters */}
                 <FilterBar onReset={handleReset}>
+                    <FilterDropdown
+                        label="Accounting Account"
+                        value={accountId}
+                        options={accountingAccounts}
+                        onChange={setAccountId}
+                        placeholder="All Accounts"
+                    />
                     <FilterDropdown
                         label="Classification"
                         value={classification || 'all'}
