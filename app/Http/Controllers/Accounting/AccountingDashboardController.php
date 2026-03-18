@@ -94,8 +94,16 @@ class AccountingDashboardController extends Controller
         for ($month = 1; $month <= 12; $month++) {
             $monthStart = Carbon::create($selectedYear, $month, 1)->startOfMonth();
             $monthEnd = Carbon::create($selectedYear, $month, 1)->endOfMonth();
-            
-            $amount = StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount');
+
+            $amount = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount')
+                + (float) DocumentRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
+                    ->sum('fee')
+                + (float) DropRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
+                    ->sum('fee_amount');
             
             // Get average time of payment
             $avgTime = StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])
@@ -368,7 +376,22 @@ class AccountingDashboardController extends Controller
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::create($selectedYear, $selectedMonth, $day);
             $dayPayments = StudentPayment::whereIn('student_id', $filteredIds)->whereDate('payment_date', $date)->get();
-            $total = $dayPayments->sum('amount');
+            $dayDocuments = DocumentRequest::query()
+                ->whereIn('student_id', $filteredIds)
+                ->where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereDate('accounting_approved_at', $date)
+                ->get();
+            $dayDrops = DropRequest::query()
+                ->whereIn('student_id', $filteredIds)
+                ->where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereDate('accounting_approved_at', $date)
+                ->get();
+
+            $total = (float) $dayPayments->sum('amount')
+                + (float) $dayDocuments->sum('fee')
+                + (float) $dayDrops->sum('fee_amount');
 
             $avgHour = null;
             if ($dayPayments->count() > 0) {
@@ -390,7 +413,7 @@ class AccountingDashboardController extends Controller
                 'date' => $date->format('Y-m-d'),
                 'day_label' => $date->format('D, M j'),
                 'total' => (float) $total,
-                'count' => $dayPayments->count(),
+                'count' => $dayPayments->count() + $dayDocuments->count() + $dayDrops->count(),
                 'avg_time' => $timeFormatted,
             ];
         }
@@ -765,7 +788,15 @@ class AccountingDashboardController extends Controller
         for ($month = 1; $month <= 12; $month++) {
             $monthStart = Carbon::create($selectedYear, $month, 1)->startOfMonth();
             $monthEnd   = Carbon::create($selectedYear, $month, 1)->endOfMonth();
-            $amount     = StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount');
+            $amount     = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount')
+                + (float) DocumentRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
+                    ->sum('fee')
+                + (float) DropRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
+                    ->sum('fee_amount');
             $rows[]     = [Carbon::create($selectedYear, $month, 1)->format('F Y'), number_format((float) $amount, 2, '.', '')];
         }
 
