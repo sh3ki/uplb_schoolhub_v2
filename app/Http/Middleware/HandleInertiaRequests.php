@@ -236,6 +236,9 @@ class HandleInertiaRequests extends Middleware
                     ->orWhere('expires_at', '>', now());
             })
             ->forRole($user->role)
+            ->when($user->announcements_read_at, function ($query) use ($user) {
+                $query->where('created_at', '>', $user->announcements_read_at);
+            })
             ->count();
     }
 
