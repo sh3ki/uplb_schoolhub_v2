@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle, Clock, Download, FileText, RefreshCw, TrendingUp, Users, XCircle, BarChart3 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
@@ -78,7 +78,11 @@ export default function MainDashboard({
 
     const handleYearChange = (value: string) => {
         setYear(value);
-        window.location.href = `/super-accounting/dashboard?year=${value}`;
+        router.get('/super-accounting/dashboard', { year: value }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleExport = () => {
+        window.location.href = `/super-accounting/dashboard/export?year=${year}`;
     };
 
     // Find max amount for chart scaling
@@ -99,11 +103,11 @@ export default function MainDashboard({
                         description="Monitor student payments and fee collections"
                     />
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => window.location.reload()}>
+                        <Button variant="outline" onClick={() => router.reload()}>
                             <RefreshCw className="h-4 w-4 mr-2" />
                             Refresh
                         </Button>
-                        <Button className="bg-green-600 hover:bg-green-700">
+                        <Button className="bg-green-600 hover:bg-green-700" onClick={handleExport}>
                             <Download className="h-4 w-4 mr-2" />
                             Export Report
                         </Button>
