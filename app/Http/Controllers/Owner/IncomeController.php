@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use App\Models\DocumentRequest;
+use App\Models\DropRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -36,15 +37,23 @@ class IncomeController extends Controller
 
         $todayPayments = StudentPayment::whereBetween('payment_date', [$dateFrom, $dateTo])->get();
         $todayDocs     = DocumentRequest::where('is_paid', true)
-            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(updated_at)'), [$dateFrom, $dateTo])->get();
+            ->where('accounting_status', 'approved')
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(accounting_approved_at)'), [$dateFrom, $dateTo])
+            ->get();
+        $todayDrops    = DropRequest::where('is_paid', true)
+            ->where('accounting_status', 'approved')
+            ->whereBetween(\Illuminate\Support\Facades\DB::raw('DATE(accounting_approved_at)'), [$dateFrom, $dateTo])
+            ->get();
 
         $todayFees  = (float) $todayPayments->sum('amount');
         $todayDoc   = (float) $todayDocs->sum('fee');
-        $todayTotal = $todayFees + $todayDoc;
+        $todayDrop  = (float) $todayDrops->sum('fee_amount');
+        $todayTotal = $todayFees + $todayDoc + $todayDrop;
 
         // Yesterday's total for comparison
         $yesterdayTotal = (float) StudentPayment::whereDate('payment_date', $yesterday)->sum('amount')
-                        + (float) DocumentRequest::where('is_paid', true)->whereDate('updated_at', $yesterday)->sum('fee');
+                + (float) DocumentRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereDate('accounting_approved_at', $yesterday)->sum('fee')
+                + (float) DropRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereDate('accounting_approved_at', $yesterday)->sum('fee_amount');
 
         // Target = average daily over last 30 days
         $thirtyDaysAgo = Carbon::today()->subDays(30);
@@ -97,11 +106,12 @@ class IncomeController extends Controller
             ],
             'fees'       => $todayFees,
             'documents'  => $todayDoc,
+            'drops'      => $todayDrop,
             'yesterday'  => $yesterdayTotal,
             'byMethod'   => $byMethod,
             'hourlyData' => $hourlyData,
             'recent'     => $recent,
-            'count'      => $todayPayments->count() + $todayDocs->count(),
+            'count'      => $todayPayments->count() + $todayDocs->count() + $todayDrops->count(),
             'filters'    => $request->only(['date_from', 'date_to']),
         ]);
     }
@@ -122,8 +132,22 @@ class IncomeController extends Controller
         if ($dateTo)   $paymentQuery->whereDate('payment_date', '<=', $dateTo);
 
         $totalCollected = (float) $paymentQuery->sum('amount');
-        $totalDocFees   = (float) DocumentRequest::where('is_paid', true)->sum('fee');
-        $grandTotal     = $totalCollected + $totalDocFees;
+
+        $docQuery = DocumentRequest::where('is_paid', true)
+            ->where('accounting_status', 'approved')
+            ->whereHas('student', fn($q) => $q->where('school_year', $selectedYear));
+        if ($dateFrom) $docQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+        if ($dateTo)   $docQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+        $totalDocFees = (float) $docQuery->sum('fee');
+
+        $dropQuery = DropRequest::where('is_paid', true)
+            ->where('accounting_status', 'approved')
+            ->whereHas('student', fn($q) => $q->where('school_year', $selectedYear));
+        if ($dateFrom) $dropQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+        if ($dateTo)   $dropQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+        $totalDropFees = (float) $dropQuery->sum('fee_amount');
+
+        $grandTotal     = $totalCollected + $totalDocFees + $totalDropFees;
         $totalBilled    = (float) StudentFee::where('school_year', $selectedYear)->sum('total_amount');
         $totalBalance   = (float) StudentFee::where('school_year', $selectedYear)->where('balance', '>', 0)->sum('balance');
         $achievement    = $totalBilled > 0 ? ($grandTotal / $totalBilled) * 100 : ($grandTotal > 0 ? 100 : 0);
@@ -157,6 +181,7 @@ class IncomeController extends Controller
             ],
             'totalCollected'  => $totalCollected,
             'totalDocFees'    => $totalDocFees,
+            'totalDropFees'   => $totalDropFees,
             'totalBilled'     => $totalBilled,
             'totalBalance'    => $totalBalance,
             'monthlyData'     => $monthlyData,
@@ -181,15 +206,18 @@ class IncomeController extends Controller
         $dateFrom          = $request->input('date_from');
         $dateTo            = $request->input('date_to');
 
-        $feeQuery = StudentFee::where('school_year', $selectedYear);
-        $totalBilled    = (float) $feeQuery->sum('total_amount');
-        $totalBalance   = (float) (clone $feeQuery)->where('balance', '>', 0)->sum('balance');
-        $totalDocExpected = (float) DocumentRequest::where('is_paid', false)->sum('fee');
+        $feeRows = StudentFee::with(['payments:id,student_fee_id,amount', 'student:id,department_id'])
+            ->where('school_year', $selectedYear)
+            ->get();
 
-        $collectedQuery = StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedYear));
-        if ($dateFrom) $collectedQuery->whereDate('payment_date', '>=', $dateFrom);
-        if ($dateTo)   $collectedQuery->whereDate('payment_date', '<=', $dateTo);
-        $totalCollected = (float) $collectedQuery->sum('amount');
+        $totalBilled = (float) $feeRows->sum('total_amount');
+        $totalCollected = (float) $feeRows->sum(fn($fee) => (float) $fee->payments->sum('amount'));
+        $totalBalance = (float) $feeRows->sum(function ($fee) {
+            $paid = (float) $fee->payments->sum('amount');
+            return max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $paid);
+        });
+
+        $totalDocExpected = (float) DocumentRequest::where('is_paid', false)->sum('fee');
 
         $achievement = $totalBilled > 0 ? ($totalCollected / $totalBilled) * 100 : 0;
         $projected   = $totalBilled > 0 ? (($totalCollected + $totalBalance) / $totalBilled) * 100 : 0;
@@ -207,14 +235,20 @@ class IncomeController extends Controller
         $monthsToFull = $avgMonthly > 0 ? ceil($totalBalance / $avgMonthly) : null;
 
         // Balance breakdown by department
-        $byDepartment = StudentFee::with('student.department')
-            ->where('school_year', $selectedYear)->where('balance', '>', 0)->get()
+        $byDepartment = $feeRows
             ->groupBy(fn($f) => $f->student?->department?->name ?? 'Unknown')
             ->map(fn($group, $dept) => [
                 'department' => $dept,
-                'count'      => $group->count(),
-                'balance'    => (float) $group->sum('balance'),
+                'count'      => $group->filter(function ($fee) {
+                    $paid = (float) $fee->payments->sum('amount');
+                    return max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $paid) > 0;
+                })->count(),
+                'balance'    => (float) $group->sum(function ($fee) {
+                    $paid = (float) $fee->payments->sum('amount');
+                    return max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $paid);
+                }),
             ])
+            ->filter(fn($row) => $row['balance'] > 0)
             ->sortByDesc('balance')->take(8)->values();
 
         return Inertia::render('owner/income/expected', [
@@ -235,7 +269,10 @@ class IncomeController extends Controller
             'monthsToFullPay'    => $monthsToFull,
             'last3Months'        => $last3Months,
             'byDepartment'       => $byDepartment,
-            'studentCount'       => (int) (clone $feeQuery)->where('balance', '>', 0)->count(),
+            'studentCount'       => (int) $feeRows->filter(function ($fee) {
+                $paid = (float) $fee->payments->sum('amount');
+                return max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $paid) > 0;
+            })->count(),
             'schoolYears'        => $schoolYears,
             'selectedYear'       => $selectedYear,
             'filters'            => $request->only(['school_year', 'date_from', 'date_to']),
