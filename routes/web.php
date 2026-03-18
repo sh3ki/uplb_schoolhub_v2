@@ -76,6 +76,7 @@ if (!function_exists('registerAnnouncementsRoute')) {
     function registerAnnouncementsRoute(): void {
         Route::get('announcements', [App\Http\Controllers\AnnouncementViewController::class, 'index'])->name('announcements.index');
         Route::post('announcements', [App\Http\Controllers\AnnouncementViewController::class, 'store'])->name('announcements.store');
+        Route::post('announcements/mark-read', [App\Http\Controllers\AnnouncementViewController::class, 'markRead'])->name('announcements.mark-read');
     }
 }
 
@@ -166,6 +167,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     // Promote Students — bulk section / year-level promotion
     Route::get('promote-students', [\App\Http\Controllers\Registrar\StudentPromotionController::class, 'index'])->name('promote-students.index');
     Route::post('promote-students', [\App\Http\Controllers\Registrar\StudentPromotionController::class, 'promote'])->name('promote-students.promote');
+    Route::post('promote-students/graduate', [\App\Http\Controllers\Registrar\StudentPromotionController::class, 'graduate'])->name('promote-students.graduate');
 
     // Student Enrollment Clearance
     Route::put('students/{student}/clearance', [App\Http\Controllers\StudentController::class, 'updateClearance'])->name('students.clearance.update');
@@ -395,6 +397,21 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     // Reports
     Route::get('reports', [App\Http\Controllers\Accounting\ReportsController::class, 'index'])->name('reports');
     Route::get('reports/export', [App\Http\Controllers\Accounting\ReportsController::class, 'export'])->name('reports.export');
+
+    // Fee Management (super-accounting)
+    Route::get('fee-management', [App\Http\Controllers\Accounting\FeeManagementController::class, 'index'])->name('fee-management.index');
+    Route::post('fee-management/categories', [App\Http\Controllers\Accounting\FeeManagementController::class, 'storeCategory'])->name('fee-management.store-category');
+    Route::put('fee-management/categories/{category}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'updateCategory'])->name('fee-management.update-category');
+    Route::delete('fee-management/categories/{category}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'destroyCategory'])->name('fee-management.destroy-category');
+    Route::post('fee-management/items', [App\Http\Controllers\Accounting\FeeManagementController::class, 'storeItem'])->name('fee-management.store-item');
+    Route::put('fee-management/items/{item}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'updateItem'])->name('fee-management.update-item');
+    Route::delete('fee-management/items/{item}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'destroyItem'])->name('fee-management.destroy-item');
+    Route::post('fee-management/recalculate', [App\Http\Controllers\Accounting\FeeManagementController::class, 'recalculateFees'])->name('fee-management.recalculate');
+    Route::post('fee-management/document-fees', [App\Http\Controllers\Accounting\FeeManagementController::class, 'storeDocumentFee'])->name('fee-management.store-document-fee');
+    Route::put('fee-management/document-fees/{documentFee}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'updateDocumentFee'])->name('fee-management.update-document-fee');
+    Route::delete('fee-management/document-fees/{documentFee}', [App\Http\Controllers\Accounting\FeeManagementController::class, 'destroyDocumentFee'])->name('fee-management.destroy-document-fee');
+    Route::get('fee-management/assignments', [App\Http\Controllers\Accounting\FeeManagementController::class, 'getAssignments'])->name('fee-management.get-assignments');
+    Route::post('fee-management/assignments', [App\Http\Controllers\Accounting\FeeManagementController::class, 'saveAssignments'])->name('fee-management.save-assignments');
 
     // Refund / Void Requests Management
     Route::get('refunds', [App\Http\Controllers\Accounting\RefundController::class, 'index'])->name('refunds.index');
