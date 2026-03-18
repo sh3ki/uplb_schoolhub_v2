@@ -1,7 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useState } from 'react';
 import { IncomeCard } from '@/components/owner/income-card';
-import { RevenueChart } from '@/components/owner/revenue-chart';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -177,14 +176,40 @@ export default function OwnerDashboard({
                     </TabsList>
 
                     <TabsContent value="dashboard" className="space-y-6">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Financial Overview</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <RevenueChart />
-                            </CardContent>
-                        </Card>
+                        <div className="grid gap-4 md:grid-cols-2">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Summary</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Students with ledgers</span>
+                                        <span className="font-semibold">{totalStudents}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Total payment transactions</span>
+                                        <span className="font-semibold">{totalPayments}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Current School Year</span>
+                                        <span className="font-semibold">{schoolYear}</span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Revenue Trend (Last 7 Days)</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2 text-sm">
+                                    {revenueTrend.map((item) => (
+                                        <div key={item.date} className="flex justify-between">
+                                            <span className="text-muted-foreground">{item.label}</span>
+                                            <span className="font-semibold">₱{item.amount.toLocaleString('en-PH')}</span>
+                                        </div>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="today">
@@ -193,9 +218,20 @@ export default function OwnerDashboard({
                                 <CardTitle>Today's Income Details</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-muted-foreground">
-                                    Detailed breakdown of today's income...
-                                </p>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Collected Today</span>
+                                        <span className="font-semibold">₱{todayIncome.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Target</span>
+                                        <span className="font-semibold">₱{todayTarget.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Achievement</span>
+                                        <span className="font-semibold">{todayAchievement}%</span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -206,9 +242,20 @@ export default function OwnerDashboard({
                                 <CardTitle>Overall Income Analysis</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-muted-foreground">
-                                    Comprehensive income analysis...
-                                </p>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Collected</span>
+                                        <span className="font-semibold">₱{overallIncome.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Target</span>
+                                        <span className="font-semibold">₱{overallTarget.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Achievement</span>
+                                        <span className="font-semibold">{overallAchievement}%</span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -219,9 +266,20 @@ export default function OwnerDashboard({
                                 <CardTitle>Expected Income Projections</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <p className="text-muted-foreground">
-                                    Income projections and forecasts...
-                                </p>
+                                <div className="space-y-2 text-sm">
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Remaining Balance</span>
+                                        <span className="font-semibold">₱{expectedIncome.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Expected Target</span>
+                                        <span className="font-semibold">₱{expectedTarget.toLocaleString('en-PH')}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-muted-foreground">Projection</span>
+                                        <span className="font-semibold">{expectedAchievement}%</span>
+                                    </div>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
@@ -234,7 +292,20 @@ export default function OwnerDashboard({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <RevenueChart />
+                                <div className="space-y-2 text-sm">
+                                    {departmentStats.map((dept) => (
+                                        <div key={dept.id} className="flex items-center justify-between rounded border p-2">
+                                            <div>
+                                                <div className="font-medium">{dept.name}</div>
+                                                <div className="text-xs text-muted-foreground">{dept.enrollments} students</div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="font-semibold">₱{dept.revenue.toLocaleString('en-PH')}</div>
+                                                <div className="text-xs text-muted-foreground">{dept.collection_rate}% collected</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
