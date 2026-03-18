@@ -32,7 +32,6 @@ class RegistrarDashboardController extends Controller
         if ($selectedSY !== 'all' && !in_array($selectedSY, $schoolYears, true)) {
             array_unshift($schoolYears, $selectedSY);
         }
-        array_unshift($schoolYears, 'all');
         $schoolYears = array_values(array_unique($schoolYears));
 
         // Get enrollment statistics (filtered by school year)
