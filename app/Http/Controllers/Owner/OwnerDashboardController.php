@@ -43,7 +43,15 @@ class OwnerDashboardController extends Controller
 
         // Today's Target (avg daily from last 30 days)
         $thirtyDaysAgo = Carbon::today()->subDays(30);
-        $last30Sum = (float) StudentPayment::whereBetween('payment_date', [$thirtyDaysAgo, Carbon::today()])->sum('amount');
+        $last30Sum = (float) StudentPayment::whereBetween('payment_date', [$thirtyDaysAgo, Carbon::today()])->sum('amount')
+            + (float) DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereBetween('accounting_approved_at', [$thirtyDaysAgo->copy()->startOfDay(), Carbon::today()->endOfDay()])
+                ->sum('fee')
+            + (float) DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereBetween('accounting_approved_at', [$thirtyDaysAgo->copy()->startOfDay(), Carbon::today()->endOfDay()])
+                ->sum('fee_amount');
         $todayTarget = $last30Sum > 0 ? round($last30Sum / 30, 2) : 1;
 
         // Overall Income for selected school year (with optional date range)
@@ -83,7 +91,7 @@ class OwnerDashboardController extends Controller
         $expectedTarget = $expectedIncome;
 
         // Department Analysis
-        $departmentStats = Department::withCount('students')
+        $departmentStats = Department::query()
             ->with(['students' => function ($query) use ($selectedSchoolYear) {
                 $query->with(['fees' => function ($feeQuery) use ($selectedSchoolYear) {
                     $feeQuery->where('school_year', $selectedSchoolYear);
@@ -93,12 +101,13 @@ class OwnerDashboardController extends Controller
             ->map(function ($department) {
                 $totalRevenue  = $department->students->sum(fn($s) => $s->fees->sum(fn($fee) => (float) $fee->payments->sum('amount')));
                 $totalExpected = $department->students->sum(fn($s) => $s->fees->sum('total_amount'));
+                $enrollments = $department->students->filter(fn($s) => $s->fees->isNotEmpty())->count();
 
                 return [
                     'id'              => $department->id,
                     'name'            => $department->name,
                     'code'            => $department->code,
-                    'enrollments'     => $department->students_count,
+                    'enrollments'     => $enrollments,
                     'revenue'         => $totalRevenue,
                     'expected'        => $totalExpected,
                     'collection_rate' => $totalExpected > 0
@@ -107,19 +116,24 @@ class OwnerDashboardController extends Controller
             });
 
         // Revenue Trend (last 7 days)
-        $revenueData = StudentPayment::where('payment_date', '>=', Carbon::today()->subDays(6))
-            ->whereDate('payment_date', '<=', Carbon::today())
-            ->select(DB::raw('DATE(payment_date) as date'), DB::raw('SUM(amount) as total'))
-            ->groupBy('date')->orderBy('date')->get();
-
         $revenueTrend = [];
         for ($i = 6; $i >= 0; $i--) {
             $date = Carbon::today()->subDays($i)->toDateString();
-            $found = $revenueData->firstWhere('date', $date);
+            $start = Carbon::parse($date)->startOfDay();
+            $end = Carbon::parse($date)->endOfDay();
+            $dayTotal = (float) StudentPayment::whereDate('payment_date', $date)->sum('amount')
+                + (float) DocumentRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$start, $end])
+                    ->sum('fee')
+                + (float) DropRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$start, $end])
+                    ->sum('fee_amount');
             $revenueTrend[] = [
                 'date'   => $date,
                 'label'  => Carbon::parse($date)->format('M d'),
-                'amount' => $found ? (float) $found->total : 0,
+                'amount' => $dayTotal,
             ];
         }
 
