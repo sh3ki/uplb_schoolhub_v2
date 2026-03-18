@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\DocumentRequest;
+use App\Models\DropRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -28,8 +30,16 @@ class OwnerDashboardController extends Controller
         $dateFrom = $request->input('date_from');
         $dateTo   = $request->input('date_to');
 
-        // Today's Income
-        $todayIncome = StudentPayment::whereDate('payment_date', Carbon::today())->sum('amount');
+        // Today's Income (fees + approved document fees + approved drop fees)
+        $todayIncome = (float) StudentPayment::whereDate('payment_date', Carbon::today())->sum('amount')
+            + (float) DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereDate('accounting_approved_at', Carbon::today())
+                ->sum('fee')
+            + (float) DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereDate('accounting_approved_at', Carbon::today())
+                ->sum('fee_amount');
 
         // Today's Target (avg daily from last 30 days)
         $thirtyDaysAgo = Carbon::today()->subDays(30);
@@ -42,13 +52,34 @@ class OwnerDashboardController extends Controller
         });
         if ($dateFrom) $overallQuery->whereDate('payment_date', '>=', $dateFrom);
         if ($dateTo)   $overallQuery->whereDate('payment_date', '<=', $dateTo);
-        $overallIncome = (float) $overallQuery->sum('amount');
+
+        $overallDocsQuery = DocumentRequest::where('is_paid', true)
+            ->where('accounting_status', 'approved')
+            ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear));
+        if ($dateFrom) $overallDocsQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+        if ($dateTo)   $overallDocsQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+
+        $overallDropsQuery = DropRequest::where('is_paid', true)
+            ->where('accounting_status', 'approved')
+            ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear));
+        if ($dateFrom) $overallDropsQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+        if ($dateTo)   $overallDropsQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+
+        $overallIncome = (float) $overallQuery->sum('amount')
+            + (float) $overallDocsQuery->sum('fee')
+            + (float) $overallDropsQuery->sum('fee_amount');
 
         // Overall Target
         $overallTarget = (float) StudentFee::where('school_year', $selectedSchoolYear)->sum('total_amount');
 
         // Expected Income (remaining balance)
-        $expectedIncome = (float) StudentFee::where('school_year', $selectedSchoolYear)->sum('balance');
+        $expectedIncome = (float) StudentFee::where('school_year', $selectedSchoolYear)
+            ->with('payments:id,student_fee_id,amount')
+            ->get()
+            ->sum(function ($fee) {
+                $paid = (float) $fee->payments->sum('amount');
+                return max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $paid);
+            });
         $expectedTarget = $expectedIncome;
 
         // Department Analysis
@@ -60,7 +91,7 @@ class OwnerDashboardController extends Controller
             }])
             ->get()
             ->map(function ($department) {
-                $totalRevenue  = $department->students->sum(fn($s) => $s->fees->sum('total_paid'));
+                $totalRevenue  = $department->students->sum(fn($s) => $s->fees->sum(fn($fee) => (float) $fee->payments->sum('amount')));
                 $totalExpected = $department->students->sum(fn($s) => $s->fees->sum('total_amount'));
 
                 return [
@@ -96,7 +127,9 @@ class OwnerDashboardController extends Controller
         $totalStudents = Student::whereHas('fees', fn($q) => $q->where('school_year', $selectedSchoolYear))->count();
 
         // Payment count
-        $totalPayments = StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))->count();
+        $totalPayments = StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))->count()
+            + DocumentRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))->count()
+            + DropRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))->count();
 
         return Inertia::render('owner/dashboard', [
             'todayIncome'       => $todayIncome,
