@@ -72,6 +72,13 @@ class AccountingDashboardController extends Controller
         }
 
         $totalStudents = $eligibleStudentIds->count();
+        $allAccountsProcessedTotal = (float) StudentPayment::sum('amount')
+            + (float) DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee')
+            + (float) DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee_amount');
         
         $stats = [
             'total_students' => $totalStudents,
@@ -79,6 +86,7 @@ class AccountingDashboardController extends Controller
             'partial_payment' => $partialPayment,
             'overdue' => collect($snapshots)->filter(fn($row) => (bool) $row['is_overdue'] && (float) $row['balance'] > 0)->count(),
             'document_payments' => DocumentRequest::where('is_paid', true)->count(),
+            'total_collected' => $allAccountsProcessedTotal,
         ];
 
         // Monthly collections for the selected year
@@ -179,7 +187,7 @@ class AccountingDashboardController extends Controller
             'years' => $years,
             'selectedYear' => (int) $selectedYear,
             'projectedRevenue' => (float) $projectedRevenue,
-            'totalCollected' => (float) $totalCollected,
+            'totalCollected' => (float) $allAccountsProcessedTotal,
         ]);
     }
 
@@ -286,10 +294,13 @@ class AccountingDashboardController extends Controller
 
         // Get stats scoped to filtered students
         $totalStudents       = $filteredIds->count();
-        $totalCollectedToday = StudentPayment::whereIn('student_id', $filteredIds)
-            ->whereDate('payment_date', today())
-            ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
-            ->sum('amount');
+        $totalCollectedAllAccounts = (float) StudentPayment::sum('amount')
+            + (float) DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee')
+            + (float) DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee_amount');
 
         $stats = [
             'total_students' => $totalStudents,
@@ -297,7 +308,7 @@ class AccountingDashboardController extends Controller
             'partial_paid' => $partialPaid,
             'unpaid' => $unpaid,
             'total_collectibles' => (string) $totalCollectibles,
-            'total_collected_today' => (string) $totalCollectedToday,
+            'total_collected_today' => (string) $totalCollectedAllAccounts,
         ];
 
         // Recent payments with student and recorded_by info
@@ -444,7 +455,7 @@ class AccountingDashboardController extends Controller
         $accountingAccounts = collect();
         if ($isSuperAccounting) {
             $accountingAccounts = User::query()
-                ->where('role', User::ROLE_ACCOUNTING)
+                ->whereIn('role', [User::ROLE_ACCOUNTING, User::ROLE_SUPER_ACCOUNTING])
                 ->orderBy('name')
                 ->get(['id', 'name']);
         }

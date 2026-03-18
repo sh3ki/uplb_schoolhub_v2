@@ -1,5 +1,5 @@
-import { Head, router, useForm } from '@inertiajs/react';
-import { Edit, Gift, MoreHorizontal, Plus, Trash2, UserPlus, Users } from 'lucide-react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Edit, Gift, MoreHorizontal, Plus, Printer, Trash2, UserPlus, Users } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { FilterBar } from '@/components/filters/filter-bar';
@@ -10,18 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Dialog,
     DialogContent,
@@ -32,6 +20,14 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -39,11 +35,15 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import AccountingLayout from '@/layouts/accounting-layout';
 
 interface Grant {
@@ -101,15 +101,25 @@ interface Props {
     students: Student[];
     schoolYears: string[];
     currentSchoolYear: string;
+    departments: { id: number; name: string; classification?: string }[];
+    classifications: string[];
+    yearLevels: string[];
+    programs: string[];
     filters: {
         search?: string;
         grant_id?: string;
         school_year?: string;
         status?: string;
+        classification?: string;
+        department_id?: string;
+        year_level?: string;
+        program?: string;
     };
 }
 
-export default function GrantsIndex({ tab, grants, recipients, students, schoolYears, currentSchoolYear, filters }: Props) {
+export default function GrantsIndex({ tab, grants, recipients, students, schoolYears, currentSchoolYear, departments = [], classifications = [], yearLevels = [], programs = [], filters }: Props) {
+    const { props } = usePage<{ appSettings?: { has_college?: boolean } }>();
+    const hasCollege = props.appSettings?.has_college !== false;
     const [activeTab, setActiveTab] = useState(tab || 'recipients');
     const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
     const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
@@ -119,6 +129,10 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
     const [grantFilter, setGrantFilter] = useState(filters.grant_id || 'all');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
     const [statusFilter, setStatusFilter] = useState(filters.status || 'all');
+    const [classificationFilter, setClassificationFilter] = useState(filters.classification || 'all');
+    const [departmentFilter, setDepartmentFilter] = useState(filters.department_id || 'all');
+    const [yearLevelFilter, setYearLevelFilter] = useState(filters.year_level || 'all');
+    const [programFilter, setProgramFilter] = useState(filters.program || 'all');
     const [studentSearch, setStudentSearch] = useState('');
 
     const grantForm = useForm({
@@ -150,6 +164,10 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
             grant_id: grantFilter !== 'all' ? grantFilter : undefined,
             school_year: schoolYear !== 'all' ? schoolYear : undefined,
             status: statusFilter !== 'all' ? statusFilter : undefined,
+            classification: classificationFilter !== 'all' ? classificationFilter : undefined,
+            department_id: departmentFilter !== 'all' ? departmentFilter : undefined,
+            year_level: yearLevelFilter !== 'all' ? yearLevelFilter : undefined,
+            program: programFilter !== 'all' ? programFilter : undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -161,7 +179,72 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
         setGrantFilter('all');
         setSchoolYear('all');
         setStatusFilter('all');
+        setClassificationFilter('all');
+        setDepartmentFilter('all');
+        setYearLevelFilter('all');
+        setProgramFilter('all');
         router.get('/accounting/grants', { tab: 'recipients' });
+    };
+
+    const printRecipientsTable = () => {
+        const escapeHtml = (value: string) => value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        const rows = recipients.data.length === 0
+            ? '<tr><td colspan="6" style="text-align:center;padding:12px;">No recipients found.</td></tr>'
+            : recipients.data.map((recipient, index) => `
+                <tr>
+                    <td>${index + 1}</td>
+                    <td>${escapeHtml(recipient.student.full_name)}</td>
+                    <td>${escapeHtml(recipient.student.lrn)}</td>
+                    <td>${escapeHtml(recipient.grant.name)}</td>
+                    <td>${escapeHtml(recipient.school_year)}</td>
+                    <td>${escapeHtml(recipient.status)}</td>
+                </tr>
+            `).join('');
+
+        const printWindow = window.open('', '_blank', 'width=1000,height=700');
+        if (!printWindow) {
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>Grant Recipients</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 16px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #333; padding: 8px; font-size: 12px; }
+                        th { background: #f2f2f2; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <h2>Grant Recipients</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Student</th>
+                                <th>LRN</th>
+                                <th>Grant</th>
+                                <th>School Year</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
     };
 
     const handleCreateGrant = (e: React.FormEvent) => {
@@ -236,6 +319,10 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const grantOptions = grants.map(g => ({ value: g.id.toString(), label: g.name }));
     const schoolYearOptions = schoolYears.map(y => ({ value: y, label: y }));
+    const classificationOptions = classifications.map(value => ({ value, label: value }));
+    const departmentOptions = departments.map(d => ({ value: d.id.toString(), label: d.name }));
+    const yearLevelOptions = yearLevels.map(value => ({ value, label: value }));
+    const programOptions = programs.map(value => ({ value, label: value }));
     const statusOptions = [
         { value: 'active', label: 'Active' },
         { value: 'inactive', label: 'Inactive' },
@@ -428,7 +515,11 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                     </TabsContent>
 
                     <TabsContent value="recipients" className="space-y-4">
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                            <Button variant="outline" onClick={printRecipientsTable}>
+                                <Printer className="mr-2 h-4 w-4" />
+                                Print Recipients
+                            </Button>
                             <Dialog open={isAssignModalOpen} onOpenChange={(open) => {
                                 setIsAssignModalOpen(open);
                                 if (!open) {
@@ -585,6 +676,44 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                                     setTimeout(handleFilter, 0);
                                 }}
                             />
+                            <FilterDropdown
+                                label="Classification"
+                                value={classificationFilter}
+                                options={classificationOptions}
+                                onChange={(value) => {
+                                    setClassificationFilter(value);
+                                    setTimeout(handleFilter, 0);
+                                }}
+                            />
+                            <FilterDropdown
+                                label="Department"
+                                value={departmentFilter}
+                                options={departmentOptions}
+                                onChange={(value) => {
+                                    setDepartmentFilter(value);
+                                    setTimeout(handleFilter, 0);
+                                }}
+                            />
+                            <FilterDropdown
+                                label="Grade Level"
+                                value={yearLevelFilter}
+                                options={yearLevelOptions}
+                                onChange={(value) => {
+                                    setYearLevelFilter(value);
+                                    setTimeout(handleFilter, 0);
+                                }}
+                            />
+                            {hasCollege && (
+                                <FilterDropdown
+                                    label="Program"
+                                    value={programFilter}
+                                    options={programOptions}
+                                    onChange={(value) => {
+                                        setProgramFilter(value);
+                                        setTimeout(handleFilter, 0);
+                                    }}
+                                />
+                            )}
                             <Button onClick={handleFilter} className="mt-auto">
                                 Apply Filters
                             </Button>

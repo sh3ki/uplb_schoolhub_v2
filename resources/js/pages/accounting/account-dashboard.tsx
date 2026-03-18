@@ -5,16 +5,15 @@ import {
     CreditCard,
     TrendingUp,
     RefreshCw,
-    Download,
     Search,
 } from 'lucide-react';
-import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
 import type { DateRange } from 'react-day-picker';
 import { ExportButton } from '@/components/export-button';
 import { DateRangePicker } from '@/components/filters/date-range-picker';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -105,6 +104,11 @@ interface Props {
     };
 }
 
+interface AppSettingsFlags {
+    has_k12?: boolean;
+    has_college?: boolean;
+}
+
 export default function AccountDashboard({
     stats,
     transactions,
@@ -117,12 +121,11 @@ export default function AccountDashboard({
     selectedMonth,
     selectedYear,
     months,
-    years,
     filters,
 }: Props) {
-    const { props } = usePage();
-    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
-    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const { props } = usePage<{ appSettings?: AppSettingsFlags }>();
+    const hasK12 = props.appSettings?.has_k12 !== false;
+    const hasCollege = props.appSettings?.has_college !== false;
     const classificationOptions = [
         ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
         ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
@@ -373,9 +376,9 @@ export default function AccountDashboard({
                             {(dailyCollections || []).map((day, index) => {
                                 const heightPercent = maxAmount > 0 ? (day.amount / maxAmount) * 100 : 0;
                                 return (
-                                    <div key={index} className="flex flex-col items-center gap-1 min-w-[60px]">
+                                    <div key={index} className="flex flex-col items-center gap-1 min-w-15">
                                         <div 
-                                            className="w-10 bg-blue-600 rounded-t-md transition-all hover:bg-blue-700 cursor-pointer min-h-[4px]"
+                                            className="w-10 bg-blue-600 rounded-t-md transition-all hover:bg-blue-700 cursor-pointer min-h-1"
                                             style={{ height: `${Math.max(heightPercent, 2)}%` }}
                                             title={`Day ${day.day}: ${formatCurrency(day.amount)}`}
                                         />
@@ -411,7 +414,7 @@ export default function AccountDashboard({
                                 />
                             </div>
                             <Select value={txType || 'all'} onValueChange={(v) => setTxType(v === 'all' ? '' : v)}>
-                                <SelectTrigger className="w-[150px]">
+                                <SelectTrigger className="w-37.5">
                                     <SelectValue placeholder="All Types" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -422,7 +425,7 @@ export default function AccountDashboard({
                                 </SelectContent>
                             </Select>
                             <Select value={txMode || 'all'} onValueChange={(v) => setTxMode(v === 'all' ? '' : v)}>
-                                <SelectTrigger className="w-[150px]">
+                                <SelectTrigger className="w-37.5">
                                     <SelectValue placeholder="All Modes" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -454,7 +457,7 @@ export default function AccountDashboard({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        filteredTransactions.map((tx) => (
+                                        filteredTransactions.map((tx, index) => (
                                             <TableRow
                                                 key={tx.id}
                                                 className={tx.student_id ? 'cursor-pointer hover:bg-muted/60' : ''}
@@ -467,7 +470,7 @@ export default function AccountDashboard({
                                                 }}
                                             >
                                                 <TableCell>
-                                                    {tx.date} {tx.time}
+                                                    #{index + 1} - {tx.date} {tx.time}
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge

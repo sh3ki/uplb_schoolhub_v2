@@ -69,6 +69,7 @@ interface Grant {
 
 interface StudentAccount {
     id: number;
+    student_fee_id?: number | null;
     student: Student;
     school_year: string;
     total_amount: string;
@@ -230,15 +231,25 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             },
         });
     };
-    const handleMarkOverdue = (id: number) => {
+    const handleMarkOverdue = (studentFeeId?: number | null) => {
+        if (!studentFeeId) {
+            toast.error('No student fee record found for this account.');
+            return;
+        }
+
         if (confirm('Are you sure you want to mark this account as overdue?')) {
-            router.post(`/accounting/student-accounts/${id}/mark-overdue`);
+            router.post(`/accounting/student-accounts/${studentFeeId}/mark-overdue`);
         }
     };
 
-    const handleClearOverdue = (id: number) => {
+    const handleClearOverdue = (studentFeeId?: number | null) => {
+        if (!studentFeeId) {
+            toast.error('No student fee record found for this account.');
+            return;
+        }
+
         if (confirm('Are you sure you want to clear the overdue status?')) {
-            router.post(`/accounting/student-accounts/${id}/clear-overdue`);
+            router.post(`/accounting/student-accounts/${studentFeeId}/clear-overdue`);
         }
     };
 
@@ -737,18 +748,18 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                             Process Payment
                                                         </Link>
                                                     </DropdownMenuItem>
-                                                    {!account.is_overdue && parseFloat(account.balance) > 0 && (
+                                                    {!account.is_overdue && parseFloat(account.balance) > 0 && account.student_fee_id && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleMarkOverdue(account.id)}
+                                                            onClick={() => handleMarkOverdue(account.student_fee_id)}
                                                             className="text-red-600"
                                                         >
                                                             <AlertTriangle className="h-4 w-4 mr-2" />
                                                             Mark Overdue
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {account.is_overdue && (
+                                                    {account.is_overdue && account.student_fee_id && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleClearOverdue(account.id)}
+                                                            onClick={() => handleClearOverdue(account.student_fee_id)}
                                                             className="text-green-600"
                                                         >
                                                             <AlertTriangle className="h-4 w-4 mr-2" />

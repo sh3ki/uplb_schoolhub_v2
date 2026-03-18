@@ -58,6 +58,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'department',
         'program',
         'year_level',
+        'announcements_read_at',
     ];
 
     /**
@@ -83,6 +84,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'announcements_read_at' => 'datetime',
         ];
     }
 

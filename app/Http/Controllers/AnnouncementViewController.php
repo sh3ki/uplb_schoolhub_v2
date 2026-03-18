@@ -102,4 +102,22 @@ class AnnouncementViewController extends Controller
 
         return redirect()->back()->with('success', 'Announcement created successfully!');
     }
+
+    /**
+     * Mark all currently visible announcements as read for the current user.
+     */
+    public function markRead(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            abort(401);
+        }
+
+        $user->forceFill([
+            'announcements_read_at' => now(),
+        ])->save();
+
+        return redirect()->back()->with('success', 'Announcements marked as read.');
+    }
 }

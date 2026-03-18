@@ -2,8 +2,6 @@ import { Head, router } from '@inertiajs/react';
 import { FileDown, FileText, Calendar, TrendingUp, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ExportButton } from '@/components/export-button';
-import { FilterBar } from '@/components/filters/filter-bar';
-import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,6 +13,14 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import {
     Table,
@@ -24,14 +30,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
@@ -165,20 +163,6 @@ export default function AccountingReports({
                 preserveScroll: true,
             }
         );
-    };
-
-    const handleExport = (type: 'excel' | 'csv' | 'pdf') => {
-        // In a real implementation, this would trigger a backend route to generate the file
-        alert(`Export as ${type.toUpperCase()} - This would download the report in ${type} format`);
-        
-        // Example implementation:
-        // window.location.href = route('accounting.reports.export', {
-        //     type,
-        //     from,
-        //     to,
-        //     school_year: schoolYear !== 'all' ? schoolYear : undefined,
-        //     status: status !== 'all' ? status : undefined,
-        // });
     };
 
     const handlePrint = () => {
@@ -537,7 +521,16 @@ export default function AccountingReports({
                                                 </TableRow>
                                             ) : (
                                                 paymentSummary.map((summary, index) => (
-                                                    <TableRow key={index}>
+                                                    <TableRow
+                                                        key={index}
+                                                        className="cursor-pointer hover:bg-muted/60"
+                                                        onClick={() => {
+                                                            router.get('/super-accounting/account-dashboard', {
+                                                                date_from: summary.date,
+                                                                date_to: summary.date,
+                                                            });
+                                                        }}
+                                                    >
                                                         <TableCell className="font-medium">
                                                             {formatDate(summary.date)}
                                                         </TableCell>

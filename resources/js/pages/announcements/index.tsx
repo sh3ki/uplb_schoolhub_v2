@@ -1,6 +1,6 @@
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { format } from 'date-fns';
-import { Megaphone, Pin, FileText, Image as ImageIcon, File, Download, Plus } from 'lucide-react';
+import { Megaphone, Pin, FileText, Image as ImageIcon, File, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -76,7 +76,7 @@ interface Props {
         total: number;
         from: number;
         to: number;
-        links: any[];
+        links: { url: string | null; label: string; active: boolean }[];
     };
     filters: {
         search?: string;
@@ -152,7 +152,7 @@ export default function AnnouncementsIndex({ announcements, filters, role, canCr
 
     const navigate = (params: Record<string, string>) => {
         const cleanParams = Object.fromEntries(
-            Object.entries(params).filter(([_, v]) => v && v !== 'all')
+            Object.entries(params).filter(([, v]) => v && v !== 'all')
         );
         router.get(`/${role}/announcements`, cleanParams, { preserveState: true, preserveScroll: true });
     };
@@ -215,12 +215,24 @@ export default function AnnouncementsIndex({ announcements, filters, role, canCr
                             </p>
                         </div>
                     </div>
-                    {canCreate && (
-                        <Button onClick={() => setCreateOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            New Announcement
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                router.post(`/${role}/announcements/mark-read`, {}, {
+                                    preserveScroll: true,
+                                });
+                            }}
+                        >
+                            Mark as Read
                         </Button>
-                    )}
+                        {canCreate && (
+                            <Button onClick={() => setCreateOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                New Announcement
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Announcements List */}

@@ -22,9 +22,7 @@ import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
-    SelectGroup,
     SelectItem,
-    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
@@ -178,6 +176,8 @@ export default function PromoteStudents({
     const [selected, setSelected] = useState<number[]>([]);
 
     /* ── Promotion target state ── */
+    const [targetDepartmentId, setTargetDepartmentId] = useState<string>('');
+    const [targetProgram, setTargetProgram] = useState<string>('');
     const [targetSectionId, setTargetSectionId] = useState<string>('');   // section id | 'TBA' | ''
     const [targetYearLevelId, setTargetYearLevelId] = useState<string>(''); // used when TBA
 
@@ -189,29 +189,37 @@ export default function PromoteStudents({
         setSelected([]);
     }, [students.current_page, filters.search, filters.department_id]);
 
-    /* ── Derived filtered sections for the department/year-level context ── */
-    const filteredSections = useMemo(() => {
-        return sections.filter(s => {
-            if (departmentId !== 'all' && s.department_id !== Number(departmentId)) return false;
-            return true;
-        });
-    }, [sections, departmentId]);
-
-    /* ── Sections for target selector (scoped to dept if chosen) ── */
+    /* ── Sections for target selector ── */
     const targetSections = useMemo(() => {
-        if (departmentId !== 'all') {
-            return sections.filter(s => s.department_id === Number(departmentId));
+        let list = sections;
+
+        if (targetDepartmentId) {
+            list = list.filter(s => s.department_id === Number(targetDepartmentId));
         }
-        return sections;
-    }, [sections, departmentId]);
+
+        if (targetYearLevelId) {
+            list = list.filter(s => s.year_level_id === Number(targetYearLevelId));
+        }
+
+        if (targetProgram) {
+            list = list.filter(s => (s.program?.name ?? '') === targetProgram);
+        }
+
+        return list;
+    }, [sections, targetDepartmentId, targetYearLevelId, targetProgram]);
 
     /* ── Year levels for target selector (scoped to dept if chosen) ── */
     const targetYearLevels = useMemo(() => {
-        if (departmentId !== 'all') {
-            return yearLevels.filter(yl => yl.department_id === Number(departmentId));
+        if (targetDepartmentId) {
+            return yearLevels.filter(yl => yl.department_id === Number(targetDepartmentId));
         }
         return yearLevels;
-    }, [yearLevels, departmentId]);
+    }, [yearLevels, targetDepartmentId]);
+
+    const targetPrograms = useMemo(() => {
+        if (!targetDepartmentId) return programs;
+        return programs.filter(p => p.department_id === Number(targetDepartmentId));
+    }, [programs, targetDepartmentId]);
 
     /* ── Is college department active? ── */
     const isCollegeContext = useMemo(() => {
@@ -219,6 +227,12 @@ export default function PromoteStudents({
         const dept = departments.find(d => d.id === Number(departmentId));
         return dept?.classification === 'college';
     }, [departments, departmentId]);
+
+    const isTargetCollegeContext = useMemo(() => {
+        if (!targetDepartmentId) return false;
+        const dept = departments.find(d => d.id === Number(targetDepartmentId));
+        return dept?.classification.toLowerCase() === 'college';
+    }, [departments, targetDepartmentId]);
 
     /* ── Programs to show in filter (college-only feature) ── */
     const filteredPrograms = useMemo(() => {
@@ -287,6 +301,14 @@ export default function PromoteStudents({
             toast.error('Select at least one student to promote.');
             return;
         }
+        if (!targetDepartmentId) {
+            toast.error('Select a target department first.');
+            return;
+        }
+        if (!targetYearLevelId) {
+            toast.error('Select a target year level first.');
+            return;
+        }
         if (!targetSectionId) {
             toast.error('Choose a target section (or TBA) before promoting.');
             return;
@@ -315,13 +337,17 @@ export default function PromoteStudents({
             {
                 student_ids: selected,
                 target_section_id: targetSectionId,
-                target_year_level_id: targetSectionId === 'TBA' ? targetYearLevelId : undefined,
+                target_year_level_id: targetYearLevelId,
+                target_department_id: targetDepartmentId || undefined,
+                target_program: targetProgram || undefined,
             },
             {
                 preserveScroll: true,
                 onSuccess: () => {
                     toast.success(`${selected.length} student(s) promoted to ${sectionLabel}.`);
                     setSelected([]);
+                    setTargetDepartmentId('');
+                    setTargetProgram('');
                     setTargetSectionId('');
                     setTargetYearLevelId('');
                 },
@@ -331,6 +357,35 @@ export default function PromoteStudents({
                 },
                 onFinish: () => setIsPromoting(false),
             },
+        );
+    };
+
+    const handleMarkAsGraduate = () => {
+        if (selected.length === 0) {
+            toast.error('Select at least one student to mark as graduate.');
+            return;
+        }
+
+        if (!confirm(
+            `Mark ${selected.length} selected student(s) as graduated and archive them?\n\nThis will set enrollment status to graduated and move them to archived records.`
+        )) {
+            return;
+        }
+
+        router.post(
+            '/registrar/promote-students/graduate',
+            { student_ids: selected },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success(`${selected.length} student(s) marked as graduated.`);
+                    setSelected([]);
+                },
+                onError: (errors) => {
+                    const msg = Object.values(errors)[0] as string;
+                    toast.error(msg ?? 'Failed to mark students as graduated.');
+                },
+            }
         );
     };
 
@@ -372,34 +427,37 @@ export default function PromoteStudents({
                     </div>
                 </div>
 
-                {/* ── School Year Tabs ── */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-medium text-muted-foreground mr-1">School Year:</span>
-                    {['all', ...schoolYears].map((sy) => (
-                        <button
-                            key={sy}
-                            type="button"
-                            onClick={() => {
-                                setSchoolYearTab(sy);
-                                const params: Record<string, string> = {};
-                                if (search) params.search = search;
-                                if (departmentId !== 'all') params.department_id = departmentId;
-                                if (yearLevelId !== 'all') params.year_level_id = yearLevelId;
-                                if (programFilter !== 'all') params.program = programFilter;
-                                if (sectionFilter !== 'all') params.section_id = sectionFilter;
-                                if (enrollStatus !== 'all') params.enrollment_status = enrollStatus;
-                                if (sy !== 'all') params.school_year = sy;
-                                router.get('/registrar/promote-students', params, { preserveScroll: true, preserveState: true });
-                            }}
-                            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                                schoolYearTab === sy
-                                    ? 'bg-primary text-primary-foreground border-primary'
-                                    : 'bg-background text-muted-foreground border-border hover:border-primary/60 hover:text-foreground'
-                            }`}
-                        >
-                            {sy === 'all' ? 'All Years' : sy}
-                        </button>
-                    ))}
+                {/* ── School Year Filter ── */}
+                <div className="w-full max-w-xs">
+                    <Label className="text-xs text-muted-foreground mb-1 block">School Year</Label>
+                    <Select
+                        value={schoolYearTab}
+                        onValueChange={(sy) => {
+                            setSchoolYearTab(sy);
+                            const params: Record<string, string> = {};
+                            if (search) params.search = search;
+                            if (departmentId !== 'all') params.department_id = departmentId;
+                            if (yearLevelId !== 'all') params.year_level_id = yearLevelId;
+                            if (programFilter !== 'all') params.program = programFilter;
+                            if (sectionFilter !== 'all') params.section_id = sectionFilter;
+                            if (enrollStatus !== 'all') params.enrollment_status = enrollStatus;
+                            if (sy !== 'all') params.school_year = sy;
+                            router.get('/registrar/promote-students', params, {
+                                preserveScroll: true,
+                                preserveState: true,
+                            });
+                        }}
+                    >
+                        <SelectTrigger className="h-9 text-sm">
+                            <SelectValue placeholder="School Year" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Years</SelectItem>
+                            {schoolYears.map((sy) => (
+                                <SelectItem key={sy} value={sy}>{sy}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
                 </div>
 
                 {/* ── Filter Panel ── */}
@@ -538,10 +596,66 @@ export default function PromoteStudents({
                             Promote selected students to:
                         </div>
 
+                        {/* Target Department */}
+                        <div className="min-w-55">
+                            <Label className="text-xs text-muted-foreground mb-1 block">Target Department</Label>
+                            <Select
+                                value={targetDepartmentId}
+                                onValueChange={(v) => {
+                                    setTargetDepartmentId(v);
+                                    setTargetProgram('');
+                                    setTargetYearLevelId('');
+                                    setTargetSectionId('');
+                                }}
+                            >
+                                <SelectTrigger className="h-9 bg-background text-sm">
+                                    <SelectValue placeholder="Select department…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {departments.map((dept) => (
+                                        <SelectItem key={dept.id} value={String(dept.id)}>{dept.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Target Program (college only) */}
+                        {isTargetCollegeContext && (
+                            <div className="min-w-55">
+                                <Label className="text-xs text-muted-foreground mb-1 block">Target Program</Label>
+                                <Select value={targetProgram || '__none__'} onValueChange={(v) => setTargetProgram(v === '__none__' ? '' : v)}>
+                                    <SelectTrigger className="h-9 bg-background text-sm">
+                                        <SelectValue placeholder="All / none" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">All / none</SelectItem>
+                                        {targetPrograms.map((prog) => (
+                                            <SelectItem key={prog.id} value={prog.name}>{prog.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {/* Target Year Level */}
+                        <div className="min-w-55">
+                            <Label className="text-xs text-muted-foreground mb-1 block">Target Year Level</Label>
+                            <Select value={targetYearLevelId} onValueChange={(v) => { setTargetYearLevelId(v); setTargetSectionId(''); }}>
+                                <SelectTrigger className="h-9 bg-background text-sm">
+                                    <SelectValue placeholder="Select year level…" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {targetYearLevels.map((yl) => (
+                                        <SelectItem key={yl.id} value={String(yl.id)}>{yl.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         {/* Target Section Selector */}
-                        <div className="flex-1 min-w-[220px]">
+                        <div className="flex-1 min-w-55">
                             <Label className="text-xs text-muted-foreground mb-1 block">Target Section</Label>
-                            <Select value={targetSectionId} onValueChange={v => { setTargetSectionId(v); setTargetYearLevelId(''); }}>
+                            <Select value={targetSectionId} onValueChange={setTargetSectionId}>
                                 <SelectTrigger className="h-9 bg-background text-sm">
                                     <SelectValue placeholder="Choose target section…" />
                                 </SelectTrigger>
@@ -552,49 +666,17 @@ export default function PromoteStudents({
                                             TBA (To Be Announced)
                                         </span>
                                     </SelectItem>
-                                    {/* Group by year level */}
-                                    {Array.from(
-                                        targetSections.reduce((map, s) => {
-                                            const key = s.year_level?.name ?? 'Other';
-                                            if (!map.has(key)) map.set(key, []);
-                                            map.get(key)!.push(s);
-                                            return map;
-                                        }, new Map<string, typeof targetSections>()),
-                                    ).map(([ylName, secs]) => (
-                                        <SelectGroup key={ylName}>
-                                            <SelectLabel className="text-xs">{ylName}</SelectLabel>
-                                            {secs.map(s => (
-                                                <SelectItem key={s.id} value={String(s.id)}>
-                                                    {s.name}
-                                                    {s.program && (
-                                                        <span className="text-muted-foreground ml-1 text-xs">
-                                                            – {s.program.name}
-                                                        </span>
-                                                    )}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectGroup>
+                                    {targetSections.map((sec) => (
+                                        <SelectItem key={sec.id} value={String(sec.id)}>
+                                            {sec.name}
+                                            {sec.program && (
+                                                <span className="text-muted-foreground ml-1 text-xs">- {sec.program.name}</span>
+                                            )}
+                                        </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
-
-                        {/* Year level selector — only shown for TBA */}
-                        {targetSectionId === 'TBA' && (
-                            <div className="min-w-[180px]">
-                                <Label className="text-xs text-muted-foreground mb-1 block">Year Level (for TBA)</Label>
-                                <Select value={targetYearLevelId} onValueChange={setTargetYearLevelId}>
-                                    <SelectTrigger className="h-9 bg-background text-sm">
-                                        <SelectValue placeholder="Select year level…" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {targetYearLevels.map(yl => (
-                                            <SelectItem key={yl.id} value={String(yl.id)}>{yl.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        )}
 
                         <Button
                             onClick={handlePromote}
@@ -605,6 +687,17 @@ export default function PromoteStudents({
                             {isPromoting
                                 ? 'Promoting…'
                                 : `Promote ${selected.length > 0 ? `(${selected.length})` : ''} Students`}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleMarkAsGraduate}
+                            disabled={selected.length === 0 || isPromoting}
+                            className="shrink-0 border-blue-300 text-blue-700 hover:bg-blue-50"
+                        >
+                            <GraduationCap className="h-4 w-4 mr-1.5" />
+                            Mark as Graduate
                         </Button>
                     </div>
 
@@ -684,7 +777,7 @@ export default function PromoteStudents({
                                                     />
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="flex items-center gap-2.5 min-w-[180px]">
+                                                    <div className="flex items-center gap-2.5 min-w-45">
                                                         <Avatar className="h-8 w-8 shrink-0">
                                                             <AvatarImage src={student.student_photo_url ?? undefined} />
                                                             <AvatarFallback className="text-xs">
@@ -712,7 +805,7 @@ export default function PromoteStudents({
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="font-mono text-xs">{student.lrn}</TableCell>
-                                                <TableCell className="text-sm max-w-[160px] truncate">
+                                                <TableCell className="text-sm max-w-40 truncate">
                                                     {student.program ?? <span className="text-muted-foreground">—</span>}
                                                 </TableCell>
                                                 <TableCell className="text-sm">

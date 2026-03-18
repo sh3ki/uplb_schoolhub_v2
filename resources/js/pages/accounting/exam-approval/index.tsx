@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -13,7 +14,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import AccountingLayout from '@/layouts/accounting-layout';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -22,15 +29,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import AccountingLayout from '@/layouts/accounting-layout';
 
 interface FullyPaidStudent {
     id: number;
@@ -61,6 +61,7 @@ export default function ExamApprovalIndex({
     fullyPaidMale,
     fullyPaidFemale,
 }: Props) {
+    const [activeGenderTab, setActiveGenderTab] = useState<'all' | 'male' | 'female'>('all');
     const [fpYearLevel, setFpYearLevel] = useState('all');
     const [fpSection, setFpSection] = useState('all');
     const [fpProgram, setFpProgram] = useState('all');
@@ -95,11 +96,104 @@ export default function ExamApprovalIndex({
 
     const filteredMale = applyFpFilters(fullyPaidMale);
     const filteredFemale = applyFpFilters(fullyPaidFemale);
+    const filteredAll = [...filteredMale, ...filteredFemale].sort((a, b) => a.full_name.localeCompare(b.full_name));
 
     const classificationLabels: Record<string, string> = {
         new: 'New',
         transferee: 'Transferee',
         returnee: 'Returnee',
+    };
+
+    const escapeHtml = (value: string) =>
+        value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+    const printTableOnly = () => {
+        const selected = activeGenderTab === 'male'
+            ? filteredMale
+            : activeGenderTab === 'female'
+                ? filteredFemale
+                : filteredAll;
+
+        const title = activeGenderTab === 'male'
+            ? 'Exam Approval - Male Students'
+            : activeGenderTab === 'female'
+                ? 'Exam Approval - Female Students'
+                : 'Exam Approval - All Students';
+
+        const rowsHtml = selected.length === 0
+            ? '<tr><td colspan="8" style="text-align:center;padding:12px;">No students found.</td></tr>'
+            : selected
+                .map((student, idx) => {
+                    const statusLabel = student.payment_status === 'paid'
+                        ? 'Fully Paid'
+                        : student.payment_status === 'partial'
+                            ? 'Partial'
+                            : student.payment_status === 'overdue'
+                                ? 'Overdue'
+                                : 'Unpaid';
+
+                    return `
+                        <tr>
+                            <td>${idx + 1}</td>
+                            <td>${escapeHtml(student.full_name)}</td>
+                            <td>${escapeHtml(student.lrn ?? '—')}</td>
+                            <td>${escapeHtml(classificationLabels[student.classification ?? ''] ?? student.classification ?? '—')}</td>
+                            <td>${escapeHtml(student.department ?? '—')}</td>
+                            <td>${escapeHtml(student.program ?? '—')}</td>
+                            <td>${escapeHtml(([student.year_level, student.section].filter(Boolean).join(' - ')) || '—')}</td>
+                            <td>${escapeHtml(statusLabel)}</td>
+                        </tr>
+                    `;
+                })
+                .join('');
+
+        const printWindow = window.open('', '_blank', 'width=1100,height=800');
+        if (!printWindow) {
+            return;
+        }
+
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${title}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 16px; }
+                        h2 { margin: 0 0 12px 0; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #333; padding: 8px; font-size: 12px; }
+                        th { background: #f2f2f2; text-align: left; }
+                    </style>
+                </head>
+                <body>
+                    <h2>${title}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Student</th>
+                                <th>LRN</th>
+                                <th>Classification</th>
+                                <th>Department</th>
+                                <th>Program</th>
+                                <th>Year / Section</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
     };
 
     return (
@@ -112,7 +206,7 @@ export default function ExamApprovalIndex({
                         title="Exam Approval"
                         description="Students eligible to take exams"
                     />
-                    <Button variant="outline" onClick={() => window.print()}>
+                    <Button variant="outline" onClick={printTableOnly}>
                         <Printer className="h-4 w-4 mr-2" />
                         Print
                     </Button>
@@ -208,14 +302,19 @@ export default function ExamApprovalIndex({
                     )}
                 </div>
 
-                <Tabs defaultValue="male">
+                <Tabs value={activeGenderTab} onValueChange={(value) => setActiveGenderTab(value as 'all' | 'male' | 'female')}>
                     <TabsList>
+                        <TabsTrigger value="all">All ({filteredAll.length})</TabsTrigger>
                         <TabsTrigger value="male">Male ({filteredMale.length})</TabsTrigger>
                         <TabsTrigger value="female">Female ({filteredFemale.length})</TabsTrigger>
                     </TabsList>
 
-                    {(['male', 'female'] as const).map((gender) => {
-                        const students = gender === 'male' ? filteredMale : filteredFemale;
+                    {(['all', 'male', 'female'] as const).map((gender) => {
+                        const students = gender === 'male'
+                            ? filteredMale
+                            : gender === 'female'
+                                ? filteredFemale
+                                : filteredAll;
                         return (
                             <TabsContent key={gender} value={gender}>
                                 <Card>

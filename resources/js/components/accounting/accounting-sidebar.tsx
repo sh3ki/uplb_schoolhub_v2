@@ -15,7 +15,6 @@ import {
     Users,
 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
-import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import {

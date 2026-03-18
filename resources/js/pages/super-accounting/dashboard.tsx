@@ -249,7 +249,7 @@ export default function SuperAccountingDashboard({
 
                     <Card className="border-l-4 border-l-green-500">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Collected Today</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
                             <TrendingUp className="h-4 w-4 text-green-500" />
                         </CardHeader>
                         <CardContent>
@@ -257,7 +257,7 @@ export default function SuperAccountingDashboard({
                                 {formatCurrency(parseFloat(stats.total_collected_today))}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                All accounting accounts (fees + documents + drops)
                             </p>
                         </CardContent>
                     </Card>

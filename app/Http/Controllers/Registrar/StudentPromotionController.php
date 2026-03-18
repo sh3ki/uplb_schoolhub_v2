@@ -30,7 +30,7 @@ class StudentPromotionController extends Controller
         $program        = $request->input('program', '');
         $currentSection = $request->input('section_id', '');
         $enrollStatus   = $request->input('enrollment_status', '');
-        $schoolYearFilter = $request->input('school_year', '');
+        $schoolYearFilter = $request->input('school_year', 'all');
 
         // ── Students query — ALL students including archived/inactive ──────────
         $query = Student::withTrashed()
@@ -67,7 +67,7 @@ class StudentPromotionController extends Controller
             $query->where('enrollment_status', $enrollStatus);
         }
 
-        if ($schoolYearFilter) {
+        if ($schoolYearFilter && $schoolYearFilter !== 'all') {
             $query->where('school_year', $schoolYearFilter);
         }
 
@@ -147,10 +147,15 @@ class StudentPromotionController extends Controller
             'sections'         => $sections,
             'schoolYears'      => $schoolYears,
             'activeSchoolYear' => $activeSchoolYear,
-            'filters'          => $request->only([
-                'search', 'department_id', 'year_level_id',
-                'program', 'section_id', 'enrollment_status', 'school_year',
-            ]),
+            'filters'          => [
+                'search'            => $search,
+                'department_id'     => $departmentId,
+                'year_level_id'     => $yearLevelId,
+                'program'           => $program,
+                'section_id'        => $currentSection,
+                'enrollment_status' => $enrollStatus,
+                'school_year'       => $schoolYearFilter,
+            ],
         ]);
     }
 
@@ -171,11 +176,15 @@ class StudentPromotionController extends Controller
             'student_ids.*'       => 'integer|exists:students,id',
             'target_section_id'   => 'nullable|string',   // section id OR 'TBA'
             'target_year_level_id'=> 'nullable|integer|exists:year_levels,id', // required when TBA
+            'target_department_id'=> 'nullable|integer|exists:departments,id',
+            'target_program'      => 'nullable|string|max:255',
         ]);
 
         $studentIds       = $validated['student_ids'];
         $targetSectionId  = $validated['target_section_id'] ?? null;
         $targetYearLevelId= $validated['target_year_level_id'] ?? null;
+        $targetDepartmentId = $validated['target_department_id'] ?? null;
+        $targetProgram = $validated['target_program'] ?? null;
 
         if (!$targetSectionId) {
             return back()->withErrors(['target_section_id' => 'A target section or TBA is required.']);
@@ -196,6 +205,14 @@ class StudentPromotionController extends Controller
                 'year_level'    => $yearLevel->name,
                 'school_year'   => $activeSchoolYear,
             ];
+
+            if ($targetDepartmentId) {
+                $updateData['department_id'] = (int) $targetDepartmentId;
+            }
+
+            if ($targetProgram !== null && $targetProgram !== '') {
+                $updateData['program'] = $targetProgram;
+            }
         } else {
             $section = Section::with(['yearLevel', 'program'])->findOrFail((int) $targetSectionId);
 
@@ -204,6 +221,7 @@ class StudentPromotionController extends Controller
                 'section'       => $section->name,
                 'year_level_id' => $section->year_level_id,
                 'year_level'    => $section->yearLevel?->name ?? '',
+                'department_id' => $section->department_id,
                 'school_year'   => $activeSchoolYear,
             ];
 
@@ -222,5 +240,36 @@ class StudentPromotionController extends Controller
 
         return redirect()->route('registrar.promote-students.index')
             ->with('success', "{$count} student(s) successfully promoted to {$destination} for school year {$activeSchoolYear}.");
+    }
+
+    /**
+     * Mark selected students as graduated and archive them.
+     */
+    public function graduate(Request $request): RedirectResponse
+    {
+        $activeSchoolYear = AppSetting::current()->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $validated = $request->validate([
+            'student_ids'   => 'required|array|min:1',
+            'student_ids.*' => 'integer|exists:students,id',
+        ]);
+
+        $studentIds = $validated['student_ids'];
+
+        // Ensure all selected students are active rows before archiving as graduates.
+        Student::withTrashed()->whereIn('id', $studentIds)->restore();
+
+        Student::whereIn('id', $studentIds)->update([
+            'enrollment_status' => 'graduated',
+            'is_active'         => false,
+            'school_year'       => $activeSchoolYear,
+        ]);
+
+        Student::whereIn('id', $studentIds)->delete();
+
+        $count = count($studentIds);
+
+        return redirect()->route('registrar.promote-students.index')
+            ->with('success', "{$count} student(s) marked as graduated and archived.");
     }
 }

@@ -10,6 +10,8 @@ use App\Models\FeeItem;
 use App\Models\Grant;
 use App\Models\GrantRecipient;
 use App\Models\Department;
+use App\Models\DocumentRequest;
+use App\Models\DropRequest;
 use App\Models\YearLevel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -104,7 +106,8 @@ class StudentAccountController extends Controller
                 ->get();
 
             return [
-                'id' => $feeData['student_fee_id'] ?? $student->id,
+                'id' => $student->id,
+                'student_fee_id' => $feeData['student_fee_id'],
                 'student' => [
                     'id' => $student->id,
                     'full_name' => $student->full_name,
@@ -486,7 +489,13 @@ class StudentAccountController extends Controller
         return [
             'total_students' => $studentIds->count(),
             'total_receivables' => $totalReceivables,
-            'total_collected' => $totalCollected,
+            'total_collected' => (float) StudentPayment::sum('amount')
+                + (float) DocumentRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->sum('fee')
+                + (float) DropRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->sum('fee_amount'),
             'total_balance' => $totalBalance,
             'overdue_count' => $overdueCount,
             'fully_paid' => $fullyPaidCount,
