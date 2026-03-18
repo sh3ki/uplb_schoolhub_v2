@@ -72,13 +72,9 @@ class AccountingDashboardController extends Controller
         }
 
         $totalStudents = $eligibleStudentIds->count();
-        $allAccountsProcessedTotal = (float) StudentPayment::sum('amount')
-            + (float) DocumentRequest::where('is_paid', true)
-                ->where('accounting_status', 'approved')
-                ->sum('fee')
-            + (float) DropRequest::where('is_paid', true)
-                ->where('accounting_status', 'approved')
-                ->sum('fee_amount');
+        // Keep overview KPIs aligned to student-fee accounts used by projected revenue/outstanding.
+        // Transaction-wide totals (including documents/drops) belong to account-dashboard pages.
+        $allAccountsProcessedTotal = (float) $totalCollected;
         
         $stats = [
             'total_students' => $totalStudents,
@@ -302,13 +298,10 @@ class AccountingDashboardController extends Controller
 
         // Get stats scoped to filtered students
         $totalStudents       = $filteredIds->count();
-        $totalCollectedAllAccounts = (float) StudentPayment::sum('amount')
-            + (float) DocumentRequest::where('is_paid', true)
-                ->where('accounting_status', 'approved')
-                ->sum('fee')
-            + (float) DropRequest::where('is_paid', true)
-                ->where('accounting_status', 'approved')
-                ->sum('fee_amount');
+        // Keep simplified dashboard cards on the same fee-ledger basis as receivables/balances.
+        $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
+            ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
+            ->sum('amount');
 
         $stats = [
             'total_students' => $totalStudents,
