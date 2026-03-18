@@ -1,5 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
-import { BadgeDollarSign, TrendingUp, Users, Wallet, CalendarDays, CheckCircle, AlertTriangle, XCircle, BarChart3 } from 'lucide-react';
+import { BadgeDollarSign, TrendingUp, Users, CalendarDays, CheckCircle, AlertTriangle, XCircle, BarChart3 } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -98,6 +98,11 @@ interface Props {
     };
 }
 
+interface AppSettingsFlags {
+    has_k12?: boolean;
+    has_college?: boolean;
+}
+
 const formatCurrency = (amount: number) =>
     `₱${amount.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -116,9 +121,9 @@ export default function AccountingDashboard({
     sections = [],
     filters = {},
 }: Props) {
-    const { props } = usePage();
-    const hasK12 = (props.appSettings as any)?.has_k12 !== false;
-    const hasCollege = (props.appSettings as any)?.has_college !== false;
+    const { props } = usePage<{ appSettings?: AppSettingsFlags }>();
+    const hasK12 = props.appSettings?.has_k12 !== false;
+    const hasCollege = props.appSettings?.has_college !== false;
     const classificationOptions = [
         ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
         ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
@@ -248,7 +253,7 @@ export default function AccountingDashboard({
 
                     <Card className="border-l-4 border-l-green-500">
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Collected Today</CardTitle>
+                            <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
                             <TrendingUp className="h-4 w-4 text-green-500" />
                         </CardHeader>
                         <CardContent>
@@ -256,7 +261,7 @@ export default function AccountingDashboard({
                                 {formatCurrency(parseFloat(stats.total_collected_today))}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                                {new Date().toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}
+                                All accounting accounts (fees + documents + drops)
                             </p>
                         </CardContent>
                     </Card>
