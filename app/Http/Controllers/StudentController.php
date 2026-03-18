@@ -48,7 +48,7 @@ class StudentController extends Controller
         $stats = [
             'allStudents'        => Student::count(),
             'officiallyEnrolled' => Student::where('enrollment_status', 'enrolled')->count(),
-            'notEnrolled'        => Student::where('enrollment_status', 'not-enrolled')->count(),
+            'notEnrolled'        => Student::whereIn('enrollment_status', ['not-enrolled', 'pending-enrollment'])->count(),
             'registrarPending'   => Student::where('enrollment_status', 'pending-registrar')->count(),
             'accountingPending'  => Student::where('enrollment_status', 'pending-accounting')->count(),
             'pendingEnrollment'  => Student::where('enrollment_status', 'pending-enrollment')->count(),
