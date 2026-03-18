@@ -10,8 +10,6 @@ use App\Models\FeeItem;
 use App\Models\Grant;
 use App\Models\GrantRecipient;
 use App\Models\Department;
-use App\Models\DocumentRequest;
-use App\Models\DropRequest;
 use App\Models\YearLevel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -489,13 +487,8 @@ class StudentAccountController extends Controller
         return [
             'total_students' => $studentIds->count(),
             'total_receivables' => $totalReceivables,
-            'total_collected' => (float) StudentPayment::sum('amount')
-                + (float) DocumentRequest::where('is_paid', true)
-                    ->where('accounting_status', 'approved')
-                    ->sum('fee')
-                + (float) DropRequest::where('is_paid', true)
-                    ->where('accounting_status', 'approved')
-                    ->sum('fee_amount'),
+            // Keep student-accounts analytics strictly fee-ledger scoped.
+            'total_collected' => $totalCollected,
             'total_balance' => $totalBalance,
             'overdue_count' => $overdueCount,
             'fully_paid' => $fullyPaidCount,
