@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Owner;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentRequest;
+use App\Models\DropRequest;
 use App\Models\StudentPayment;
 use App\Models\StudentFee;
 use Illuminate\Http\Request;
@@ -90,7 +92,41 @@ class AuditLogController extends Controller
 
         // Summary stats
         $totalPayments  = StudentPayment::count();
-        $totalCollected = StudentPayment::sum('amount');
+
+        $paymentTotalQuery = StudentPayment::query();
+        $documentTotalQuery = DocumentRequest::query()
+            ->where('is_paid', true)
+            ->where('accounting_status', 'approved');
+        $dropTotalQuery = DropRequest::query()
+            ->where('is_paid', true)
+            ->where('accounting_status', 'approved');
+
+        if ($schoolYear = $request->input('school_year')) {
+            $paymentTotalQuery->whereHas('studentFee', function ($q) use ($schoolYear) {
+                $q->where('school_year', $schoolYear);
+            });
+            $documentTotalQuery->whereHas('student', function ($q) use ($schoolYear) {
+                $q->where('school_year', $schoolYear);
+            });
+            $dropTotalQuery->whereHas('student', function ($q) use ($schoolYear) {
+                $q->where('school_year', $schoolYear);
+            });
+        }
+
+        if ($dateFrom = $request->input('date_from')) {
+            $paymentTotalQuery->whereDate('payment_date', '>=', $dateFrom);
+            $documentTotalQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+            $dropTotalQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+        }
+        if ($dateTo = $request->input('date_to')) {
+            $paymentTotalQuery->whereDate('payment_date', '<=', $dateTo);
+            $documentTotalQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+            $dropTotalQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+        }
+
+        $totalCollected = (float) $paymentTotalQuery->sum('amount')
+            + (float) $documentTotalQuery->sum('fee')
+            + (float) $dropTotalQuery->sum('fee_amount');
         $cashiersCount  = StudentPayment::distinct('recorded_by')->count('recorded_by');
         $todayCount     = StudentPayment::whereDate('payment_date', today())->count();
 
