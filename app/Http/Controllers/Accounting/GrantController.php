@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Grant;
 use App\Models\GrantRecipient;
 use App\Models\Student;
@@ -64,6 +65,30 @@ class GrantController extends Controller
             $recipientsQuery->where('status', $status);
         }
 
+        if ($classification = $request->input('classification')) {
+            $recipientsQuery->whereHas('student.department', function ($q) use ($classification) {
+                $q->where('classification', $classification);
+            });
+        }
+
+        if ($departmentId = $request->input('department_id')) {
+            $recipientsQuery->whereHas('student', function ($q) use ($departmentId) {
+                $q->where('department_id', $departmentId);
+            });
+        }
+
+        if ($yearLevel = $request->input('year_level')) {
+            $recipientsQuery->whereHas('student', function ($q) use ($yearLevel) {
+                $q->where('year_level', $yearLevel);
+            });
+        }
+
+        if ($program = $request->input('program')) {
+            $recipientsQuery->whereHas('student', function ($q) use ($program) {
+                $q->where('program', $program);
+            });
+        }
+
         $recipients = $recipientsQuery->latest()->paginate(20)->withQueryString();
 
         // Get students for assignment dropdown
@@ -84,6 +109,26 @@ class GrantController extends Controller
 
         $schoolYears = GrantRecipient::distinct()->pluck('school_year')->sort()->values();
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? '';
+        $departments = Department::where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'classification']);
+        $classifications = Department::where('is_active', true)
+            ->distinct()
+            ->pluck('classification')
+            ->filter()
+            ->values();
+        $yearLevels = Student::whereNotNull('year_level')
+            ->where('year_level', '!=', '')
+            ->distinct()
+            ->orderBy('year_level')
+            ->pluck('year_level')
+            ->values();
+        $programs = Student::whereNotNull('program')
+            ->where('program', '!=', '')
+            ->distinct()
+            ->orderBy('program')
+            ->pluck('program')
+            ->values();
 
         return Inertia::render($this->viewPrefix() . '/grants/index', [
             'tab' => $tab,
@@ -92,7 +137,11 @@ class GrantController extends Controller
             'students' => $students,
             'schoolYears' => $schoolYears,
             'currentSchoolYear' => $currentSchoolYear,
-            'filters' => $request->only(['search', 'grant_id', 'school_year', 'status']),
+            'departments' => $departments,
+            'classifications' => $classifications,
+            'yearLevels' => $yearLevels,
+            'programs' => $programs,
+            'filters' => $request->only(['search', 'grant_id', 'school_year', 'status', 'classification', 'department_id', 'year_level', 'program']),
         ]);
     }
 
