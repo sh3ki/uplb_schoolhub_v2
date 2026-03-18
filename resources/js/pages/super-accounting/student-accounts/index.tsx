@@ -68,6 +68,7 @@ interface Grant {
 
 interface StudentAccount {
     id: number;
+    student_fee_id?: number | null;
     student: Student;
     school_year: string;
     total_amount: string;
@@ -227,15 +228,17 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             },
         });
     };
-    const handleMarkOverdue = (id: number) => {
+    const handleMarkOverdue = (studentFeeId?: number | null) => {
+        if (!studentFeeId) return;
         if (confirm('Are you sure you want to mark this account as overdue?')) {
-            router.post(`/super-accounting/student-accounts/${id}/mark-overdue`);
+            router.post(`/super-accounting/student-accounts/${studentFeeId}/mark-overdue`);
         }
     };
 
-    const handleClearOverdue = (id: number) => {
+    const handleClearOverdue = (studentFeeId?: number | null) => {
+        if (!studentFeeId) return;
         if (confirm('Are you sure you want to clear the overdue status?')) {
-            router.post(`/super-accounting/student-accounts/${id}/clear-overdue`);
+            router.post(`/super-accounting/student-accounts/${studentFeeId}/clear-overdue`);
         }
     };
 
@@ -557,7 +560,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListMale.length === 0 ? (
                                             <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No male students.</TableCell></TableRow>
                                         ) : classListMale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/student-accounts/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                                                 <TableCell>
                                                     <StudentPhoto
@@ -597,7 +600,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListFemale.length === 0 ? (
                                             <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No female students.</TableCell></TableRow>
                                         ) : classListFemale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/student-accounts/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/super-accounting/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                                                 <TableCell>
                                                     <StudentPhoto
@@ -645,7 +648,11 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 </TableRow>
                             ) : (
                                 accounts.data.map((account) => (
-                                    <TableRow key={account.id} className={account.is_overdue ? 'bg-red-50' : ''}>
+                                    <TableRow
+                                        key={account.id}
+                                        className={`cursor-pointer hover:bg-muted/50 ${account.is_overdue ? 'bg-red-50' : ''}`}
+                                        onClick={() => router.visit(`/super-accounting/payments/process/${account.student.id}`)}
+                                    >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <StudentPhoto
@@ -691,7 +698,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                             )}
                                         </TableCell>
                                         <TableCell>{getStatusBadge(account)}</TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="sm">
@@ -700,9 +707,9 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/super-accounting/student-accounts/${account.id}`}>
+                                                        <Link href={`/super-accounting/payments/process/${account.student.id}`}>
                                                             <Eye className="h-4 w-4 mr-2" />
-                                                            View Details
+                                                            View Account
                                                         </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem asChild>
@@ -711,18 +718,18 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                             Process Payment
                                                         </Link>
                                                     </DropdownMenuItem>
-                                                    {!account.is_overdue && parseFloat(account.balance) > 0 && (
+                                                    {!account.is_overdue && parseFloat(account.balance) > 0 && account.student_fee_id && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleMarkOverdue(account.id)}
+                                                            onClick={() => handleMarkOverdue(account.student_fee_id)}
                                                             className="text-red-600"
                                                         >
                                                             <AlertTriangle className="h-4 w-4 mr-2" />
                                                             Mark Overdue
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {account.is_overdue && (
+                                                    {account.is_overdue && account.student_fee_id && (
                                                         <DropdownMenuItem
-                                                            onClick={() => handleClearOverdue(account.id)}
+                                                            onClick={() => handleClearOverdue(account.student_fee_id)}
                                                             className="text-green-600"
                                                         >
                                                             <AlertTriangle className="h-4 w-4 mr-2" />
