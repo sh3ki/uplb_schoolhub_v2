@@ -215,11 +215,15 @@ class ReportsController extends Controller
             $balanceReport = $mappedBalanceReport->filter(fn($row) => $row['payment_status'] === $status)->values();
         }
 
+        $departmentAnalysis = $this->buildDepartmentAnalysis(
+            $schoolYear,
+            $request->input('department_id') ? (int) $request->input('department_id') : null,
+            $request->input('classification') ?: null,
+        );
+
         // Summary Statistics
         $summarySource = $mappedBalanceReport;
-        $totalCollected = (float) (clone $paymentQuery)->sum('amount')
-            + (float) (clone $documentQuery)->sum('fee')
-            + (float) (clone $dropQuery)->sum('fee_amount');
+        $totalCollected = (float) collect($departmentAnalysis)->sum('collected');
         $fullyPaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'paid')->count();
         $partialCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'partial')->count();
         $unpaidCount = $summarySource->filter(fn($r) => $r['payment_status'] === 'unpaid')->count();
@@ -342,11 +346,7 @@ class ReportsController extends Controller
             'classifications' => $classifications,
             'feeReport' => $feeReport,
             'documentFeeReport' => $documentFeeReport,
-            'departmentAnalysis' => $this->buildDepartmentAnalysis(
-                $schoolYear,
-                $request->input('department_id') ? (int) $request->input('department_id') : null,
-                $request->input('classification') ?: null,
-            ),
+            'departmentAnalysis' => $departmentAnalysis,
         ]);
     }
 
