@@ -158,8 +158,33 @@ class IncomeController extends Controller
         for ($m = 1; $m <= 12; $m++) {
             $start  = Carbon::create($yearInt, $m, 1)->startOfMonth();
             $end    = Carbon::create($yearInt, $m, 1)->endOfMonth();
-            $amount = (float) StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedYear))
-                ->whereBetween('payment_date', [$start, $end])->sum('amount');
+
+            $paymentMonthQuery = StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedYear))
+                ->whereBetween('payment_date', [$start, $end]);
+            $docMonthQuery = DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereHas('student', fn($q) => $q->where('school_year', $selectedYear))
+                ->whereBetween('accounting_approved_at', [$start, $end]);
+            $dropMonthQuery = DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->whereHas('student', fn($q) => $q->where('school_year', $selectedYear))
+                ->whereBetween('accounting_approved_at', [$start, $end]);
+
+            if ($dateFrom) {
+                $paymentMonthQuery->whereDate('payment_date', '>=', $dateFrom);
+                $docMonthQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+                $dropMonthQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
+            }
+            if ($dateTo) {
+                $paymentMonthQuery->whereDate('payment_date', '<=', $dateTo);
+                $docMonthQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+                $dropMonthQuery->whereDate('accounting_approved_at', '<=', $dateTo);
+            }
+
+            $amount = (float) $paymentMonthQuery->sum('amount')
+                + (float) $docMonthQuery->sum('fee')
+                + (float) $dropMonthQuery->sum('fee_amount');
+
             $monthlyData[] = ['month' => Carbon::create($yearInt, $m, 1)->format('M'), 'amount' => $amount];
         }
 
