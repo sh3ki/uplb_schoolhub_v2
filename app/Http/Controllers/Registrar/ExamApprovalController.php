@@ -17,7 +17,9 @@ class ExamApprovalController extends Controller
      */
     public function index(Request $request): Response
     {
-        $selectedSchoolYear = $request->input('school_year')
+        $requestedSchoolYear = $request->input('school_year');
+
+        $selectedSchoolYear = $requestedSchoolYear
             ?: AppSetting::current()?->school_year
             ?: now()->format('Y') . '-' . (now()->year + 1);
 
@@ -25,39 +27,54 @@ class ExamApprovalController extends Controller
 
         $search = $request->input('search');
 
-        $fullyPaidQuery = Student::whereNull('deleted_at')
+        // Mirror accounting exam-approval derivation to keep both pages consistent:
+        // resolve fee row per student year, compute paid from payments relation,
+        // then exclude overdue/unpaid students.
+        $appSchoolYear = AppSetting::current()?->school_year
+            ?: now()->format('Y') . '-' . (now()->year + 1);
+
+        $studentsQuery = Student::whereNull('deleted_at')
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
             ->whereNotIn('enrollment_status', ['not-enrolled', 'pending-registrar'])
-            ->whereHas('fees', function ($fq) use ($selectedSchoolYear) {
-                $fq->where('school_year', $selectedSchoolYear)
-                    ->where('is_overdue', false)
-                    ->where(function ($sq) {
-                        $sq->where(function ($paid) {
-                            $paid->where('total_amount', '>', 0)
-                                ->where('balance', '<=', 0);
-                        })->orWhere('total_paid', '>', 0);
-                    });
-            })
-            ->with(['fees' => function ($q) use ($selectedSchoolYear) {
-                $q->where('school_year', $selectedSchoolYear)->latest();
-            }, 'departmentModel']);
+            ->with([
+                'fees' => fn($q) => $q->with('payments')->orderByDesc('school_year'),
+                'departmentModel',
+            ]);
 
         if ($search) {
-            $fullyPaidQuery->where(function ($q) use ($search) {
+            $studentsQuery->where(function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                   ->orWhere('last_name', 'like', "%{$search}%")
                   ->orWhere('lrn', 'like', "%{$search}%");
             });
         }
 
-        $fullyPaidStudents = $fullyPaidQuery
+        $allExamStudents = $studentsQuery
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->get()
-            ->map(function ($student) {
-                $fee = $student->fees->first();
+            ->map(function ($student) use ($requestedSchoolYear, $appSchoolYear) {
+                $targetSchoolYear = $requestedSchoolYear
+                    ?: ($student->school_year ?: $appSchoolYear);
+
+                $fee = $student->fees->firstWhere('school_year', $targetSchoolYear)
+                    ?: $student->fees->sortByDesc('school_year', SORT_NATURAL)->first();
+
+                $totalAmount = (float) ($fee?->total_amount ?? 0);
+                $totalPaid = (float) ($fee ? $fee->payments->sum('amount') : 0);
+                $balance = max(0, $totalAmount - (float) ($fee?->grant_discount ?? 0) - $totalPaid);
+
+                $paymentStatus = 'unpaid';
+                if ((bool) ($fee?->is_overdue ?? false) && $balance > 0) {
+                    $paymentStatus = 'overdue';
+                } elseif ($totalAmount > 0 && $balance <= 0) {
+                    $paymentStatus = 'paid';
+                } elseif ($totalPaid > 0) {
+                    $paymentStatus = 'partial';
+                }
+
                 return [
                     'id'                => $student->id,
                     'full_name'         => $student->full_name,
@@ -71,24 +88,21 @@ class ExamApprovalController extends Controller
                     'year_level'        => $student->year_level,
                     'section'           => $student->section,
                     'student_photo_url' => $student->student_photo_url,
-                    'total_amount'      => (float) ($fee?->total_amount ?? 0),
-                    'total_paid'        => (float) ($fee?->total_paid ?? 0),
-                    'balance'           => max(0, (float) ($fee?->balance ?? 0)),
-                    'payment_status'    => (function () use ($fee): string {
-                        $balance = max(0, (float) ($fee?->balance ?? 0));
-                        $total   = (float) ($fee?->total_amount ?? 0);
-                        $paid    = (float) ($fee?->total_paid ?? 0);
-                        if ($balance <= 0 && $total > 0) return 'paid';
-                        if ($paid > 0) return 'partial';
-                        return 'unpaid';
-                    })(),
-                    'school_year'       => $fee?->school_year ?? '',
+                    'total_amount'      => $totalAmount,
+                    'total_paid'        => $totalPaid,
+                    'balance'           => $balance,
+                    'payment_status'    => $paymentStatus,
+                    'school_year'       => $fee?->school_year ?? $targetSchoolYear,
                 ];
             })
             ->values();
 
-        $fullyPaidMale   = $fullyPaidStudents->where('gender', 'male')->values();
-        $fullyPaidFemale = $fullyPaidStudents->where('gender', 'female')->values();
+        $eligibleStudents = $allExamStudents
+            ->filter(fn($student) => $student['payment_status'] !== 'overdue' && $student['payment_status'] !== 'unpaid')
+            ->values();
+
+        $fullyPaidMale   = $eligibleStudents->where('gender', 'male')->values();
+        $fullyPaidFemale = $eligibleStudents->where('gender', 'female')->values();
 
         return Inertia::render('registrar/exam-approval/index', [
             'fullyPaidMale'   => $fullyPaidMale,
