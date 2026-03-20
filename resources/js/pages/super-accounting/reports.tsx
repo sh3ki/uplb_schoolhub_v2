@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ExportButton } from '@/components/export-button';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
-import { PageHeader } from '@/components/page-header';
+import { ReportsPageShell } from '@/components/reports/reports-page-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -223,24 +223,23 @@ export default function AccountingReports({
         <SuperAccountingLayout>
             <Head title="Reports" />
 
-            <div className="space-y-6 p-6">
-                <PageHeader
-                    title="Reports & Analytics"
-                    description="Generate comprehensive reports on payments and fees"
-                    action={
-                        <div className="flex gap-2">
-                            <ExportButton
-                                exportUrl="/super-accounting/reports/export"
-                                filters={{ from, to, school_year: schoolYear, status, department_id: departmentId, classification }}
-                                buttonText="Export Report"
-                            />
-                            <Button variant="outline" onClick={handlePrint}>
-                                <FileText className="mr-2 h-4 w-4" />
-                                Print
-                            </Button>
-                        </div>
-                    }
-                />
+            <ReportsPageShell
+                title="Reports & Analytics"
+                description="Generate comprehensive reports on payments and fees"
+                action={
+                    <div className="flex gap-2">
+                        <ExportButton
+                            exportUrl="/super-accounting/reports/export"
+                            filters={{ from, to, school_year: schoolYear, status, department_id: departmentId, classification }}
+                            buttonText="Export Report"
+                        />
+                        <Button variant="outline" onClick={handlePrint}>
+                            <FileText className="mr-2 h-4 w-4" />
+                            Print
+                        </Button>
+                    </div>
+                }
+            >
 
                 {/* Summary Statistics */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -827,7 +826,7 @@ export default function AccountingReports({
                         </Card>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </ReportsPageShell>
         </SuperAccountingLayout>
     );
 }
