@@ -14,6 +14,7 @@ import {
     AlertCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { ReportsPageShell } from '@/components/reports/reports-page-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -164,14 +165,10 @@ export default function OwnerReports({
         <OwnerLayout breadcrumbs={breadcrumbs}>
             <Head title="Reports & Analytics" />
 
-            <div className="space-y-6 p-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold">Reports &amp; Analytics</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            School Year <span className="font-medium">{school_year}</span> - comprehensive financial overview
-                        </p>
-                    </div>
+            <ReportsPageShell
+                title="Reports & Analytics"
+                description={`School Year ${school_year} - comprehensive financial overview`}
+                action={
                     <div className="flex flex-wrap gap-2">
                         <Button size="sm" variant="outline" onClick={() => (window.location.href = '/owner/reports/export/financial?format=csv')}>
                             <Download className="mr-2 h-4 w-4" /> Export Financial CSV
@@ -180,7 +177,8 @@ export default function OwnerReports({
                             <Download className="mr-2 h-4 w-4" /> Export Students CSV
                         </Button>
                     </div>
-                </div>
+                }
+            >
 
                 <div className="grid gap-4 sm:grid-cols-3">
                     <a href="/owner/income/today" className="block">
@@ -745,7 +743,7 @@ export default function OwnerReports({
                         </div>
                     </TabsContent>
                 </Tabs>
-            </div>
+            </ReportsPageShell>
         </OwnerLayout>
     );
 }
