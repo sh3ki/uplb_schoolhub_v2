@@ -72,7 +72,7 @@ class OnlineTransaction extends Model
      */
     public function isCompleted(): bool
     {
-        return $this->status === 'verified';
+        return in_array($this->status, ['completed', 'verified'], true);
     }
 
     /**
@@ -81,7 +81,7 @@ class OnlineTransaction extends Model
     public function verify(int $userId): void
     {
         $this->update([
-            'status' => 'verified',
+            'status' => 'completed',
             'verified_at' => now(),
             'verified_by' => $userId,
         ]);
