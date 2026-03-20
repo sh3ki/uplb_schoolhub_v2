@@ -435,6 +435,13 @@ export default function AccountingReports({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
+                                {balanceReport.length > 0 && (
+                                    <div className="mb-3 flex justify-end gap-6 text-sm font-semibold">
+                                        <span>Total Amount: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.total_amount || 0)), 0))}</span>
+                                        <span className="text-green-600">Total Paid: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.total_paid || 0)), 0))}</span>
+                                        <span className="text-red-600">Balance: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.balance || 0)), 0))}</span>
+                                    </div>
+                                )}
                                 <div className="rounded-lg border">
                                     <Table>
                                         <TableHeader>
