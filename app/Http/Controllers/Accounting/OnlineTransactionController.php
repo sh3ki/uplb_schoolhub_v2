@@ -36,7 +36,11 @@ class OnlineTransactionController extends Controller
 
         // Filter by status
         if ($status = $request->input('status')) {
-            $query->where('status', $status);
+            if (in_array($status, ['verified', 'completed'])) {
+                $query->whereIn('status', ['verified', 'completed']);
+            } else {
+                $query->where('status', $status);
+            }
         }
 
         // Filter by payment method
@@ -182,7 +186,7 @@ class OnlineTransactionController extends Controller
         // Update transaction
         $transaction->update([
             'student_payment_id' => $payment->id,
-            'status' => 'completed',
+            'status' => 'verified',
             'verified_at' => now(),
             'verified_by' => auth()->user()?->id,
         ]);
