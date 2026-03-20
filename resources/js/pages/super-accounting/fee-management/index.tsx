@@ -1,7 +1,8 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, DollarSign, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp, Search, X } from 'lucide-react';
+import { Edit, MoreHorizontal, Plus, Trash2, FolderPlus, Calculator, RefreshCw, FileText, Clock, CheckSquare, Save, TrendingUp, Search, X } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { PageHeader } from '@/components/page-header';
+import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import {
     Accordion,
     AccordionContent,
@@ -700,7 +701,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Selling</CardTitle>
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
+                            <PhilippinePeso className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold">{formatCurrency(totals?.selling ?? 0)}</div>
@@ -710,7 +711,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium">Total Profit</CardTitle>
-                            <DollarSign className="h-4 w-4 text-green-500" />
+                            <PhilippinePeso className="h-4 w-4 text-green-500" />
                         </CardHeader>
                         <CardContent>
                             <div className="text-2xl font-bold text-green-600">{formatCurrency(totals?.profit ?? 0)}</div>
@@ -1290,7 +1291,7 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                             <Card>
                                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                                     <CardTitle className="text-sm font-medium">General Fee Revenue</CardTitle>
-                                    <DollarSign className="h-4 w-4 text-blue-500" />
+                                    <PhilippinePeso className="h-4 w-4 text-blue-500" />
                                 </CardHeader>
                                 <CardContent>
                                     <div className="text-2xl font-bold text-blue-600">{formatCurrency(projTotalGeneralRevenue)}</div>
