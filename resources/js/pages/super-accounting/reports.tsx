@@ -109,6 +109,13 @@ interface Props {
     feeReport: FeeReportCategory[];
     documentFeeReport: DocFeeReportCategory[];
     departmentAnalysis: DepartmentRow[];
+    grantTotals: {
+        grant_name: string;
+        type: string;
+        value: number;
+        recipients: number;
+        total_discount: number;
+    }[];
     filters: {
         from?: string;
         to?: string;
@@ -135,6 +142,7 @@ export default function AccountingReports({
     feeReport = [],
     documentFeeReport = [],
     departmentAnalysis = [],
+    grantTotals = [],
     filters = {},
     schoolYears = [],
     departments = [],
@@ -403,6 +411,7 @@ export default function AccountingReports({
                         <TabsTrigger value="collection">Collection Summary</TabsTrigger>
                         <TabsTrigger value="fee-income">Fee Income</TabsTrigger>
                         <TabsTrigger value="department">Department Analysis</TabsTrigger>
+                        <TabsTrigger value="grants">Total Grants</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="balance" className="space-y-4">
@@ -756,6 +765,64 @@ export default function AccountingReports({
                                         </div>
                                     </>
                                 )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="grants" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Total Grants</CardTitle>
+                                <CardDescription>
+                                    Active grant recipients and total discounts applied
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Grant</TableHead>
+                                                <TableHead>Type</TableHead>
+                                                <TableHead className="text-right">Configured Value</TableHead>
+                                                <TableHead className="text-right">Recipients</TableHead>
+                                                <TableHead className="text-right">Total Discount</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {grantTotals.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                        No grant data for selected filters.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                grantTotals.map((row, index) => (
+                                                    <TableRow key={`${row.grant_name}-${index}`}>
+                                                        <TableCell className="font-medium">{row.grant_name}</TableCell>
+                                                        <TableCell className="capitalize">{row.type}</TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
+                                                        <TableCell className="text-right">{row.recipients}</TableCell>
+                                                        <TableCell className="text-right font-semibold text-green-600">
+                                                            {formatCurrency(row.total_discount)}
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                            {grantTotals.length > 0 && (
+                                                <TableRow className="bg-muted/50 font-semibold">
+                                                    <TableCell colSpan={3}>Total</TableCell>
+                                                    <TableCell className="text-right">
+                                                        {grantTotals.reduce((sum, row) => sum + row.recipients, 0)}
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-green-600">
+                                                        {formatCurrency(grantTotals.reduce((sum, row) => sum + row.total_discount, 0))}
+                                                    </TableCell>
+                                                </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
