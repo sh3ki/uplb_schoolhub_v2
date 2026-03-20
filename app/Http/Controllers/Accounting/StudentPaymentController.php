@@ -405,6 +405,7 @@ class StudentPaymentController extends Controller
                         'recorded_by' => $payment->recordedBy?->name,
                         'school_year' => $payment->studentFee?->school_year,
                         'created_at' => $payment->created_at->format('h:i A'),
+                        'sort_at' => $payment->created_at->timestamp,
                         'type' => 'on-site',
                         'transaction_type' => 'fee',
                     ];
@@ -435,30 +436,28 @@ class StudentPaymentController extends Controller
                         'recorded_by' => $request->accountingApprovedBy?->name ?? 'N/A',
                         'school_year' => null,
                         'created_at' => ($dateTime ?: now())->format('h:i A'),
+                        'sort_at' => ($dateTime ?: now())->timestamp,
                         'transaction_type' => 'document',
                     ];
                 });
 
             $payments = $feeTransactions
                 ->concat($documentTransactions)
-                ->sortByDesc(function ($row) {
-                    $date = (string) ($row['payment_date'] ?? '1970-01-01');
-                    $time = (string) ($row['created_at'] ?? '12:00 AM');
-                    return strtotime($date . ' ' . $time) ?: 0;
-                })
+                ->sortByDesc('sort_at')
                 ->values();
 
         // Include online transactions in the payment history.
         $onlineTransactions = OnlineTransaction::where('student_id', $student->id)
             ->whereIn('status', ['completed', 'verified'])
             ->whereNull('student_payment_id')
-            ->with(['verifiedBy'])
+            ->with(['verifiedBy', 'payment.recordedBy'])
             ->orderBy('transaction_date', 'desc')
             ->get()
             ->map(function ($tx) {
                 $rawMethod = strtolower((string) ($tx->payment_method ?? 'online'));
                 if ($rawMethod === 'bank_transfer') $rawMethod = 'bank';
                 $paymentMode = strtoupper($rawMethod);
+                $sortDateTime = $tx->transaction_date ?: $tx->created_at;
                 return [
                     'id' => $tx->id + 1000000, // offset to avoid ID collision with StudentPayment
                     'payment_date' => $tx->transaction_date?->format('Y-m-d') ?? $tx->created_at->format('Y-m-d'),
@@ -468,16 +467,21 @@ class StudentPaymentController extends Controller
                     'payment_mode' => $paymentMode,
                     'bank_name' => $tx->bank_name,
                     'notes' => $tx->remarks,
-                    'recorded_by' => $tx->verifiedBy?->name ?? 'Online',
+                    'recorded_by' => $tx->payment?->recordedBy?->name ?? $tx->verifiedBy?->name ?? 'Online',
                     'school_year' => null,
-                    'created_at' => $tx->created_at->format('Y-m-d H:i'),
+                    'created_at' => $sortDateTime->format('h:i A'),
+                    'sort_at' => $sortDateTime->timestamp,
                     'type' => 'online',
                 ];
             });
 
         // Merge on-site and online payments, sorted by date descending.
         $payments = $payments->concat($onlineTransactions)
-            ->sortByDesc(fn($p) => $p['payment_date'] . ' ' . $p['created_at'])
+            ->sortByDesc('sort_at')
+            ->map(function ($row) {
+                unset($row['sort_at']);
+                return $row;
+            })
             ->values();
 
         // Get promissory notes for the active billing year only.
@@ -967,7 +971,7 @@ class StudentPaymentController extends Controller
     {
         $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
         if (!$templateYear) {
-            return [];
+            return $this->buildFeeCategoriesFromStoredLedger($student, $schoolYear);
         }
 
         $hasExplicitAssignmentMatch = \App\Models\FeeItem::where('is_active', true)
@@ -1018,7 +1022,7 @@ class StudentPaymentController extends Controller
             ->get();
 
         if ($feeItems->isEmpty()) {
-            return [];
+            return $this->buildFeeCategoriesFromStoredLedger($student, $schoolYear);
         }
 
         $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
@@ -1052,6 +1056,52 @@ class StudentPaymentController extends Controller
                 })->values()->toArray(),
             ];
         })->values()->toArray();
+    }
+
+    /**
+     * Fallback category builder for legacy/student_fees-only ledgers.
+     */
+    private function buildFeeCategoriesFromStoredLedger(Student $student, string $schoolYear): array
+    {
+        $studentFee = StudentFee::where('student_id', $student->id)
+            ->where('school_year', $schoolYear)
+            ->first();
+
+        if (!$studentFee) {
+            return [];
+        }
+
+        $rows = [
+            ['key' => 'registration_fee', 'name' => 'Registration Fee', 'amount' => (float) $studentFee->registration_fee],
+            ['key' => 'tuition_fee', 'name' => 'Tuition Fee', 'amount' => (float) $studentFee->tuition_fee],
+            ['key' => 'misc_fee', 'name' => 'Miscellaneous Fee', 'amount' => (float) $studentFee->misc_fee],
+            ['key' => 'books_fee', 'name' => 'Books Fee', 'amount' => (float) $studentFee->books_fee],
+            ['key' => 'other_fees', 'name' => 'Other Fees', 'amount' => (float) $studentFee->other_fees],
+        ];
+
+        $items = collect($rows)
+            ->filter(fn($row) => $row['amount'] > 0)
+            ->values()
+            ->all();
+
+        if (empty($items)) {
+            return [];
+        }
+
+        return [[
+            'category_id' => 'stored-ledger',
+            'category_name' => 'Stored Fee Ledger',
+            'items' => array_map(function ($row) {
+                return [
+                    'id' => $row['key'],
+                    'name' => $row['name'],
+                    'amount' => $row['amount'],
+                    'is_per_unit' => false,
+                    'unit_price' => 0,
+                    'enrolled_units' => 0,
+                ];
+            }, $items),
+        ]];
     }
 
     /**
