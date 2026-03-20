@@ -8,6 +8,7 @@ import {
     LayoutGrid,
     Megaphone,
     MessageCircle,
+    Rows3,
     RotateCcw,
     ScrollText,
     UserX,
@@ -86,6 +87,11 @@ export function SuperAccountingSidebar() {
             title: 'Reports',
             href: '/super-accounting/reports',
             icon: BookOpen,
+        },
+        {
+            title: 'Masterlist',
+            href: '/super-accounting/masterlist',
+            icon: Rows3,
         },
         {
             title: 'Online Transactions',
