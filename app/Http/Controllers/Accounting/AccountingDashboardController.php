@@ -662,7 +662,7 @@ class AccountingDashboardController extends Controller
 
         // Recent transactions (top 25 payments + top 10 documents)
         foreach ($payments->sortByDesc('payment_date')->take(25) as $p) {
-            $sortAt = Carbon::parse($p->payment_date . ' ' . $p->created_at->format('H:i:s'))->timestamp;
+            $sortAt = Carbon::parse($p->created_at)->timestamp;
             $transactions[] = [
                 'id'           => $p->id,
                 'date'         => Carbon::parse($p->payment_date)->format('Y-m-d'),
