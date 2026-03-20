@@ -287,7 +287,7 @@ class ReportsController extends Controller
             ->with(['items' => fn ($q) => $q->where('is_active', true)->orderBy('name')])
             ->orderBy('sort_order')->orderBy('name')
             ->get()
-            ->map(function ($cat) use ($categoryFieldMap) {
+            ->map(function ($cat) use ($categoryFieldMap, $applyStudentFilter, $applyPaymentFilter) {
                 $catLower = strtolower($cat->name);
                 $mapping = null;
                 foreach ($categoryFieldMap as $key => $map) {
