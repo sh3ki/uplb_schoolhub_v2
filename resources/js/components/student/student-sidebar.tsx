@@ -30,13 +30,7 @@ import {
 } from '@/components/ui/sidebar';
 import type { NavItem } from '@/types';
 
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Settings',
-        href: '/student/settings',
-        icon: Settings,
-    },
-];
+const footerNavItems: NavItem[] = [];
 
 interface AppSettings {
     app_name?: string;
