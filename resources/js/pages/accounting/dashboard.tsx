@@ -178,11 +178,11 @@ export default function AccountingDashboard({
 
     return (
         <DashboardLayoutComponent>
-            <Head title="Accounting Dashboard" />
+            <Head title={routePrefix === 'owner' ? 'Main Dashboard' : 'Accounting Dashboard'} />
 
             <div className="space-y-6 p-6">
                 <PageHeader
-                    title="Accounting Dashboard"
+                    title={routePrefix === 'owner' ? 'Main Dashboard' : 'Accounting Dashboard'}
                     description="Monitor student payments and fee collections"
                 />
 
