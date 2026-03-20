@@ -22,16 +22,35 @@ interface PaginationProps {
     data: PaginationData;
     preserveState?: boolean;
     preserveScroll?: boolean;
+    onPageChange?: (page: number) => void;
 }
 
-export function Pagination({ data, preserveState = true, preserveScroll = true }: PaginationProps) {
+export function Pagination({ data, preserveState = true, preserveScroll = true, onPageChange }: PaginationProps) {
     const handlePageChange = (url: string | null) => {
+        if (onPageChange) {
+            return;
+        }
+
         if (!url) return;
         
         router.get(url, {}, {
             preserveState,
             preserveScroll,
         });
+    };
+
+    const goToPage = (page: number) => {
+        if (page < 1 || page > data.last_page) return;
+
+        if (onPageChange) {
+            onPageChange(page);
+            return;
+        }
+
+        const link = data.links.find((candidate) => parseInt(candidate.label) === page);
+        if (link?.url) {
+            handlePageChange(link.url);
+        }
     };
 
     if (data.last_page <= 1) return null;
@@ -51,7 +70,7 @@ export function Pagination({ data, preserveState = true, preserveScroll = true }
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handlePageChange(data.links[0]?.url)}
+                    onClick={() => goToPage(1)}
                     disabled={data.current_page === 1}
                     className="h-8 w-8 p-0"
                 >
@@ -62,7 +81,7 @@ export function Pagination({ data, preserveState = true, preserveScroll = true }
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handlePageChange(data.links[data.current_page - 1]?.url)}
+                    onClick={() => goToPage(data.current_page - 1)}
                     disabled={data.current_page === 1}
                     className="h-8 w-8 p-0"
                 >
@@ -88,7 +107,7 @@ export function Pagination({ data, preserveState = true, preserveScroll = true }
                                         key={index}
                                         size="sm"
                                         variant={link.active ? 'default' : 'outline'}
-                                        onClick={() => handlePageChange(link.url)}
+                                        onClick={() => goToPage(pageNumber)}
                                         className="h-8 w-8 p-0"
                                     >
                                         {link.label}
@@ -108,7 +127,7 @@ export function Pagination({ data, preserveState = true, preserveScroll = true }
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handlePageChange(data.links[data.links.length - 1]?.url)}
+                    onClick={() => goToPage(data.current_page + 1)}
                     disabled={data.current_page === data.last_page}
                     className="h-8 w-8 p-0"
                 >
@@ -119,7 +138,7 @@ export function Pagination({ data, preserveState = true, preserveScroll = true }
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handlePageChange(data.links[data.links.length - 1]?.url)}
+                    onClick={() => goToPage(data.last_page)}
                     disabled={data.current_page === data.last_page}
                     className="h-8 w-8 p-0"
                 >
