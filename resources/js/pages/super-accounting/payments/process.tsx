@@ -126,6 +126,8 @@ interface Payment {
     recorded_by: string;
     school_year: string | null;
     created_at: string;
+    type?: 'on-site' | 'online';
+    transaction_type?: 'fee' | 'document';
 }
 
 interface PromissoryNote {
@@ -213,6 +215,19 @@ function formatDate(dateString: string): string {
         month: 'short',
         day: 'numeric',
     });
+}
+
+function formatTime(timeString: string): string {
+    const parsed = new Date(`1970-01-01T${timeString}`);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toLocaleTimeString('en-PH', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        });
+    }
+
+    return timeString;
 }
 
 export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, enrollmentClearance = null, currentUser }: Props) {
@@ -1961,6 +1976,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <TableHead>OR Number</TableHead>
                                                 <TableHead>Payment For</TableHead>
                                                 <TableHead className="text-right">Amount</TableHead>
+                                                <TableHead>Mode of Payment</TableHead>
+                                                <TableHead>Type</TableHead>
                                                 <TableHead>Notes</TableHead>
                                                 <TableHead>Recorded By</TableHead>
                                             </TableRow>
@@ -1968,7 +1985,12 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         <TableBody>
                                             {payments.map((payment) => (
                                                 <TableRow key={payment.id}>
-                                                    <TableCell>{formatDate(payment.payment_date)}</TableCell>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <span>{formatDate(payment.payment_date)}</span>
+                                                            <span className="text-xs text-muted-foreground">{formatTime(payment.created_at)}</span>
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell className="font-mono">
                                                         {payment.or_number || '-'}
                                                     </TableCell>
@@ -1979,6 +2001,18 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-green-600">
                                                         +{formatCurrency(payment.amount)}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="outline">
+                                                            {(payment.payment_mode || 'N/A').toUpperCase()}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={payment.type === 'online' ? 'secondary' : 'default'}>
+                                                            {payment.type === 'online'
+                                                                ? 'Online'
+                                                                : (payment.transaction_type === 'document' ? 'Document' : 'On-site')}
+                                                        </Badge>
                                                     </TableCell>
                                                     <TableCell className="max-w-xs truncate text-muted-foreground">
                                                         {payment.notes || '-'}
