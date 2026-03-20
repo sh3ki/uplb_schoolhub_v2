@@ -53,7 +53,7 @@ export function OwnerSidebar() {
 
     const mainNavItems: NavItem[] = [
         {
-            title: 'Dashboard',
+            title: 'Account Dashboard',
             href: '/owner/dashboard',
             icon: LayoutGrid,
         },
