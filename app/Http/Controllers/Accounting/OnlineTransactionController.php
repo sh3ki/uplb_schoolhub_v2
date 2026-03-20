@@ -186,7 +186,7 @@ class OnlineTransactionController extends Controller
         // Update transaction
         $transaction->update([
             'student_payment_id' => $payment->id,
-            'status' => 'verified',
+            'status' => 'completed',
             'verified_at' => now(),
             'verified_by' => auth()->user()?->id,
         ]);
@@ -199,6 +199,10 @@ class OnlineTransactionController extends Controller
      */
     public function markFailed(Request $request, OnlineTransaction $transaction): RedirectResponse
     {
+        if (!$transaction->isPending()) {
+            return redirect()->back()->with('error', 'Only pending transactions can be marked as failed.');
+        }
+
         $validated = $request->validate([
             'remarks' => 'nullable|string',
         ]);
