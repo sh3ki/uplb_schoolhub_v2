@@ -35,6 +35,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AccountingLayout from '@/layouts/accounting-layout';
+import OwnerLayout from '@/layouts/owner/owner-layout';
+import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface FilterOption {
     value: string;
@@ -123,7 +125,21 @@ export default function AccountDashboard({
     months,
     filters,
 }: Props) {
-    const { props } = usePage<{ appSettings?: AppSettingsFlags }>();
+    const page = usePage<{ appSettings?: AppSettingsFlags }>();
+    const { props } = page;
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/')
+        ? 'owner'
+        : currentPath.startsWith('/super-accounting/')
+            ? 'super-accounting'
+            : 'accounting';
+    const basePath = `/${routePrefix}`;
+    const paymentsProcessPath = `${basePath}/payments/process`;
+    const AccountLayoutComponent = routePrefix === 'owner'
+        ? OwnerLayout
+        : routePrefix === 'super-accounting'
+            ? SuperAccountingLayout
+            : AccountingLayout;
     const hasK12 = props.appSettings?.has_k12 !== false;
     const hasCollege = props.appSettings?.has_college !== false;
     const classificationOptions = [
@@ -162,7 +178,7 @@ export default function AccountDashboard({
     };
 
     const handleFilter = () => {
-        router.get('/accounting/account-dashboard', {
+        router.get(`${basePath}/account-dashboard`, {
             classification: classification || undefined,
             department_id:  departmentId || undefined,
             program:        program || undefined,
@@ -180,14 +196,14 @@ export default function AccountDashboard({
         setYearLevel('');
         setSection('');
         setDateRange(undefined);
-        router.get('/accounting/account-dashboard');
+        router.get(`${basePath}/account-dashboard`);
     };
 
     // Find max for chart
     const maxAmount = Math.max(...(dailyCollections?.map(d => d.amount) || [1]), 1);
 
     return (
-        <AccountingLayout>
+        <AccountLayoutComponent>
             <Head title="Account Dashboard" />
 
             <div className="space-y-6 p-6">
@@ -198,7 +214,7 @@ export default function AccountDashboard({
                     />
                     <div className="flex gap-2">
                         <ExportButton
-                            exportUrl="/accounting/account-dashboard/export"
+                            exportUrl={`${basePath}/account-dashboard/export`}
                             filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section }}
                             buttonText="Export Data"
                         />
@@ -466,7 +482,7 @@ export default function AccountDashboard({
                                                         return;
                                                     }
 
-                                                    router.visit(`/accounting/payments/process/${tx.student_id}?tab=transactions`);
+                                                    router.visit(`${paymentsProcessPath}/${tx.student_id}?tab=transactions`);
                                                 }}
                                             >
                                                 <TableCell>
@@ -527,6 +543,6 @@ export default function AccountDashboard({
                     </CardContent>
                 </Card>
             </div>
-        </AccountingLayout>
+        </AccountLayoutComponent>
     );
 }
