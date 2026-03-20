@@ -8,7 +8,6 @@ import {
     Megaphone,
     MessageCircle,
     User,
-    Settings,
     FileQuestion,
     FileSignature,
     FileText,
