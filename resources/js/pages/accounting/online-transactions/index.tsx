@@ -7,7 +7,6 @@ import {
     MoreHorizontal,
     RefreshCcw,
     X,
-    DollarSign,
     AlertTriangle,
     Undo2,
     ExternalLink,
@@ -99,7 +98,7 @@ interface Props {
     filters: {
         search?: string;
         status?: string;
-        payment_provider?: string;
+        payment_method?: string;
         date_from?: string;
         date_to?: string;
     };
@@ -113,7 +112,7 @@ export default function OnlineTransactionsIndex({
 }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.status || 'all');
-    const [provider, setProvider] = useState(filters.payment_provider || 'all');
+    const [provider, setProvider] = useState(filters.payment_method || 'all');
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<OnlineTransaction | null>(null);
@@ -122,7 +121,7 @@ export default function OnlineTransactionsIndex({
         router.get('/accounting/online-transactions', {
             search: search || undefined,
             status: activeTab !== 'all' ? activeTab : undefined,
-            payment_provider: provider !== 'all' ? provider : undefined,
+            payment_method: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -134,7 +133,7 @@ export default function OnlineTransactionsIndex({
         router.get('/accounting/online-transactions', {
             search: search || undefined,
             status: value !== 'all' ? value : undefined,
-            payment_provider: provider !== 'all' ? provider : undefined,
+            payment_method: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
             preserveScroll: true,
@@ -198,6 +197,7 @@ export default function OnlineTransactionsIndex({
             case 'pending':
                 return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
             case 'verified':
+            case 'completed':
                 return <Badge className="bg-green-500"><Check className="h-3 w-3 mr-1" />Verified</Badge>;
             case 'failed':
                 return <Badge variant="destructive"><X className="h-3 w-3 mr-1" />Failed</Badge>;
@@ -318,7 +318,7 @@ export default function OnlineTransactionsIndex({
                     <TabsList>
                         <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="pending">Pending</TabsTrigger>
-                        <TabsTrigger value="completed">Completed</TabsTrigger>
+                        <TabsTrigger value="verified">Verified</TabsTrigger>
                         <TabsTrigger value="failed">Failed</TabsTrigger>
                         <TabsTrigger value="refunded">Refunded</TabsTrigger>
                     </TabsList>
@@ -394,14 +394,20 @@ export default function OnlineTransactionsIndex({
                                                         <>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
-                                                                onClick={() => handleVerify(transaction.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleVerify(transaction.id);
+                                                                }}
                                                                 className="text-green-600"
                                                             >
                                                                 <Check className="h-4 w-4 mr-2" />
                                                                 Verify
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem
-                                                                onClick={() => handleMarkFailed(transaction.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleMarkFailed(transaction.id);
+                                                                }}
                                                                 className="text-red-600"
                                                             >
                                                                 <X className="h-4 w-4 mr-2" />
@@ -409,11 +415,14 @@ export default function OnlineTransactionsIndex({
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
-                                                    {transaction.status === 'verified' && (
+                                                    {(transaction.status === 'verified' || transaction.status === 'completed') && (
                                                         <>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem
-                                                                onClick={() => handleRefund(transaction.id)}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRefund(transaction.id);
+                                                                }}
                                                                 className="text-purple-600"
                                                             >
                                                                 <RefreshCcw className="h-4 w-4 mr-2" />
