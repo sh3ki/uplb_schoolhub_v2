@@ -14,9 +14,21 @@ use Inertia\Response;
 
 class AppSettingsController extends Controller
 {
+    private function computedSchoolYear(): string
+    {
+        $year = (int) now()->format('Y');
+        return $year . '-' . ($year + 1);
+    }
+
     public function index(): Response
     {
         $settings = AppSetting::current();
+        $computedSchoolYear = $this->computedSchoolYear();
+
+        if ($settings->school_year !== $computedSchoolYear) {
+            $settings->school_year = $computedSchoolYear;
+            $settings->save();
+        }
 
         return Inertia::render('owner/app-settings', [
             'settings' => [
@@ -28,7 +40,7 @@ class AppSettingsController extends Controller
                 'secondary_color'           => $settings->secondary_color,
                 'sidebar_color'             => $settings->sidebar_color ?? '#1e293b',
                 'sidebar_font_size'         => $settings->sidebar_font_size ?? '14',
-                'school_year'               => $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1)),
+                'school_year'               => $computedSchoolYear,
                 'active_semester'           => (int) ($settings->active_semester ?? 1),
                 'has_k12'                   => (bool) $settings->has_k12,
                 'has_college'               => (bool) $settings->has_college,
@@ -150,7 +162,6 @@ class AppSettingsController extends Controller
             'secondary_color'   => 'nullable|string|max:20',
             'sidebar_color'     => 'nullable|string|max:20',
             'sidebar_font_size' => 'nullable|string|max:5',
-            'school_year'       => 'nullable|string|max:20|regex:/^\d{4}-\d{4}$/',
             'has_k12'           => 'nullable|in:0,1',
             'has_college'       => 'nullable|in:0,1',
             'logo'              => 'nullable|image|mimes:png,jpg,jpeg,svg|max:2048',
@@ -163,7 +174,7 @@ class AppSettingsController extends Controller
         $settings->secondary_color   = $validated['secondary_color'] ?? $settings->secondary_color;
         $settings->sidebar_color     = $validated['sidebar_color'] ?? $settings->sidebar_color;
         $settings->sidebar_font_size = $validated['sidebar_font_size'] ?? $settings->sidebar_font_size;
-        $settings->school_year       = $validated['school_year'] ?? $settings->school_year;
+        $settings->school_year       = $this->computedSchoolYear();
         $settings->has_k12           = $request->input('has_k12') === '1';
         $settings->has_college       = $request->input('has_college') === '1';
 
