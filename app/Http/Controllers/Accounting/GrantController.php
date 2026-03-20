@@ -130,6 +130,14 @@ class GrantController extends Controller
             ->pluck('program')
             ->values();
 
+        $grantsStats = [
+            'total_grants' => Grant::count(),
+            'active_grants' => Grant::where('is_active', true)->count(),
+            'total_recipients' => GrantRecipient::count(),
+            'active_recipients' => GrantRecipient::where('status', 'active')->count(),
+            'total_discount_amount' => (float) GrantRecipient::sum('discount_amount'),
+        ];
+
         return Inertia::render($this->viewPrefix() . '/grants/index', [
             'tab' => $tab,
             'grants' => $grants,
@@ -141,6 +149,7 @@ class GrantController extends Controller
             'classifications' => $classifications,
             'yearLevels' => $yearLevels,
             'programs' => $programs,
+            'grantsStats' => $grantsStats,
             'filters' => $request->only(['search', 'grant_id', 'school_year', 'status', 'classification', 'department_id', 'year_level', 'program']),
         ]);
     }
