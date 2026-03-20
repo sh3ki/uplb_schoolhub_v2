@@ -10,7 +10,6 @@ import {
     Megaphone,
     MessageCircle,
     ScrollText,
-    Settings,
     UserX,
     Users,
 } from 'lucide-react';
@@ -121,14 +120,6 @@ export function AccountingSidebar() {
         },
     ];
 
-    const adminNavItems: NavItem[] = [
-        {
-            title: 'Settings',
-            href: '/accounting/settings',
-            icon: Settings,
-        },
-    ];
-
     return (
         <Sidebar variant="inset" style={{
             ...(sidebarColor ? { '--sidebar': sidebarColor } as React.CSSProperties : {}),
@@ -157,7 +148,6 @@ export function AccountingSidebar() {
             </SidebarHeader>
             <SidebarContent>
                 <NavMain items={mainNavItems} label="Main Navigation" />
-                <NavMain items={adminNavItems} label="Administration" />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />
