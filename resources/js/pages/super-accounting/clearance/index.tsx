@@ -4,7 +4,6 @@ import {
     Circle,
     Search,
     Filter,
-    DollarSign,
     Users,
     Clock,
     AlertCircle,
