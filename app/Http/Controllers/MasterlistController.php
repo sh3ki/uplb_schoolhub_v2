@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class MasterlistController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request): Response|JsonResponse
     {
         $routeName = $request->route()?->getName() ?? '';
         $rolePrefix = 'accounting';
@@ -86,10 +87,16 @@ class MasterlistController extends Controller
             })
             ->values();
 
-        return Inertia::render('shared/masterlist', [
+        $payload = [
             'rolePrefix' => $rolePrefix,
             'k12Groups' => $k12,
             'collegeGroups' => $college,
-        ]);
+        ];
+
+        if ($request->boolean('json')) {
+            return response()->json($payload);
+        }
+
+        return Inertia::render('shared/masterlist', $payload);
     }
 }
