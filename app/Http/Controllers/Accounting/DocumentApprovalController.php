@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\DocumentFeeItem;
 use App\Models\DocumentRequest;
+use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -154,6 +156,10 @@ class DocumentApprovalController extends Controller
             'remarks' => 'nullable|string|max:500',
         ]);
 
+        if ($documentRequest->accounting_status !== 'pending') {
+            return redirect()->back()->with('error', 'Document request is already processed by accounting.');
+        }
+
         // Mark as paid if OR number provided
         if (!empty($validated['or_number'])) {
             $documentRequest->update([
@@ -166,13 +172,31 @@ class DocumentApprovalController extends Controller
 
         // Record a student payment when approving a document request with a fee
         if ($documentRequest->fee > 0) {
+            $student = $documentRequest->student;
+            $schoolYear = $student?->school_year
+                ?: (AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
+
+            $studentFee = StudentFee::firstOrCreate(
+                [
+                    'student_id' => $documentRequest->student_id,
+                    'school_year' => $schoolYear,
+                ],
+                [
+                    'total_amount' => 0,
+                    'grant_discount' => 0,
+                    'total_paid' => 0,
+                    'balance' => 0,
+                ]
+            );
+
             $label = DocumentRequest::DOCUMENT_TYPES[$documentRequest->document_type] ?? $documentRequest->document_type;
             StudentPayment::create([
                 'student_id'   => $documentRequest->student_id,
+                'student_fee_id' => $studentFee->id,
                 'payment_date' => now()->toDateString(),
                 'amount'       => $documentRequest->fee,
                 'payment_for'  => 'Document - ' . $label,
-                'payment_mode' => 'cash',
+                'payment_mode' => 'CASH',
                 'or_number'    => $validated['or_number'] ?? null,
                 'recorded_by'  => auth()->id(),
             ]);
@@ -191,6 +215,15 @@ class DocumentApprovalController extends Controller
         }
 
         return redirect()->back()->with('success', 'Document request approved. Processing will begin.');
+    }
+
+    /**
+     * Gracefully handle accidental GET requests to approve route.
+     */
+    public function approveGet(DocumentRequest $documentRequest): RedirectResponse
+    {
+        return redirect()->route($this->routePrefix() . '.document-approvals.index')
+            ->with('error', 'Invalid request method. Please use the Approve action button.');
     }
 
     /**
@@ -251,5 +284,11 @@ class DocumentApprovalController extends Controller
         }
 
         return response()->file($path);
+    }
+
+    private function routePrefix(): string
+    {
+        $routeName = request()->route()?->getName() ?? '';
+        return str_starts_with($routeName, 'super-accounting.') ? 'super-accounting' : 'accounting';
     }
 }
