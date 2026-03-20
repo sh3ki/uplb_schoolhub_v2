@@ -4,17 +4,12 @@ import {
     FileText,
     GraduationCap,
     LayoutGrid,
-    TrendingUp,
-    Building2,
-    BookOpen,
     Users,
-    Grid3x3,
     Megaphone,
     Settings,
     UserSquare2,
     Scale,
 } from 'lucide-react';
-import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -61,21 +56,6 @@ export function OwnerSidebar() {
             title: 'Dashboard',
             href: '/owner/dashboard',
             icon: LayoutGrid,
-        },
-        {
-            title: "Today's Income",
-            href: '/owner/income/today',
-            icon: PhilippinePeso,
-        },
-        {
-            title: 'Overall Income',
-            href: '/owner/income/overall',
-            icon: TrendingUp,
-        },
-        {
-            title: 'Expected Income',
-            href: '/owner/income/expected',
-            icon: TrendingUp,
         },
         // {
         //     title: 'Academic Structure',
