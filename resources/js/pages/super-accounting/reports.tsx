@@ -2,6 +2,8 @@ import { Head, router } from '@inertiajs/react';
 import { FileDown, FileText, Calendar, TrendingUp, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ExportButton } from '@/components/export-button';
+import { FilterBar } from '@/components/filters/filter-bar';
+import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,13 +16,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import {
     Table,
@@ -309,7 +304,17 @@ export default function AccountingReports({
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <FilterBar
+                            onReset={() => {
+                                setFrom('');
+                                setTo('');
+                                setSchoolYear('all');
+                                setStatus('all');
+                                setDepartmentId('all');
+                                setClassification('all');
+                                router.get('/super-accounting/reports');
+                            }}
+                        >
                             <div className="space-y-2">
                                 <Label htmlFor="from">Date From</Label>
                                 <Input
@@ -330,89 +335,63 @@ export default function AccountingReports({
                                 />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="schoolYear">School Year</Label>
-                                <Select value={schoolYear} onValueChange={setSchoolYear}>
-                                    <SelectTrigger id="schoolYear">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Years</SelectItem>
-                                        {schoolYears.map((year) => (
-                                            <SelectItem key={year} value={year}>
-                                                {year}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="min-w-[160px]">
+                                <FilterDropdown
+                                    label="School Year"
+                                    value={schoolYear}
+                                    onChange={setSchoolYear}
+                                    options={[
+                                        { value: 'all', label: 'All Years' },
+                                        ...schoolYears.map((year) => ({ value: year, label: year })),
+                                    ]}
+                                    showAll={false}
+                                />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="status">Payment Status</Label>
-                                <Select value={status} onValueChange={setStatus}>
-                                    <SelectTrigger id="status">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Status</SelectItem>
-                                        <SelectItem value="paid">Fully Paid</SelectItem>
-                                        <SelectItem value="partial">Partial Payment</SelectItem>
-                                        <SelectItem value="unpaid">Unpaid</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                            <div className="min-w-[170px]">
+                                <FilterDropdown
+                                    label="Payment Status"
+                                    value={status}
+                                    onChange={setStatus}
+                                    options={[
+                                        { value: 'all', label: 'All Status' },
+                                        { value: 'paid', label: 'Fully Paid' },
+                                        { value: 'partial', label: 'Partial Payment' },
+                                        { value: 'unpaid', label: 'Unpaid' },
+                                    ]}
+                                    showAll={false}
+                                />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="classification">Classification</Label>
-                                <Select value={classification} onValueChange={setClassification}>
-                                    <SelectTrigger id="classification">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Classifications</SelectItem>
-                                        {classifications.map((cls) => (
-                                            <SelectItem key={cls} value={cls}>
-                                                {cls}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="min-w-[180px]">
+                                <FilterDropdown
+                                    label="Classification"
+                                    value={classification}
+                                    onChange={setClassification}
+                                    options={[
+                                        { value: 'all', label: 'All Classifications' },
+                                        ...classifications.map((cls) => ({ value: cls, label: cls })),
+                                    ]}
+                                    showAll={false}
+                                />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="department">Department</Label>
-                                <Select value={departmentId} onValueChange={setDepartmentId}>
-                                    <SelectTrigger id="department">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Departments</SelectItem>
-                                        {departments.map((dept) => (
-                                            <SelectItem key={dept.id} value={dept.id.toString()}>
-                                                {dept.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                            <div className="min-w-[190px]">
+                                <FilterDropdown
+                                    label="Department"
+                                    value={departmentId}
+                                    onChange={setDepartmentId}
+                                    options={[
+                                        { value: 'all', label: 'All Departments' },
+                                        ...departments.map((dept) => ({ value: dept.id.toString(), label: dept.name })),
+                                    ]}
+                                    showAll={false}
+                                />
                             </div>
-                        </div>
+                        </FilterBar>
 
                         <div className="mt-4 flex gap-2">
                             <Button onClick={handleFetchReport}>Generate Report</Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    setFrom('');
-                                    setTo('');
-                                    setSchoolYear('all');
-                                    setStatus('all');
-                                    setDepartmentId('all');
-                                    setClassification('all');
-                                    router.get('/super-accounting/reports');
-                                }}
-                            >
-                                Reset Filters
-                            </Button>
                         </div>
                     </CardContent>
                 </Card>
