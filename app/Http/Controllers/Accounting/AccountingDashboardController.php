@@ -478,7 +478,7 @@ class AccountingDashboardController extends Controller
 
         $requestedAccountId = (string) $request->get('account_id', 'all');
         if (!$isSuperAccounting) {
-            $selectedAccountId = (string) $accountId;
+            $selectedAccountId = 'all';
         } elseif ($requestedAccountId === 'all') {
             $selectedAccountId = 'all';
         } else {
@@ -526,9 +526,7 @@ class AccountingDashboardController extends Controller
             ->whereIn('student_id', $studentIds)
             ->whereBetween('payment_date', [$periodStart, $periodEnd]);
 
-        if (!$isSuperAccounting) {
-            $paymentsQuery->where('recorded_by', $accountId);
-        } elseif ($selectedAccountId !== 'all') {
+        if ($isSuperAccounting && $selectedAccountId !== 'all') {
             $paymentsQuery->where('recorded_by', (int) $selectedAccountId);
         }
 
@@ -539,9 +537,7 @@ class AccountingDashboardController extends Controller
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
                 $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
-                    if (!$isSuperAccounting) {
-                        $inner->where('accounting_approved_by', $accountId);
-                    } elseif ($selectedAccountId !== 'all') {
+                    if ($isSuperAccounting && $selectedAccountId !== 'all') {
                         $inner->where('accounting_approved_by', (int) $selectedAccountId);
                     }
 
@@ -549,9 +545,7 @@ class AccountingDashboardController extends Controller
                         ->whereNotNull('accounting_approved_at')
                         ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
                 })->orWhere(function ($inner) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
-                    if (!$isSuperAccounting) {
-                        $inner->where('processed_by', $accountId);
-                    } elseif ($selectedAccountId !== 'all') {
+                    if ($isSuperAccounting && $selectedAccountId !== 'all') {
                         $inner->where('processed_by', (int) $selectedAccountId);
                     }
 
@@ -566,9 +560,7 @@ class AccountingDashboardController extends Controller
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
                 $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
-                    if (!$isSuperAccounting) {
-                        $inner->where('accounting_approved_by', $accountId);
-                    } elseif ($selectedAccountId !== 'all') {
+                    if ($isSuperAccounting && $selectedAccountId !== 'all') {
                         $inner->where('accounting_approved_by', (int) $selectedAccountId);
                     }
 
@@ -576,9 +568,7 @@ class AccountingDashboardController extends Controller
                         ->whereNotNull('accounting_approved_at')
                         ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
                 })->orWhere(function ($inner) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
-                    if (!$isSuperAccounting) {
-                        $inner->where('processed_by', $accountId);
-                    } elseif ($selectedAccountId !== 'all') {
+                    if ($isSuperAccounting && $selectedAccountId !== 'all') {
                         $inner->where('processed_by', (int) $selectedAccountId);
                     }
 
@@ -596,9 +586,7 @@ class AccountingDashboardController extends Controller
         $docSum      = (float) $documents->sum('fee');
         $dropSum     = (float) $dropRequests->sum('fee_amount');
         $overallFeePaidQuery = StudentPayment::whereIn('student_id', $studentIds);
-        if (!$isSuperAccounting) {
-            $overallFeePaidQuery->where('recorded_by', $accountId);
-        } elseif ($selectedAccountId !== 'all') {
+        if ($isSuperAccounting && $selectedAccountId !== 'all') {
             $overallFeePaidQuery->where('recorded_by', (int) $selectedAccountId);
         }
         $overallFeePaid = (float) $overallFeePaidQuery->sum('amount');
@@ -606,10 +594,7 @@ class AccountingDashboardController extends Controller
         $overallDocumentPaidQuery = DocumentRequest::whereIn('student_id', $studentIds)
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $isSuperAccounting, $selectedAccountId) {
-                if (!$isSuperAccounting) {
-                    $q->where('accounting_approved_by', $accountId)
-                        ->orWhere('processed_by', $accountId);
-                } elseif ($selectedAccountId !== 'all') {
+                if ($isSuperAccounting && $selectedAccountId !== 'all') {
                     $q->where('accounting_approved_by', (int) $selectedAccountId)
                         ->orWhere('processed_by', (int) $selectedAccountId);
                 }
@@ -620,10 +605,7 @@ class AccountingDashboardController extends Controller
             ->where('accounting_status', 'approved')
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $isSuperAccounting, $selectedAccountId) {
-                if (!$isSuperAccounting) {
-                    $q->where('accounting_approved_by', $accountId)
-                        ->orWhere('processed_by', $accountId);
-                } elseif ($selectedAccountId !== 'all') {
+                if ($isSuperAccounting && $selectedAccountId !== 'all') {
                     $q->where('accounting_approved_by', (int) $selectedAccountId)
                         ->orWhere('processed_by', (int) $selectedAccountId);
                 }
