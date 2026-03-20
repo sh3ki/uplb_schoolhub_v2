@@ -9,6 +9,7 @@ import {
     LayoutGrid,
     Megaphone,
     MessageCircle,
+    Rows3,
     ScrollText,
     UserX,
     Users,
@@ -101,6 +102,11 @@ export function AccountingSidebar() {
             title: 'Student Grants',
             href: '/accounting/grants',
             icon: Gift,
+        },
+        {
+            title: 'Masterlist',
+            href: '/accounting/masterlist',
+            icon: Rows3,
         },
         {
             title: 'Exam Approval',
