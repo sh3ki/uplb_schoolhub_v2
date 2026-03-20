@@ -142,7 +142,7 @@ class OnlineTransaction extends Model
      */
     public function scopeCompleted($query)
     {
-        return $query->where('status', 'verified');
+        return $query->whereIn('status', ['verified', 'completed']);
     }
 
     /**
