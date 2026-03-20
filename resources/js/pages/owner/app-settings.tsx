@@ -526,11 +526,16 @@ export default function AppSettings({ settings, departments }: Props) {
                                     </div>
                                     <div className="grid gap-2">
                                         <Label htmlFor="school_year">Current School Year</Label>
-                                        <Input id="school_year" name="school_year" defaultValue={settings.school_year}
-                                            placeholder="e.g., 2025-2026" maxLength={20} />
-                                        {errors.school_year && <p className="text-sm text-destructive">{errors.school_year}</p>}
+                                        <Input
+                                            id="school_year"
+                                            name="school_year"
+                                            defaultValue={settings.school_year}
+                                            readOnly
+                                            disabled
+                                            className="bg-muted"
+                                        />
                                         <p className="text-xs text-muted-foreground">
-                                            Used across fees, enrollment, and reports. Format: YYYY-YYYY (e.g., 2025-2026).
+                                            Used across fees, enrollment, and reports. Auto-detected as current year-next year.
                                         </p>
                                     </div>
                                 </CardContent>
