@@ -147,8 +147,11 @@ export default function OnlineTransactionsIndex({
     };
 
     const handleVerify = (id: number) => {
-        if (confirm('Verify this transaction? This will credit the payment to the student account.')) {
-            router.post(`/super-accounting/online-transactions/${id}/verify`);
+        const orNumber = prompt('Enter OR number (leave blank to auto-generate):');
+        if (orNumber !== null) {
+            router.post(`/super-accounting/online-transactions/${id}/verify`, {
+                or_number: orNumber || undefined,
+            });
         }
     };
 
@@ -369,7 +372,7 @@ export default function OnlineTransactionsIndex({
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
+                                                    <Button variant="ghost" size="sm" onClick={(e) => e.stopPropagation()}>
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
