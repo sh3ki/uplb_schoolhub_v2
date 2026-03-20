@@ -326,6 +326,7 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
 
     // Document Request Approvals (new workflow - student-initiated requests)
     Route::get('document-approvals', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'index'])->name('document-approvals.index');
+    Route::get('document-approvals/{documentRequest}/approve', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'approveGet'])->name('document-approvals.approve-get');
     Route::post('document-approvals/{documentRequest}/approve', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'approve'])->name('document-approvals.approve');
     Route::post('document-approvals/{documentRequest}/reject', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'reject'])->name('document-approvals.reject');
     Route::post('document-approvals/{documentRequest}/mark-ready', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'markReady'])->name('document-approvals.mark-ready');
@@ -642,6 +643,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
 
     // Document Approvals (super-accounting oversight)
     Route::get('document-approvals', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'index'])->name('document-approvals.index');
+    Route::get('document-approvals/{documentRequest}/approve', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'approveGet'])->name('document-approvals.approve-get');
     Route::post('document-approvals/{documentRequest}/approve', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'approve'])->name('document-approvals.approve');
     Route::post('document-approvals/{documentRequest}/reject', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'reject'])->name('document-approvals.reject');
     Route::post('document-approvals/{documentRequest}/mark-ready', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'markReady'])->name('document-approvals.mark-ready');
