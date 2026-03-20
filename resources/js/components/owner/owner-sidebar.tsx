@@ -104,11 +104,6 @@ export function OwnerSidebar() {
             icon: Scale,
         },
         {
-            title: 'Audit Logs',
-            href: '/owner/audit-logs',
-            icon: Scale,
-        },
-        {
             title: 'App Settings',
             href: '/owner/app-settings',
             icon: Settings,
