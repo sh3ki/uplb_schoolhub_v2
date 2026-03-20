@@ -49,6 +49,7 @@ interface Transaction {
     mode: string;
     reference: string | null;
     amount: number;
+    student_id?: number;
 }
 
 interface Stats {
@@ -467,7 +468,17 @@ export default function AccountDashboard({
                                         </TableRow>
                                     ) : (
                                         filteredTransactions.map((tx, index) => (
-                                            <TableRow key={tx.id}>
+                                            <TableRow
+                                                key={tx.id}
+                                                className={tx.student_id ? 'cursor-pointer hover:bg-muted/60' : ''}
+                                                onClick={() => {
+                                                    if (!tx.student_id) {
+                                                        return;
+                                                    }
+
+                                                    router.visit(`/super-accounting/payments/process/${tx.student_id}?tab=transactions`);
+                                                }}
+                                            >
                                                 <TableCell>
                                                     #{index + 1} - {tx.date} {tx.time}
                                                 </TableCell>
