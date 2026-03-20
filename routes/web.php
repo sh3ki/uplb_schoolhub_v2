@@ -84,7 +84,9 @@ if (!function_exists('registerAnnouncementsRoute')) {
 Route::prefix('owner')->name('owner.')->middleware(['auth', 'verified', 'role:owner'])->group(function () {
     registerSettingsRoutes();
     
-    Route::get('dashboard', [App\Http\Controllers\Owner\OwnerDashboardController::class, 'index'])->name('dashboard');
+    Route::get('dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('dashboard');
+    Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
+    Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
 
     Route::get('income/today', [App\Http\Controllers\Owner\IncomeController::class, 'today'])->name('income.today');
     Route::get('income/overall', [App\Http\Controllers\Owner\IncomeController::class, 'overall'])->name('income.overall');
@@ -140,6 +142,7 @@ Route::prefix('owner')->name('owner.')->middleware(['auth', 'verified', 'role:ow
 
     // Student List
     Route::get('students', [App\Http\Controllers\Owner\StudentListController::class, 'index'])->name('students');
+    Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
 
     // Announcements
     Route::resource('announcements', \App\Http\Controllers\Owner\AnnouncementController::class)->only([
@@ -163,6 +166,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::resource('students', \App\Http\Controllers\StudentController::class)->only([
         'index', 'store', 'show', 'update', 'destroy'
     ]);
+    Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
 
     // Promote Students — bulk section / year-level promotion
     Route::get('promote-students', [\App\Http\Controllers\Registrar\StudentPromotionController::class, 'index'])->name('promote-students.index');
@@ -286,6 +290,7 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::get('dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'index'])->name('dashboard');
     Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
     Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
+    Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
     
     // Student Accounts Management
     Route::get('student-accounts', [App\Http\Controllers\Accounting\StudentAccountController::class, 'index'])->name('student-accounts.index');
@@ -576,6 +581,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::get('dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'index'])->name('dashboard');
     Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
     Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
+    Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
 
     // Online Transactions (oversight)
     Route::get('online-transactions', [App\Http\Controllers\Accounting\OnlineTransactionController::class, 'index'])->name('online-transactions.index');
