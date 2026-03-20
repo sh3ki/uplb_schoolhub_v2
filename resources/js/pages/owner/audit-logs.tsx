@@ -301,6 +301,7 @@ export default function AuditLogs({ payments, filters, schoolYears, stats }: Pro
                                     <TableHeader>
                                         <TableRow>
                                             <TableHead>Date</TableHead>
+                                            <TableHead>Timestamp</TableHead>
                                             <TableHead>Student</TableHead>
                                             <TableHead>School Year</TableHead>
                                             <TableHead>OR #</TableHead>
@@ -314,7 +315,10 @@ export default function AuditLogs({ payments, filters, schoolYears, stats }: Pro
                                         {payments.data.map((payment) => (
                                             <TableRow key={payment.id} className="hover:bg-muted/50">
                                                 <TableCell className="text-sm whitespace-nowrap">
-                                                    {payment.payment_date || payment.created_at}
+                                                    {payment.payment_date || '—'}
+                                                </TableCell>
+                                                <TableCell className="text-sm whitespace-nowrap font-medium">
+                                                    {payment.created_at}
                                                 </TableCell>
                                                 <TableCell>
                                                     {payment.student ? (
