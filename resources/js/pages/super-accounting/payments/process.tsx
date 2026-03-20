@@ -1299,9 +1299,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 {fee.categories && fee.categories.length > 0 ? (
                                                     <div className="space-y-4">
                                                         {fee.categories.map((category) => (
-                                                            <div key={category.category_id} className="border rounded-md p-3 bg-muted/30">
+                                                            <div key={category.category_id} className="border rounded-md p-3 bg-background">
                                                                 <h5 className="font-semibold mb-2 flex items-center gap-2">
-                                                                    <span className="text-primary">{category.category_name}</span>
+                                                                    <span className="text-foreground">{category.category_name}</span>
                                                                 </h5>
                                                                 <Table>
                                                                     <TableHeader>
@@ -1313,8 +1313,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                     <TableBody>
                                                                         {category.items.map((item) => (
                                                                             <TableRow key={item.id}>
-                                                                                <TableCell>{item.name}</TableCell>
-                                                                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                                                <TableCell className="text-foreground">{item.name}</TableCell>
+                                                                                <TableCell className="text-right text-foreground">{formatCurrency(item.amount)}</TableCell>
                                                                             </TableRow>
                                                                         ))}
                                                                     </TableBody>
