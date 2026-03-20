@@ -1,10 +1,19 @@
 import { Head } from '@inertiajs/react';
+import { ChevronDown } from 'lucide-react';
 import { Users } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 import {
     Table,
@@ -53,11 +62,16 @@ export default function ExamApprovalIndex({
     fullyPaidMale,
     fullyPaidFemale,
 }: Props) {
+    const [activeGenderTab, setActiveGenderTab] = useState<'all' | 'male' | 'female'>('all');
     const [fpYearLevel, setFpYearLevel] = useState('all');
     const [fpSection, setFpSection] = useState('all');
     const [fpProgram, setFpProgram] = useState('all');
     const [fpClassification, setFpClassification] = useState('all');
     const [fpDepartment, setFpDepartment] = useState('all');
+    const ALL_STATUSES = ['paid', 'partial', 'overdue', 'unpaid'];
+    const [fpStatus, setFpStatus] = useState<string[]>(['paid', 'partial', 'overdue', 'unpaid']);
+    const toggleStatus = (status: string) =>
+        setFpStatus(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]);
 
     const formatCurrency = (amount: string | number) => {
         return `₱${parseFloat(amount.toString()).toLocaleString('en-PH', {
@@ -76,11 +90,13 @@ export default function ExamApprovalIndex({
         (fpSection === 'all' || s.section === fpSection) &&
         (fpProgram === 'all' || s.program === fpProgram) &&
         (fpClassification === 'all' || s.classification === fpClassification) &&
-        (fpDepartment === 'all' || s.department === fpDepartment)
+        (fpDepartment === 'all' || s.department === fpDepartment) &&
+        (fpStatus.length === ALL_STATUSES.length || fpStatus.includes(s.payment_status))
     );
 
     const filteredMale = applyFpFilters(fullyPaidMale);
     const filteredFemale = applyFpFilters(fullyPaidFemale);
+    const filteredAll = [...filteredMale, ...filteredFemale].sort((a, b) => a.full_name.localeCompare(b.full_name));
 
     const classificationLabels: Record<string, string> = {
         new: 'New',
@@ -156,21 +172,52 @@ export default function ExamApprovalIndex({
                             ))}
                         </SelectContent>
                     </Select>
-                    {(fpClassification !== 'all' || fpDepartment !== 'all' || fpProgram !== 'all' || fpYearLevel !== 'all' || fpSection !== 'all') && (
-                        <Button variant="ghost" size="sm" onClick={() => { setFpClassification('all'); setFpDepartment('all'); setFpProgram('all'); setFpYearLevel('all'); setFpSection('all'); }}>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm" className="h-9 gap-1">
+                                Status
+                                {fpStatus.length < ALL_STATUSES.length && (
+                                    <Badge className="ml-1 rounded-full px-1 py-0 text-xs bg-primary text-primary-foreground">
+                                        {fpStatus.length}
+                                    </Badge>
+                                )}
+                                <ChevronDown className="h-4 w-4 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                            <DropdownMenuLabel>Payment Status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {ALL_STATUSES.map(status => (
+                                <DropdownMenuCheckboxItem
+                                    key={status}
+                                    checked={fpStatus.includes(status)}
+                                    onCheckedChange={() => toggleStatus(status)}
+                                >
+                                    {status === 'paid' ? 'Fully Paid' : status.charAt(0).toUpperCase() + status.slice(1)}
+                                </DropdownMenuCheckboxItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    {(fpClassification !== 'all' || fpDepartment !== 'all' || fpProgram !== 'all' || fpYearLevel !== 'all' || fpSection !== 'all' || fpStatus.length !== ALL_STATUSES.length) && (
+                        <Button variant="ghost" size="sm" onClick={() => { setFpClassification('all'); setFpDepartment('all'); setFpProgram('all'); setFpYearLevel('all'); setFpSection('all'); setFpStatus([...ALL_STATUSES]); }}>
                             Clear filters
                         </Button>
                     )}
                 </div>
 
-                <Tabs defaultValue="male">
+                <Tabs value={activeGenderTab} onValueChange={(value) => setActiveGenderTab(value as 'all' | 'male' | 'female')}>
                     <TabsList>
+                        <TabsTrigger value="all">All ({filteredAll.length})</TabsTrigger>
                         <TabsTrigger value="male">Male ({filteredMale.length})</TabsTrigger>
                         <TabsTrigger value="female">Female ({filteredFemale.length})</TabsTrigger>
                     </TabsList>
 
-                    {(['male', 'female'] as const).map((gender) => {
-                        const students = gender === 'male' ? filteredMale : filteredFemale;
+                    {(['all', 'male', 'female'] as const).map((gender) => {
+                        const students = gender === 'male'
+                            ? filteredMale
+                            : gender === 'female'
+                                ? filteredFemale
+                                : filteredAll;
                         return (
                             <TabsContent key={gender} value={gender}>
                                 <Card>
