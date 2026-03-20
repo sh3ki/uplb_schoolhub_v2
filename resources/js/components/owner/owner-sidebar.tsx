@@ -4,6 +4,7 @@ import {
     FileText,
     GraduationCap,
     LayoutGrid,
+    Rows3,
     Users,
     Megaphone,
     Settings,
@@ -97,6 +98,11 @@ export function OwnerSidebar() {
             title: 'Export Reports',
             href: '/owner/reports',
             icon: FileText,
+        },
+        {
+            title: 'Masterlist',
+            href: '/owner/masterlist',
+            icon: Rows3,
         },
         {
             title: 'Audit Reports',
