@@ -10,6 +10,7 @@ use App\Models\FeeItem;
 use App\Models\Grant;
 use App\Models\GrantRecipient;
 use App\Models\Department;
+use App\Models\OnlineTransaction;
 use App\Models\YearLevel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -317,6 +318,7 @@ class StudentAccountController extends Controller
             ->first();
 
         $totalPaid = $studentFee ? (float) $studentFee->payments()->sum('amount') : 0;
+        $totalPaid += $this->getUnlinkedOnlineTransactionAmount($student, $schoolYear);
         $dueDate = $studentFee?->due_date;
 
         // Sync stored record with freshly calculated amounts (for reports accuracy)
@@ -709,6 +711,24 @@ class StudentAccountController extends Controller
         }
 
         return collect();
+    }
+
+    /**
+     * Sum verified/completed student-portal transactions not linked to StudentPayment yet.
+     */
+    private function getUnlinkedOnlineTransactionAmount(Student $student, string $schoolYear): float
+    {
+        $billingYear = $student->school_year
+            ?: (\App\Models\AppSetting::current()?->school_year ?? $schoolYear);
+
+        if ($schoolYear !== $billingYear) {
+            return 0.0;
+        }
+
+        return (float) OnlineTransaction::where('student_id', $student->id)
+            ->whereNull('student_payment_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->sum('amount');
     }
 
     /**
