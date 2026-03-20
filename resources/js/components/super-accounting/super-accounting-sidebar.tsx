@@ -10,7 +10,6 @@ import {
     MessageCircle,
     RotateCcw,
     ScrollText,
-    Settings,
     UserX,
     Users,
 } from 'lucide-react';
@@ -113,14 +112,6 @@ export function SuperAccountingSidebar() {
         },
     ];
 
-    const adminNavItems: NavItem[] = [
-        {
-            title: 'Settings',
-            href: '/super-accounting/settings',
-            icon: Settings,
-        },
-    ];
-
     return (
         <Sidebar variant="inset" style={{
             ...(sidebarColor ? { '--sidebar': sidebarColor } as React.CSSProperties : {}),
@@ -149,7 +140,6 @@ export function SuperAccountingSidebar() {
             </SidebarHeader>
             <SidebarContent>
                 <NavMain items={mainNavItems} label="Main Navigation" />
-                <NavMain items={adminNavItems} label="Administration" />
             </SidebarContent>
             <SidebarFooter>
                 <NavUser />
