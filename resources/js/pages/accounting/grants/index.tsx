@@ -105,6 +105,13 @@ interface Props {
     classifications: string[];
     yearLevels: string[];
     programs: string[];
+    grantsStats: {
+        total_grants: number;
+        active_grants: number;
+        total_recipients: number;
+        active_recipients: number;
+        total_discount_amount: number;
+    };
     filters: {
         search?: string;
         grant_id?: string;
@@ -117,7 +124,7 @@ interface Props {
     };
 }
 
-export default function GrantsIndex({ tab, grants, recipients, students, schoolYears, currentSchoolYear, departments = [], classifications = [], yearLevels = [], programs = [], filters }: Props) {
+export default function GrantsIndex({ tab, grants, recipients, students, schoolYears, currentSchoolYear, departments = [], classifications = [], yearLevels = [], programs = [], grantsStats, filters }: Props) {
     const { props } = usePage<{ appSettings?: { has_college?: boolean } }>();
     const hasCollege = props.appSettings?.has_college !== false;
     const [activeTab, setActiveTab] = useState(tab || 'recipients');
@@ -515,6 +522,29 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                     </TabsContent>
 
                     <TabsContent value="recipients" className="space-y-4">
+                        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Total Grants</CardTitle></CardHeader>
+                                <CardContent><p className="text-2xl font-bold">{grantsStats.total_grants}</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Active Grants</CardTitle></CardHeader>
+                                <CardContent><p className="text-2xl font-bold text-green-600">{grantsStats.active_grants}</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Recipients</CardTitle></CardHeader>
+                                <CardContent><p className="text-2xl font-bold">{grantsStats.total_recipients}</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Active Recipients</CardTitle></CardHeader>
+                                <CardContent><p className="text-2xl font-bold text-blue-600">{grantsStats.active_recipients}</p></CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="pb-2"><CardTitle className="text-sm">Total Discount</CardTitle></CardHeader>
+                                <CardContent><p className="text-2xl font-bold text-purple-600">{formatCurrency(grantsStats.total_discount_amount)}</p></CardContent>
+                            </Card>
+                        </div>
+
                         <div className="flex justify-end gap-2">
                             <Button variant="outline" onClick={printRecipientsTable}>
                                 <Printer className="mr-2 h-4 w-4" />
