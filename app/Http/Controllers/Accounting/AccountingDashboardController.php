@@ -181,7 +181,7 @@ class AccountingDashboardController extends Controller
             $years = [(int) date('Y')];
         }
 
-        return Inertia::render($this->viewPrefix() . '/main-dashboard', [
+        return Inertia::render('accounting/main-dashboard', [
             'stats' => $stats,
             'monthlyCollections' => $monthlyCollections,
             'departmentBalances' => $departmentBalances,
@@ -436,7 +436,7 @@ class AccountingDashboardController extends Controller
         $yearLevels  = Student::whereNotNull('year_level')->where('year_level', '!=', '')->distinct()->orderBy('year_level')->pluck('year_level')->map(fn($v) => ['value' => $v, 'label' => $v]);
         $sections    = Student::whereNotNull('section')->where('section', '!=', '')->distinct()->orderBy('section')->pluck('section')->map(fn($v) => ['value' => $v, 'label' => $v]);
 
-        return Inertia::render($this->viewPrefix() . '/dashboard', [
+        return Inertia::render('accounting/dashboard', [
             'stats'           => $stats,
             'recentPayments'  => $recentPayments,
             'pendingPayments' => $pendingPayments,
@@ -728,7 +728,7 @@ class AccountingDashboardController extends Controller
         $years = StudentPayment::selectRaw('YEAR(payment_date) as year')->distinct()->orderBy('year', 'desc')->pluck('year')->toArray();
         if (empty($years)) $years = [(int) date('Y')];
 
-        return Inertia::render($this->viewPrefix() . '/account-dashboard', [
+        return Inertia::render('accounting/account-dashboard', [
             'stats'            => $stats,
             'transactions'     => array_values($transactions),
             'dailyCollections' => $dailyCollections,
