@@ -22,7 +22,7 @@ class AuditLogController extends Controller
             'student:id,first_name,last_name,lrn,program,year_level',
             'recordedBy:id,name,role',
             'studentFee:id,school_year',
-        ])->orderByDesc('payment_date')->orderByDesc('created_at');
+        ])->orderByDesc('created_at')->orderByDesc('payment_date');
 
         // Search by student name, LRN, OR number, or cashier name
         if ($search = $request->input('search')) {
