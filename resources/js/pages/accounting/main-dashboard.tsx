@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle, Clock, Download, FileText, RefreshCw, TrendingUp, Users, XCircle, BarChart3 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
 import { useState } from 'react';
@@ -10,6 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AccountingLayout from '@/layouts/accounting-layout';
+import OwnerLayout from '@/layouts/owner/owner-layout';
+import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface Stats {
     total_students: number;
@@ -55,6 +57,11 @@ interface Props {
     totalCollected?: number;
 }
 
+interface AppSettingsFlags {
+    has_k12?: boolean;
+    has_college?: boolean;
+}
+
 export default function MainDashboard({
     stats,
     monthlyCollections,
@@ -67,6 +74,20 @@ export default function MainDashboard({
     projectedRevenue = 0,
     totalCollected = 0,
 }: Props) {
+    const page = usePage<{ appSettings?: AppSettingsFlags }>();
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/')
+        ? 'owner'
+        : currentPath.startsWith('/super-accounting/')
+            ? 'super-accounting'
+            : 'accounting';
+    const basePath = `/${routePrefix}`;
+    const DashboardLayoutComponent = routePrefix === 'owner'
+        ? OwnerLayout
+        : routePrefix === 'super-accounting'
+            ? SuperAccountingLayout
+            : AccountingLayout;
+
     const [year, setYear] = useState(selectedYear.toString());
 
     const formatCurrency = (amount: number) => {
@@ -78,11 +99,11 @@ export default function MainDashboard({
 
     const handleYearChange = (value: string) => {
         setYear(value);
-        router.get('/accounting/dashboard', { year: value }, { preserveState: true, preserveScroll: true });
+        router.get(`${basePath}/dashboard`, { year: value }, { preserveState: true, preserveScroll: true });
     };
 
     const handleExport = () => {
-        window.location.href = `/accounting/dashboard/export?year=${year}`;
+        window.location.href = `${basePath}/dashboard/export?year=${year}`;
     };
 
     // Find max amount for chart scaling
@@ -93,8 +114,8 @@ export default function MainDashboard({
     const fullyPaidRate = totalStudents > 0 ? ((stats?.fully_paid ?? 0) / totalStudents * 100).toFixed(1) : '0.0';
 
     return (
-        <AccountingLayout>
-            <Head title="Main Dashboard" />
+        <DashboardLayoutComponent>
+            <Head title={routePrefix === 'owner' ? 'Dashboard Overview' : 'Main Dashboard'} />
 
             <div className="space-y-6 p-6">
                 <div className="flex items-center justify-between">
@@ -354,6 +375,6 @@ export default function MainDashboard({
                     </CardContent>
                 </Card>
             </div>
-        </AccountingLayout>
+        </DashboardLayoutComponent>
     );
 }
