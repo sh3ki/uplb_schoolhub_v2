@@ -112,7 +112,7 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                                 </CardHeader>
                                 <CardContent className="grid gap-4 md:grid-cols-2">
                                     <GenderTable title="Male" rows={group.male} headerColor="oklch(58.8% 0.158 241.966)" />
-                                    <GenderTable title="Female" rows={group.female} headerColor="oklch(58.8% 0.158 241.966)" />
+                                    <GenderTable title="Female" rows={group.female} headerColor="oklch(65.6% 0.241 354.308)" />
                                 </CardContent>
                             </Card>
                         ))
@@ -130,7 +130,7 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                                     <CardTitle>{group.group}</CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 md:grid-cols-2">
-                                    <GenderTable title="Male" rows={group.male} headerColor="oklch(65.6% 0.241 354.308)" />
+                                    <GenderTable title="Male" rows={group.male} headerColor="oklch(58.8% 0.158 241.966)" />
                                     <GenderTable title="Female" rows={group.female} headerColor="oklch(65.6% 0.241 354.308)" />
                                 </CardContent>
                             </Card>
