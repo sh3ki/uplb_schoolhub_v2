@@ -662,6 +662,7 @@ class AccountingDashboardController extends Controller
 
         // Recent transactions (top 25 payments + top 10 documents)
         foreach ($payments->sortByDesc('payment_date')->take(25) as $p) {
+            $sortAt = Carbon::parse($p->payment_date . ' ' . $p->created_at->format('H:i:s'))->timestamp;
             $transactions[] = [
                 'id'           => $p->id,
                 'date'         => Carbon::parse($p->payment_date)->format('Y-m-d'),
@@ -673,13 +674,15 @@ class AccountingDashboardController extends Controller
                 'amount'       => (float) $p->amount,
                 'student_id'   => $p->student_id,
                 'processed_by' => $p->recordedBy?->name ?? 'N/A',
+                'sort_at'      => $sortAt,
             ];
         }
         foreach ($documents->take(10) as $doc) {
+            $docDateTime = Carbon::parse($doc->created_at);
             $transactions[] = [
                 'id'           => 'doc-' . $doc->id,
-                'date'         => Carbon::parse($doc->created_at)->format('Y-m-d'),
-                'time'         => Carbon::parse($doc->created_at)->format('h:i A'),
+                'date'         => $docDateTime->format('Y-m-d'),
+                'time'         => $docDateTime->format('h:i A'),
                 'type'         => 'Document',
                 'or_number'    => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
                 'mode'         => strtoupper($doc->payment_type ?? 'CASH'),
@@ -687,13 +690,15 @@ class AccountingDashboardController extends Controller
                 'amount'       => (float) $doc->fee,
                 'student_id'   => $doc->student_id,
                 'processed_by' => $doc->accountingApprovedBy?->name ?? $doc->processedBy?->name ?? 'N/A',
+                'sort_at'      => $docDateTime->timestamp,
             ];
         }
         foreach ($dropRequests->take(10) as $drop) {
+            $dropDateTime = Carbon::parse($drop->accounting_approved_at);
             $transactions[] = [
                 'id'           => 'drop-' . $drop->id,
-                'date'         => Carbon::parse($drop->accounting_approved_at)->format('Y-m-d'),
-                'time'         => Carbon::parse($drop->accounting_approved_at)->format('h:i A'),
+                'date'         => $dropDateTime->format('Y-m-d'),
+                'time'         => $dropDateTime->format('h:i A'),
                 'type'         => 'Drop',
                 'or_number'    => $drop->or_number ?? ('DRP' . str_pad($drop->id, 3, '0', STR_PAD_LEFT)),
                 'mode'         => 'CASH',
@@ -701,9 +706,14 @@ class AccountingDashboardController extends Controller
                 'amount'       => (float) $drop->fee_amount,
                 'student_id'   => $drop->student_id,
                 'processed_by' => 'N/A',
+                'sort_at'      => $dropDateTime->timestamp,
             ];
         }
-        usort($transactions, fn($a, $b) => strcmp($b['date'] . $b['time'], $a['date'] . $a['time']));
+        usort($transactions, fn($a, $b) => ($b['sort_at'] ?? 0) <=> ($a['sort_at'] ?? 0));
+        $transactions = array_map(function ($tx) {
+            unset($tx['sort_at']);
+            return $tx;
+        }, $transactions);
 
         // Filter options
         $departments = Department::orderBy('name')->get()->map(fn($d) => ['value' => (string) $d->id, 'label' => $d->name]);
