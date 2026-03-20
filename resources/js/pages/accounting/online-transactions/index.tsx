@@ -61,7 +61,7 @@ interface OnlineTransaction {
     amount: string;
     fee: string;
     net_amount: string;
-    status: 'pending' | 'verified' | 'failed' | 'refunded';
+    status: 'pending' | 'verified' | 'completed' | 'failed' | 'refunded';
     provider_reference?: string;
     provider_status?: string;
     payment_details?: Record<string, any>;
@@ -111,7 +111,7 @@ export default function OnlineTransactionsIndex({
     filters,
 }: Props) {
     const [search, setSearch] = useState(filters.search || '');
-    const [activeTab, setActiveTab] = useState(filters.status || 'all');
+    const [activeTab, setActiveTab] = useState((filters.status === 'completed' ? 'verified' : (filters.status || 'all')));
     const [provider, setProvider] = useState(filters.payment_method || 'all');
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
