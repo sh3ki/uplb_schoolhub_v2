@@ -93,6 +93,7 @@ class SelfEnrollmentController extends Controller
                     $query->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)]);
                 })
                 ->with('studentFee:id,school_year')
+                ->orderBy('created_at', 'desc')
                 ->orderBy('payment_date', 'desc')
                 ->get()
                 ->map(fn ($p) => [
