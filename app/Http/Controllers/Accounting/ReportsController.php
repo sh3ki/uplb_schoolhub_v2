@@ -9,6 +9,7 @@ use App\Models\DocumentFeeItem;
 use App\Models\DocumentRequest;
 use App\Models\FeeCategory;
 use App\Models\FeeItem;
+use App\Models\GrantRecipient;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -132,6 +133,38 @@ class ReportsController extends Controller
         $paymentSummary = $summaryByDate
             ->sortKeysDesc()
             ->values();
+
+        $applyStudentFilter = function ($query) use ($schoolYear, $departmentId, $classification, $scopedStudentIds) {
+            if ($schoolYear) {
+                $query->where('school_year', $schoolYear);
+            }
+
+            if ($departmentId || $classification) {
+                $query->whereIn('student_id', $scopedStudentIds);
+            }
+
+            return $query;
+        };
+
+        $applyPaymentFilter = function ($query) use ($from, $to, $schoolYear, $departmentId, $classification, $scopedStudentIds) {
+            if ($from) {
+                $query->whereDate('payment_date', '>=', $from);
+            }
+
+            if ($to) {
+                $query->whereDate('payment_date', '<=', $to);
+            }
+
+            if ($schoolYear) {
+                $query->whereHas('studentFee', fn($q) => $q->where('school_year', $schoolYear));
+            }
+
+            if ($departmentId || $classification) {
+                $query->whereIn('student_id', $scopedStudentIds);
+            }
+
+            return $query;
+        };
 
         // Student Balance Report
         $balanceQuery = StudentFee::with('student.department')
@@ -264,9 +297,14 @@ class ReportsController extends Controller
                 $payFor    = $mapping['payment_for'] ?? 'other';
 
                 // Real count & revenue from actual DB records
-                $studentsAssigned = StudentFee::where($dbField, '>', 0)->count();
-                $totalAssigned    = (float) StudentFee::sum($dbField);
-                $totalCollected   = (float) StudentPayment::where('payment_for', $payFor)->sum('amount');
+                $studentsAssigned = $applyStudentFilter(StudentFee::query())
+                    ->where($dbField, '>', 0)
+                    ->count();
+                $totalAssigned = (float) $applyStudentFilter(StudentFee::query())
+                    ->sum($dbField);
+                $totalCollected = (float) $applyPaymentFilter(StudentPayment::query())
+                    ->where('payment_for', $payFor)
+                    ->sum('amount');
 
                 $items = $cat->items->map(function ($item) use ($studentsAssigned, $totalAssigned) {
                     $selling = (float) $item->selling_price;
@@ -300,17 +338,36 @@ class ReportsController extends Controller
             ->values();
 
         // Document Fee Income — derive from actual DocumentRequest rows
+        $documentRequestBase = DocumentRequest::query()
+            ->where('accounting_status', 'approved');
+
+        if ($from) {
+            $documentRequestBase->whereDate('accounting_approved_at', '>=', $from);
+        }
+
+        if ($to) {
+            $documentRequestBase->whereDate('accounting_approved_at', '<=', $to);
+        }
+
+        if ($schoolYear) {
+            $documentRequestBase->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
+        }
+
+        if ($departmentId || $classification) {
+            $documentRequestBase->whereIn('student_id', $scopedStudentIds);
+        }
+
         $documentFeeReport = DocumentFeeItem::where('is_active', true)
             ->orderBy('category')->orderBy('name')
             ->get()
-            ->map(function ($item) {
+            ->map(function ($item) use ($documentRequestBase) {
                 /** @var \App\Models\DocumentFeeItem $item */
                 // Recount from real approved requests
-                $item->actual_availed = DocumentRequest::where('document_fee_item_id', $item->id)
-                    ->where('accounting_status', 'approved')
+                $item->actual_availed = (clone $documentRequestBase)
+                    ->where('document_fee_item_id', $item->id)
                     ->count();
-                $item->actual_revenue = (float) DocumentRequest::where('document_fee_item_id', $item->id)
-                    ->where('accounting_status', 'approved')
+                $item->actual_revenue = (float) (clone $documentRequestBase)
+                    ->where('document_fee_item_id', $item->id)
                     ->sum('fee');
                 return $item;
             })
@@ -336,6 +393,26 @@ class ReportsController extends Controller
             })
             ->values();
 
+        $grantTotals = GrantRecipient::query()
+            ->with(['grant:id,name,type,value'])
+            ->where('status', 'active')
+            ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
+            ->when($departmentId || $classification, fn($q) => $q->whereIn('student_id', $scopedStudentIds))
+            ->get()
+            ->groupBy('grant_id')
+            ->map(function ($rows) {
+                $grant = $rows->first()?->grant;
+                return [
+                    'grant_name' => $grant?->name ?? 'Unknown Grant',
+                    'type' => $grant?->type ?? 'fixed',
+                    'value' => (float) ($grant?->value ?? 0),
+                    'recipients' => $rows->count(),
+                    'total_discount' => (float) $rows->sum('discount_amount'),
+                ];
+            })
+            ->sortByDesc('total_discount')
+            ->values();
+
         return Inertia::render($this->reportsView(), [
             'paymentSummary' => $paymentSummary,
             'balanceReport' => $balanceReport,
@@ -347,6 +424,7 @@ class ReportsController extends Controller
             'feeReport' => $feeReport,
             'documentFeeReport' => $documentFeeReport,
             'departmentAnalysis' => $departmentAnalysis,
+            'grantTotals' => $grantTotals,
         ]);
     }
 
