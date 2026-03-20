@@ -10,6 +10,7 @@ import {
     ListChecks,
     Megaphone,
     MessageCircle,
+    Rows3,
     Settings,
     UserCog,
     UserMinus,
@@ -73,6 +74,11 @@ export function RegistrarSidebar() {
             title: 'Students',
             href: '/registrar/students',
             icon: Users,
+        },
+        {
+            title: 'Masterlist',
+            href: '/registrar/masterlist',
+            icon: Rows3,
         },
         {
             title: 'Document Requests',
