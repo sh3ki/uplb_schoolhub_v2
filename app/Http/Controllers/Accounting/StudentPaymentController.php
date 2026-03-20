@@ -1073,10 +1073,6 @@ class StudentPaymentController extends Controller
                     $this->applyStudentFilters($specificScope, $student);
                 })->orWhereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
                     $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
-                    $assignmentQuery->where(function ($yearQuery) use ($schoolYear) {
-                        $yearQuery->whereNull('school_year')
-                            ->orWhere('school_year', $schoolYear);
-                    });
                 });
             })
             ->get();
