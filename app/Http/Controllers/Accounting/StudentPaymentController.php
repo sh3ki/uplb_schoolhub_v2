@@ -1084,6 +1084,14 @@ class StudentPaymentController extends Controller
             ->values()
             ->all();
 
+        if (empty($items) && (float) $studentFee->total_amount > 0) {
+            $items[] = [
+                'key' => 'total_amount',
+                'name' => 'Total Assessed Fees',
+                'amount' => (float) $studentFee->total_amount,
+            ];
+        }
+
         if (empty($items)) {
             return [];
         }
