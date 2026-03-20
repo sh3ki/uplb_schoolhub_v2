@@ -158,6 +158,7 @@ class StudentFee extends Model
     {
         $this->update([
             'is_overdue' => false,
+            'due_date' => null,
             'payment_status' => $this->balance <= 0 ? 'paid' : ($this->total_paid > 0 ? 'partial' : 'unpaid'),
         ]);
     }
