@@ -12,7 +12,6 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import {
     Select,
     SelectContent,
@@ -156,8 +155,6 @@ export default function OwnerAuditReports({
         unpaid_count: 0,
     },
 }: Props) {
-    const [from, setFrom] = useState(filters.from || '');
-    const [to, setTo] = useState(filters.to || '');
     // Initialize with first school year (current) instead of 'all' to prevent duplicate students
     const [schoolYear, setSchoolYear] = useState(filters.school_year || (schoolYears.length > 0 ? schoolYears[0] : ''));
     const [status, setStatus] = useState(filters.status || 'all');
@@ -168,8 +165,6 @@ export default function OwnerAuditReports({
         router.get(
             '/owner/audit-reports',
             {
-                from: from || undefined,
-                to: to || undefined,
                 school_year: schoolYear || undefined,
                 status: status !== 'all' ? status : undefined,
                 department_id: departmentId !== 'all' ? departmentId : undefined,
@@ -233,7 +228,7 @@ export default function OwnerAuditReports({
                         <div className="flex gap-2">
                             <ExportButton
                                 exportUrl="/owner/audit-reports/export"
-                                filters={{ from, to, school_year: schoolYear, status, department_id: departmentId, classification }}
+                                filters={{ school_year: schoolYear, status, department_id: departmentId, classification }}
                                 buttonText="Export Report"
                             />
                             <Button variant="outline" onClick={handlePrint}>
@@ -301,14 +296,6 @@ export default function OwnerAuditReports({
                     <CardContent>
                         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div className="space-y-2">
-                                <Label htmlFor="from">Date From</Label>
-                                <Input id="from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="to">Date To</Label>
-                                <Input id="to" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-                            </div>
-                            <div className="space-y-2">
                                 <Label htmlFor="schoolYear">School Year</Label>
                                 <Select value={schoolYear} onValueChange={setSchoolYear}>
                                     <SelectTrigger id="schoolYear">
@@ -370,9 +357,7 @@ export default function OwnerAuditReports({
                             <Button
                                 variant="outline"
                                 onClick={() => {
-                                    setFrom('');
-                                    setTo('');
-                                    setSchoolYear('all');
+                                    setSchoolYear(schoolYears.length > 0 ? schoolYears[0] : '');
                                     setStatus('all');
                                     setDepartmentId('all');
                                     setClassification('all');
