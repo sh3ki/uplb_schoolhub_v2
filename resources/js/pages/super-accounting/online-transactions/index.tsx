@@ -61,7 +61,7 @@ interface OnlineTransaction {
     amount: string;
     fee: string;
     net_amount: string;
-    status: 'pending' | 'verified' | 'failed' | 'refunded';
+    status: 'pending' | 'verified' | 'completed' | 'failed' | 'refunded';
     provider_reference?: string;
     provider_status?: string;
     payment_details?: Record<string, any>;
