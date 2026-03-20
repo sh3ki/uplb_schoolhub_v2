@@ -971,6 +971,11 @@ class StudentPaymentController extends Controller
     {
         $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
         if (!$templateYear) {
+            $fallbackItems = $this->getFallbackFeeItemsForStudentYear($student, $schoolYear);
+            if ($fallbackItems->isNotEmpty()) {
+                return $this->mapFeeItemsByCategoryForDisplay($fallbackItems, $student, $schoolYear);
+            }
+
             return $this->buildFeeCategoriesFromStoredLedger($student, $schoolYear);
         }
 
@@ -1022,8 +1027,66 @@ class StudentPaymentController extends Controller
             ->get();
 
         if ($feeItems->isEmpty()) {
+            $fallbackItems = $this->getFallbackFeeItemsForStudentYear($student, $schoolYear);
+            if ($fallbackItems->isNotEmpty()) {
+                return $this->mapFeeItemsByCategoryForDisplay($fallbackItems, $student, $schoolYear);
+            }
+
             return $this->buildFeeCategoriesFromStoredLedger($student, $schoolYear);
         }
+
+        return $this->mapFeeItemsByCategoryForDisplay($feeItems, $student, $schoolYear);
+    }
+
+    /**
+     * Fallback fee-item resolver for legacy ledgers where template-year matching misses active assignments.
+     */
+    private function getFallbackFeeItemsForStudentYear(Student $student, string $schoolYear)
+    {
+        return \App\Models\FeeItem::with('category')
+            ->where('is_active', true)
+            ->whereDoesntHave('category', function ($q) {
+                $q->where('name', 'like', '%Drop%');
+            })
+            ->where(function ($query) use ($student, $schoolYear) {
+                $query->where(function ($allScope) use ($schoolYear) {
+                    $allScope->where('assignment_scope', 'all')
+                        ->whereDoesntHave('assignments')
+                        ->where(function ($yearQuery) use ($schoolYear) {
+                            $yearQuery->whereNull('school_year')
+                                ->orWhere('school_year', $schoolYear);
+                        });
+                })->orWhere(function ($specificScope) use ($student, $schoolYear) {
+                    $specificScope->where('assignment_scope', 'specific')
+                        ->where(function ($hasDirectFilters) {
+                            $hasDirectFilters->whereNotNull('classification')
+                                ->orWhereNotNull('department_id')
+                                ->orWhereNotNull('program_id')
+                                ->orWhereNotNull('year_level_id')
+                                ->orWhereNotNull('section_id');
+                        })
+                        ->where(function ($yearQuery) use ($schoolYear) {
+                            $yearQuery->whereNull('school_year')
+                                ->orWhere('school_year', $schoolYear);
+                        });
+
+                    $this->applyStudentFilters($specificScope, $student);
+                })->orWhereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                    $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
+                    $assignmentQuery->where(function ($yearQuery) use ($schoolYear) {
+                        $yearQuery->whereNull('school_year')
+                            ->orWhere('school_year', $schoolYear);
+                    });
+                });
+            })
+            ->get();
+    }
+
+    /**
+     * Group fee items by category and compute per-item rendered amount.
+     */
+    private function mapFeeItemsByCategoryForDisplay($feeItems, Student $student, string $schoolYear): array
+    {
 
         $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
