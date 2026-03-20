@@ -13,6 +13,7 @@ use App\Models\PromissoryNote;
 use App\Models\Student;
 use App\Models\StudentActionLog;
 use App\Models\StudentFee;
+use App\Models\OnlineTransaction;
 use App\Models\StudentPayment;
 use App\Models\AppSetting;
 use Illuminate\Http\RedirectResponse;
@@ -373,11 +374,14 @@ class StudentPaymentController extends Controller
 
         // Get payments for the active billing year only.
             // Active-year fee payments for summary computation.
-            $activeYearPayments = StudentPayment::where('student_id', $student->id)
+            $activeYearPayments = (float) StudentPayment::where('student_id', $student->id)
                 ->whereHas('studentFee', function ($query) use ($activeSchoolYear) {
                     $query->where('school_year', $activeSchoolYear);
                 })
                 ->sum('amount');
+
+            // Include verified/completed student-portal payments that are not yet linked to a StudentPayment row.
+            $activeYearPayments += $this->getUnlinkedOnlineTransactionAmount($student, $activeSchoolYear);
 
             // Transaction history should include all student fee payments and paid document requests.
             $feeTransactions = StudentPayment::where('student_id', $student->id)
@@ -445,7 +449,9 @@ class StudentPaymentController extends Controller
                 ->values();
 
         // Include online transactions in the payment history.
-        $onlineTransactions = \App\Models\OnlineTransaction::where('student_id', $student->id)
+        $onlineTransactions = OnlineTransaction::where('student_id', $student->id)
+            ->whereIn('status', ['completed', 'verified'])
+            ->whereNull('student_payment_id')
             ->with(['verifiedBy'])
             ->orderBy('transaction_date', 'desc')
             ->get()
@@ -903,6 +909,7 @@ class StudentPaymentController extends Controller
     {
         $totalAmount = (float) $studentFee->total_amount;
         $totalPaid = (float) $studentFee->payments()->sum('amount');
+        $totalPaid += $this->getUnlinkedOnlineTransactionAmount($student, (string) $studentFee->school_year);
 
         $grantDiscount = (float) $studentFee->grant_discount;
 
@@ -947,10 +954,122 @@ class StudentPaymentController extends Controller
             'status' => $balance <= 0 ? 'paid' : ($studentFee->is_overdue ? 'overdue' : 'pending'),
             'is_overdue' => (bool) $studentFee->is_overdue,
             'due_date' => $studentFee->due_date,
-            'categories' => [],
+            'categories' => $this->buildFeeCategoriesForStudentYear($student, (string) $studentFee->school_year),
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
+    }
+
+    /**
+     * Build fee categories for display in Fee Breakdown tab.
+     */
+    private function buildFeeCategoriesForStudentYear(Student $student, string $schoolYear): array
+    {
+        $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
+        if (!$templateYear) {
+            return [];
+        }
+
+        $hasExplicitAssignmentMatch = \App\Models\FeeItem::where('is_active', true)
+            ->where('school_year', $templateYear)
+            ->whereHas('assignments', function ($q) use ($student, $schoolYear) {
+                $this->applyAssignmentFilters($q, $student, $schoolYear);
+                $q->where(function ($yearQuery) use ($schoolYear) {
+                    $yearQuery->whereNull('school_year')
+                        ->orWhere('school_year', $schoolYear);
+                });
+            })
+            ->exists();
+
+        $feeItems = \App\Models\FeeItem::with('category')
+            ->where('is_active', true)
+            ->whereDoesntHave('category', function ($q) {
+                $q->where('name', 'like', '%Drop%');
+            })
+            ->where('school_year', $templateYear)
+            ->where(function ($query) use ($student, $schoolYear, $hasExplicitAssignmentMatch) {
+                if ($hasExplicitAssignmentMatch) {
+                    $query->whereHas('assignments', function ($assignmentQuery) use ($student, $schoolYear) {
+                        $this->applyAssignmentFilters($assignmentQuery, $student, $schoolYear);
+                        $assignmentQuery->where(function ($yearQuery) use ($schoolYear) {
+                            $yearQuery->whereNull('school_year')
+                                ->orWhere('school_year', $schoolYear);
+                        });
+                    });
+
+                    return;
+                }
+
+                $query->where(function ($inner) {
+                    $inner->where('assignment_scope', 'all')
+                        ->whereDoesntHave('assignments');
+                })->orWhere(function ($specificScope) use ($student) {
+                    $specificScope->where('assignment_scope', 'specific')
+                        ->where(function ($hasDirectFilters) {
+                            $hasDirectFilters->whereNotNull('classification')
+                                ->orWhereNotNull('department_id')
+                                ->orWhereNotNull('program_id')
+                                ->orWhereNotNull('year_level_id')
+                                ->orWhereNotNull('section_id');
+                        });
+                    $this->applyStudentFilters($specificScope, $student);
+                });
+            })
+            ->get();
+
+        if ($feeItems->isEmpty()) {
+            return [];
+        }
+
+        $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+            ->where('school_year', $schoolYear)
+            ->whereIn('status', ['enrolled'])
+            ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+            ->sum('subjects.units');
+
+        return $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) use ($enrolledUnits) {
+            $category = $items->first()->category;
+
+            return [
+                'category_id' => $categoryId,
+                'category_name' => $category->name ?? 'Other',
+                'items' => $items->map(function ($item) use ($enrolledUnits) {
+                    $amount = (float) $item->selling_price;
+                    if ($item->is_per_unit) {
+                        $amount = (float) $enrolledUnits > 0
+                            ? (float) $item->unit_price * (float) $enrolledUnits
+                            : (float) $item->selling_price;
+                    }
+
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'amount' => $amount,
+                        'is_per_unit' => (bool) $item->is_per_unit,
+                        'unit_price' => (float) $item->unit_price,
+                        'enrolled_units' => (float) $enrolledUnits,
+                    ];
+                })->values()->toArray(),
+            ];
+        })->values()->toArray();
+    }
+
+    /**
+     * Sum verified/completed online payments that are not yet linked to StudentPayment.
+     */
+    private function getUnlinkedOnlineTransactionAmount(Student $student, string $schoolYear): float
+    {
+        $billingYear = $student->school_year
+            ?: (AppSetting::current()?->school_year ?? $schoolYear);
+
+        if ($schoolYear !== $billingYear) {
+            return 0.0;
+        }
+
+        return (float) OnlineTransaction::where('student_id', $student->id)
+            ->whereNull('student_payment_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->sum('amount');
     }
 
     /**
