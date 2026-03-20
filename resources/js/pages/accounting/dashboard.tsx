@@ -24,6 +24,8 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import AccountingLayout from '@/layouts/accounting-layout';
+import OwnerLayout from '@/layouts/owner/owner-layout';
+import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface FilterOption {
     value: string;
@@ -121,7 +123,20 @@ export default function AccountingDashboard({
     sections = [],
     filters = {},
 }: Props) {
-    const { props } = usePage<{ appSettings?: AppSettingsFlags }>();
+    const page = usePage<{ appSettings?: AppSettingsFlags }>();
+    const { props } = page;
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/')
+        ? 'owner'
+        : currentPath.startsWith('/super-accounting/')
+            ? 'super-accounting'
+            : 'accounting';
+    const basePath = `/${routePrefix}`;
+    const DashboardLayoutComponent = routePrefix === 'owner'
+        ? OwnerLayout
+        : routePrefix === 'super-accounting'
+            ? SuperAccountingLayout
+            : AccountingLayout;
     const hasK12 = props.appSettings?.has_k12 !== false;
     const hasCollege = props.appSettings?.has_college !== false;
     const classificationOptions = [
@@ -136,7 +151,7 @@ export default function AccountingDashboard({
     const [section, setSection]               = useState(filters.section || '');
 
     const handleFilterChange = (month: number, year: number) => {
-        router.get('/accounting/dashboard', {
+        router.get(`${basePath}/dashboard`, {
             month, year,
             classification: classification || undefined,
             department_id:  departmentId || undefined,
@@ -152,7 +167,7 @@ export default function AccountingDashboard({
         setProgram('');
         setYearLevel('');
         setSection('');
-        router.get('/accounting/dashboard', { month: selectedMonth, year: selectedYear });
+        router.get(`${basePath}/dashboard`, { month: selectedMonth, year: selectedYear });
     };
 
     const monthTotal = dailyIncome.reduce((sum, d) => sum + d.total, 0);
@@ -162,7 +177,7 @@ export default function AccountingDashboard({
     const pendingCount = stats.unpaid + stats.partial_paid;
 
     return (
-        <AccountingLayout>
+        <DashboardLayoutComponent>
             <Head title="Accounting Dashboard" />
 
             <div className="space-y-6 p-6">
@@ -500,6 +515,6 @@ export default function AccountingDashboard({
                     </Card>
                 </div>
             </div>
-        </AccountingLayout>
+        </DashboardLayoutComponent>
     );
 }
