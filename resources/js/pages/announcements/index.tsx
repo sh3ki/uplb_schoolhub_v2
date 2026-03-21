@@ -58,6 +58,7 @@ interface Announcement {
 const AVAILABLE_ROLES = [
     { value: 'registrar', label: 'Registrar' },
     { value: 'accounting', label: 'Accounting' },
+    { value: 'super-accounting', label: 'Super Accounting' },
     { value: 'student', label: 'Student' },
     { value: 'teacher', label: 'Teacher' },
     { value: 'parent', label: 'Parent' },
