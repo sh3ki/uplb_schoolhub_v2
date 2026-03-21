@@ -16,7 +16,8 @@ class Announcement extends Model
      */
     public const AVAILABLE_ROLES = [
         'registrar',
-        'accounting', 
+        'accounting',
+        'super-accounting',
         'student',
         'teacher',
         'parent',
