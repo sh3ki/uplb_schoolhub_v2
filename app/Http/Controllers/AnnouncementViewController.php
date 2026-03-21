@@ -12,7 +12,7 @@ use Inertia\Response;
 class AnnouncementViewController extends Controller
 {
     // Roles that can create announcements
-    private const CAN_CREATE_ROLES = ['owner', 'registrar', 'accounting', 'teacher'];
+    private const CAN_CREATE_ROLES = ['owner', 'registrar', 'accounting', 'super-accounting', 'teacher'];
 
     /**
      * Display announcements for the current user's role.
