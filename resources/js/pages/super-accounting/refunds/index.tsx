@@ -129,7 +129,7 @@ const statusConfig = {
 };
 
 export default function RefundRequests({ refunds, stats, tab, filters }: Props) {
-    const [activeTab, setActiveTab] = useState(tab || 'pending');
+    const [activeTab, setActiveTab] = useState(tab || 'all');
     const [selectedRequest, setSelectedRequest] = useState<RefundRequest | null>(null);
     const [showApproveModal, setShowApproveModal] = useState(false);
     const [showRejectModal, setShowRejectModal] = useState(false);
@@ -471,7 +471,16 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                 <Card>
                     <CardContent className="pt-6">
                         <Tabs value={activeTab} onValueChange={handleTabChange}>
-                            <TabsList className="grid w-full grid-cols-3">
+                            <TabsList className="grid w-full grid-cols-4">
+                                <TabsTrigger value="all" className="gap-2">
+                                    <RotateCcw className="h-4 w-4" />
+                                    All
+                                    {stats.pending + stats.approved + stats.rejected > 0 && (
+                                        <Badge variant="secondary" className="ml-1">
+                                            {stats.pending + stats.approved + stats.rejected}
+                                        </Badge>
+                                    )}
+                                </TabsTrigger>
                                 <TabsTrigger value="pending" className="gap-2">
                                     <Clock className="h-4 w-4" />
                                     Pending
@@ -490,6 +499,11 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                                     Rejected
                                 </TabsTrigger>
                             </TabsList>
+
+                            <TabsContent value="all" className="mt-4">
+                                {renderRefundTable(refunds.data)}
+                                {renderPagination()}
+                            </TabsContent>
 
                             <TabsContent value="pending" className="mt-4">
                                 {renderRefundTable(refunds.data, true)}
