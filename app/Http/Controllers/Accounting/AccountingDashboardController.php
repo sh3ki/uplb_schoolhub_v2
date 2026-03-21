@@ -630,6 +630,54 @@ class AccountingDashboardController extends Controller
             'overall_amount_processed' => $overallPaid,
         ];
 
+        $accountingBreakdown = collect();
+        if ($isSuperAccounting) {
+            $accountingBreakdown = $accountingAccounts->map(function ($account) use ($studentIds, $periodStart, $periodEnd) {
+                $accountId = (int) $account->id;
+
+                $feeTotal = (float) StudentPayment::whereIn('student_id', $studentIds)
+                    ->where('recorded_by', $accountId)
+                    ->whereBetween('payment_date', [$periodStart, $periodEnd])
+                    ->sum('amount');
+
+                $documentTotal = (float) DocumentRequest::whereIn('student_id', $studentIds)
+                    ->where('is_paid', true)
+                    ->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
+                        $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd) {
+                            $inner->where('accounting_approved_by', $accountId)
+                                ->whereNotNull('accounting_approved_at')
+                                ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
+                        })->orWhere(function ($inner) use ($accountId, $periodStart, $periodEnd) {
+                            $inner->where('processed_by', $accountId)
+                                ->whereBetween('created_at', [$periodStart, $periodEnd]);
+                        });
+                    })
+                    ->sum('fee');
+
+                $dropTotal = (float) DropRequest::whereIn('student_id', $studentIds)
+                    ->where('accounting_status', 'approved')
+                    ->where('is_paid', true)
+                    ->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
+                        $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd) {
+                            $inner->where('accounting_approved_by', $accountId)
+                                ->whereNotNull('accounting_approved_at')
+                                ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
+                        })->orWhere(function ($inner) use ($accountId, $periodStart, $periodEnd) {
+                            $inner->where('processed_by', $accountId)
+                                ->whereNotNull('processed_at')
+                                ->whereBetween('processed_at', [$periodStart, $periodEnd]);
+                        });
+                    })
+                    ->sum('fee_amount');
+
+                return [
+                    'account_id' => (string) $account->id,
+                    'account_name' => (string) $account->name,
+                    'total_amount_processed' => (float) ($feeTotal + $documentTotal + $dropTotal),
+                ];
+            })->values();
+        }
+
         $paymentSummary = [
             'cash'  => (float) $payments->filter(fn($p) => $this->normalizePaymentMode($p->payment_mode, $p->payment_method) === 'CASH')->sum('amount'),
             'gcash' => (float) $payments->filter(fn($p) => $this->normalizePaymentMode($p->payment_mode, $p->payment_method) === 'GCASH')->sum('amount'),
@@ -741,6 +789,7 @@ class AccountingDashboardController extends Controller
                 'value' => (string) $account->id,
                 'label' => $account->name,
             ])->values(),
+            'accountingBreakdown' => $accountingBreakdown,
             'selectedMonth'    => $selectedMonth,
             'selectedYear'     => $selectedYear,
             'months'           => $months,
