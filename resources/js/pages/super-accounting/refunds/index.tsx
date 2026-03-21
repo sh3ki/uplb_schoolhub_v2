@@ -165,7 +165,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
         setActiveTab(newTab);
         router.get(
             '/super-accounting/refunds',
-            { tab: newTab, search: filters.search },
+            { status: newTab, search: filters.search },
             { preserveState: true, replace: true }
         );
     };
@@ -173,7 +173,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
     const handleSearch = () => {
         router.get(
             '/super-accounting/refunds',
-            { tab: activeTab, search: search || undefined },
+            { status: activeTab, search: search || undefined },
             { preserveState: true, replace: true }
         );
     };
