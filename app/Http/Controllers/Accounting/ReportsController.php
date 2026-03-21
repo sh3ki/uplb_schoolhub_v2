@@ -393,25 +393,63 @@ class ReportsController extends Controller
             })
             ->values();
 
-        $grantTotals = GrantRecipient::query()
-            ->with(['grant:id,name,type,value'])
+        $grantRows = GrantRecipient::query()
+            ->with(['student.department:id,name,classification'])
             ->where('status', 'active')
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
             ->when($departmentId || $classification, fn($q) => $q->whereIn('student_id', $scopedStudentIds))
-            ->get()
-            ->groupBy('grant_id')
-            ->map(function ($rows) {
-                $grant = $rows->first()?->grant;
+            ->get();
+
+        $recipientCountsByDepartment = $grantRows
+            ->filter(fn ($row) => $row->student && $row->student->department)
+            ->groupBy(fn ($row) => $row->student->department->id)
+            ->map(fn ($rows) => [
+                'students' => $rows->pluck('student_id')->unique()->count(),
+                'total_discount' => (float) $rows->sum('discount_amount'),
+            ]);
+
+        $departmentBase = Department::query()
+            ->when($departmentId, fn($q) => $q->where('id', $departmentId))
+            ->when($classification, fn($q) => $q->where('classification', $classification))
+            ->orderBy('name')
+            ->get(['id', 'name', 'classification']);
+
+        $grantTotals = $departmentBase
+            ->groupBy('classification')
+            ->map(function ($departments, $className) use ($recipientCountsByDepartment) {
+                $rows = $departments->map(function ($dept) use ($recipientCountsByDepartment) {
+                    $agg = $recipientCountsByDepartment->get($dept->id, [
+                        'students' => 0,
+                        'total_discount' => 0.0,
+                    ]);
+
+                    return [
+                        'department' => $dept->name,
+                        'students' => (int) $agg['students'],
+                        'total_discount' => (float) $agg['total_discount'],
+                    ];
+                })->values();
+
                 return [
-                    'grant_name' => $grant?->name ?? 'Unknown Grant',
-                    'type' => $grant?->type ?? 'fixed',
-                    'value' => (float) ($grant?->value ?? 0),
-                    'recipients' => $rows->count(),
-                    'total_discount' => (float) $rows->sum('discount_amount'),
+                    'classification' => (string) ($className ?: 'Unclassified'),
+                    'rows' => $rows,
+                    'total_students' => (int) $rows->sum('students'),
+                    'total_discount' => (float) $rows->sum('total_discount'),
                 ];
             })
-            ->sortByDesc('total_discount')
+            ->sortBy(function ($group) {
+                return match ($group['classification']) {
+                    'K-12' => 0,
+                    'College' => 1,
+                    default => 2,
+                };
+            })
             ->values();
+
+        $grantSummary = [
+            'students' => (int) $grantTotals->sum('total_students'),
+            'total_discount' => (float) $grantTotals->sum('total_discount'),
+        ];
 
         return Inertia::render($this->reportsView(), [
             'paymentSummary' => $paymentSummary,
@@ -425,6 +463,7 @@ class ReportsController extends Controller
             'documentFeeReport' => $documentFeeReport,
             'departmentAnalysis' => $departmentAnalysis,
             'grantTotals' => $grantTotals,
+            'grantSummary' => $grantSummary,
         ]);
     }
 
