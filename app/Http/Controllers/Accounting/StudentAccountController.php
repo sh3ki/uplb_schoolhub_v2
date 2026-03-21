@@ -347,16 +347,8 @@ class StudentAccountController extends Controller
         // Calculate balance
         $balance = max(0, $totalAmount - $grantDiscount - $totalPaid);
 
-        // Check for approved promissory notes
-        $hasApprovedPromissory = \App\Models\PromissoryNote::where('student_id', $student->id)
-            ->where('status', 'approved')
-            ->exists();
-
-        // Determine if overdue: respects the explicit is_overdue flag; promissory note clears it
-        $isOverdue = false;
-        if ($studentFee && $studentFee->is_overdue && $balance > 0) {
-            $isOverdue = !$hasApprovedPromissory;
-        }
+        // Determine if overdue from explicit flag; clear only when fully paid.
+        $isOverdue = (bool) ($studentFee && $studentFee->is_overdue && $balance > 0);
 
         // Determine payment status
         $paymentStatus = 'unpaid';
