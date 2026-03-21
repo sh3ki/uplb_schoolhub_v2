@@ -110,7 +110,7 @@ export default function OnlineTransactionsIndex({
     filters,
 }: Props) {
     const [search, setSearch] = useState(filters.search || '');
-    const [activeTab, setActiveTab] = useState(filters.status || 'pending');
+    const [activeTab, setActiveTab] = useState(filters.status || 'all');
     const [provider, setProvider] = useState(filters.payment_method || 'all');
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -119,7 +119,7 @@ export default function OnlineTransactionsIndex({
     const handleFilter = () => {
         router.get('/super-accounting/online-transactions', {
             search: search || undefined,
-            status: activeTab,
+            status: activeTab !== 'all' ? activeTab : undefined,
             payment_method: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
@@ -131,7 +131,7 @@ export default function OnlineTransactionsIndex({
         setActiveTab(value);
         router.get('/super-accounting/online-transactions', {
             search: search || undefined,
-            status: value,
+            status: value !== 'all' ? value : undefined,
             payment_method: provider !== 'all' ? provider : undefined,
         }, {
             preserveState: true,
@@ -141,7 +141,7 @@ export default function OnlineTransactionsIndex({
 
     const handleReset = () => {
         setSearch('');
-        setActiveTab('pending');
+        setActiveTab('all');
         setProvider('all');
         router.get('/super-accounting/online-transactions');
     };
@@ -222,6 +222,7 @@ export default function OnlineTransactionsIndex({
     };
 
     const statusOptions = [
+        { value: 'all', label: 'All' },
         { value: 'pending', label: 'Pending' },
         { value: 'verified', label: 'Verified' },
         { value: 'failed', label: 'Failed' },
@@ -315,6 +316,7 @@ export default function OnlineTransactionsIndex({
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
                     <TabsList>
+                        <TabsTrigger value="all">All</TabsTrigger>
                         <TabsTrigger value="pending">Pending</TabsTrigger>
                         <TabsTrigger value="completed">Completed</TabsTrigger>
                         <TabsTrigger value="failed">Failed</TabsTrigger>
