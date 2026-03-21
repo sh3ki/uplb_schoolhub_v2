@@ -26,8 +26,8 @@ class RefundController extends Controller
             'processedBy:id,name',
         ]);
 
-        // Filter by status (default to pending)
-        $status = $request->input('status', 'pending');
+        // Filter by status (default to all)
+        $status = $request->input('status', 'all');
         if ($status && $status !== 'all') {
             $query->where('status', $status);
         }
@@ -82,6 +82,7 @@ class RefundController extends Controller
         return Inertia::render($this->viewPrefix() . '/refunds/index', [
             'refunds' => $refunds,
             'stats'   => $stats,
+            'tab'     => $status,
             'filters' => $request->only(['search', 'status', 'type']),
         ]);
     }
