@@ -744,8 +744,14 @@ export default function AccountingReports({
                                                     return (
                                                         <TableRow
                                                             key={`${d.department_id}-${d.department}`}
-                                                            className="cursor-pointer hover:bg-muted/50"
-                                                            onClick={() => router.visit(`/super-accounting/student-accounts?status=all&department_id=${d.department_id}&sort_school_year=desc`)}
+                                                            className={routePrefix === 'super-accounting' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                                            onClick={() => {
+                                                                if (routePrefix !== 'super-accounting') {
+                                                                    return;
+                                                                }
+
+                                                                router.visit(`/super-accounting/student-accounts?status=all&department_id=${d.department_id}&sort_school_year=desc`);
+                                                            }}
                                                         >
                                                             <TableCell className="font-medium">
                                                                 {d.department}
