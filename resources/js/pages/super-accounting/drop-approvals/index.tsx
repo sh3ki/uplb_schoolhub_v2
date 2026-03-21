@@ -297,6 +297,13 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                         {/* Tabs */}
                         <Tabs value={activeTab} onValueChange={handleTabChange}>
                             <TabsList>
+                                <TabsTrigger value="all" className="flex gap-2">
+                                    <Ban className="h-4 w-4" />
+                                    All
+                                    {stats.pending + stats.approved + stats.rejected > 0 && (
+                                        <Badge variant="secondary">{stats.pending + stats.approved + stats.rejected}</Badge>
+                                    )}
+                                </TabsTrigger>
                                 <TabsTrigger value="pending" className="flex gap-2">
                                     <Clock className="h-4 w-4" />
                                     Pending
