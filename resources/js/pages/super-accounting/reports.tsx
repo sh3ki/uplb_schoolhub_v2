@@ -1,6 +1,6 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { FileDown, FileText, Calendar, TrendingUp, Users } from 'lucide-react';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ExportButton } from '@/components/export-button';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -111,12 +111,19 @@ interface Props {
     documentFeeReport: DocFeeReportCategory[];
     departmentAnalysis: DepartmentRow[];
     grantTotals: {
-        grant_name: string;
-        type: string;
-        value: number;
-        recipients: number;
+        classification: string;
+        rows: {
+            department: string;
+            students: number;
+            total_discount: number;
+        }[];
+        total_students: number;
         total_discount: number;
     }[];
+    grantSummary: {
+        students: number;
+        total_discount: number;
+    };
     filters: {
         from?: string;
         to?: string;
@@ -144,6 +151,7 @@ export default function AccountingReports({
     documentFeeReport = [],
     departmentAnalysis = [],
     grantTotals = [],
+    grantSummary = { students: 0, total_discount: 0 },
     filters = {},
     schoolYears = [],
     departments = [],
@@ -794,50 +802,62 @@ export default function AccountingReports({
                             <CardHeader>
                                 <CardTitle>Total Grants</CardTitle>
                                 <CardDescription>
-                                    Active grant recipients and total discounts applied
+                                    Grouped summary of student grants by classification and department
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
+                                {grantTotals.length > 0 && (
+                                    <div className="mb-3 flex justify-end gap-6 text-sm font-semibold">
+                                        <span>Total Students: {grantSummary.students.toLocaleString()}</span>
+                                        <span className="text-green-600">Total Grants: {formatCurrency(grantSummary.total_discount)}</span>
+                                    </div>
+                                )}
                                 <div className="rounded-lg border">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
-                                                <TableHead>Grant</TableHead>
-                                                <TableHead>Type</TableHead>
-                                                <TableHead className="text-right">Configured Value</TableHead>
-                                                <TableHead className="text-right">Recipients</TableHead>
-                                                <TableHead className="text-right">Total Discount</TableHead>
+                                                <TableHead>Department</TableHead>
+                                                <TableHead className="text-right">Students</TableHead>
+                                                <TableHead className="text-right">Total Grants</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {grantTotals.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                                    <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
                                                         No grant data for selected filters.
                                                     </TableCell>
                                                 </TableRow>
                                             ) : (
-                                                grantTotals.map((row, index) => (
-                                                    <TableRow key={`${row.grant_name}-${index}`}>
-                                                        <TableCell className="font-medium">{row.grant_name}</TableCell>
-                                                        <TableCell className="capitalize">{row.type}</TableCell>
-                                                        <TableCell className="text-right">{formatCurrency(row.value)}</TableCell>
-                                                        <TableCell className="text-right">{row.recipients}</TableCell>
-                                                        <TableCell className="text-right font-semibold text-green-600">
-                                                            {formatCurrency(row.total_discount)}
-                                                        </TableCell>
-                                                    </TableRow>
+                                                grantTotals.map((group) => (
+                                                    <Fragment key={`wrap-${group.classification}`}>
+                                                        <TableRow key={`group-${group.classification}`} className="bg-muted/40">
+                                                            <TableCell colSpan={3} className="font-semibold uppercase tracking-wide text-muted-foreground">
+                                                                {group.classification}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                        {group.rows.map((row) => (
+                                                            <TableRow key={`${group.classification}-${row.department}`}>
+                                                                <TableCell className="pl-6 font-medium">{row.department}</TableCell>
+                                                                <TableCell className="text-right">{row.students.toLocaleString()}</TableCell>
+                                                                <TableCell className="text-right font-medium text-green-600">
+                                                                    {formatCurrency(row.total_discount)}
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                        <TableRow key={`total-${group.classification}`} className="bg-muted/20 font-semibold">
+                                                            <TableCell>{group.classification} Total</TableCell>
+                                                            <TableCell className="text-right">{group.total_students.toLocaleString()}</TableCell>
+                                                            <TableCell className="text-right text-green-600">{formatCurrency(group.total_discount)}</TableCell>
+                                                        </TableRow>
+                                                    </Fragment>
                                                 ))
                                             )}
                                             {grantTotals.length > 0 && (
                                                 <TableRow className="bg-muted/50 font-semibold">
-                                                    <TableCell colSpan={3}>Total</TableCell>
-                                                    <TableCell className="text-right">
-                                                        {grantTotals.reduce((sum, row) => sum + row.recipients, 0)}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-green-600">
-                                                        {formatCurrency(grantTotals.reduce((sum, row) => sum + row.total_discount, 0))}
-                                                    </TableCell>
+                                                    <TableCell>Grand Total</TableCell>
+                                                    <TableCell className="text-right">{grantSummary.students.toLocaleString()}</TableCell>
+                                                    <TableCell className="text-right text-green-600">{formatCurrency(grantSummary.total_discount)}</TableCell>
                                                 </TableRow>
                                             )}
                                         </TableBody>
