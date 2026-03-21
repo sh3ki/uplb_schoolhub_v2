@@ -809,20 +809,30 @@ class StudentAccountController extends Controller
 
         $eligibleStudentIds = $studentsQuery->pluck('id');
 
-        // Mark all partial/unpaid accounts with outstanding balance as overdue for the target year.
-        $count = StudentFee::query()
+        // Mark all partial/unpaid accounts with live outstanding balances as overdue for the target year.
+        $count = 0;
+        $candidateFees = StudentFee::query()
+            ->with('payments:id,student_fee_id,amount')
             ->whereIn('student_id', $eligibleStudentIds)
             ->when($requestedSchoolYear, fn($q) => $q->where('school_year', $requestedSchoolYear))
-            ->where('balance', '>', 0)
-            ->where(function ($q) {
-                $q->where('is_overdue', false)
-                    ->orWhereNull('is_overdue');
-            })
-            ->update([
-                'is_overdue' => true,
-                'due_date' => $request->overdue_date,
-                'payment_status' => 'overdue',
-            ]);
+            ->get();
+
+        foreach ($candidateFees as $fee) {
+            $totalPaid = (float) $fee->payments->sum('amount');
+            $balance = max(0.0, (float) $fee->total_amount - (float) $fee->grant_discount - $totalPaid);
+
+            if ($balance <= 0) {
+                continue;
+            }
+
+            $fee->total_paid = $totalPaid;
+            $fee->balance = $balance;
+            $fee->is_overdue = true;
+            $fee->due_date = $request->overdue_date;
+            $fee->payment_status = 'overdue';
+            $fee->save();
+            $count++;
+        }
 
         $prefix = str_starts_with(request()->route()->getName(), 'super-accounting.')
             ? 'super-accounting'
