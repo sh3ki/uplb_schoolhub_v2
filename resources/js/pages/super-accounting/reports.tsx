@@ -1,4 +1,4 @@
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import { FileDown, FileText, Calendar, TrendingUp, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ExportButton } from '@/components/export-button';
@@ -14,6 +14,8 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import {
     Table,
@@ -24,6 +26,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import OwnerLayout from '@/layouts/owner/owner-layout';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface Student {
