@@ -85,6 +85,12 @@ interface Props {
     transactions: Transaction[];
     dailyCollections: DailyCollection[];
     paymentSummary: PaymentSummary;
+    accountingAccounts?: FilterOption[];
+    accountingBreakdown?: {
+        account_id: string;
+        account_name: string;
+        total_amount_processed: number;
+    }[];
     departments: FilterOption[];
     programs: FilterOption[];
     yearLevels: FilterOption[];
@@ -99,6 +105,7 @@ interface Props {
         program?: string;
         year_level?: string;
         section?: string;
+        account_id?: string;
         date_from?: string;
         date_to?: string;
         month?: number;
@@ -116,6 +123,8 @@ export default function AccountDashboard({
     transactions,
     dailyCollections,
     paymentSummary,
+    accountingAccounts = [],
+    accountingBreakdown = [],
     departments = [],
     programs = [],
     yearLevels = [],
@@ -152,6 +161,7 @@ export default function AccountDashboard({
     const [program, setProgram]               = useState(filters.program || '');
     const [yearLevel, setYearLevel]           = useState(filters.year_level || '');
     const [section, setSection]               = useState(filters.section || '');
+    const [accountId, setAccountId]           = useState(filters.account_id || 'all');
     const [dateRange, setDateRange]           = useState<DateRange | undefined>(
         filters.date_from && filters.date_to
             ? { from: new Date(filters.date_from), to: new Date(filters.date_to) }
@@ -184,6 +194,7 @@ export default function AccountDashboard({
             program:        program || undefined,
             year_level:     yearLevel || undefined,
             section:        section || undefined,
+            account_id:     routePrefix === 'super-accounting' && accountId !== 'all' ? accountId : undefined,
             date_from: dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : undefined,
             date_to:   dateRange?.to   ? dateRange.to.toLocaleDateString('en-CA')   : undefined,
         }, { preserveState: true, preserveScroll: true });
@@ -195,6 +206,7 @@ export default function AccountDashboard({
         setProgram('');
         setYearLevel('');
         setSection('');
+        setAccountId('all');
         setDateRange(undefined);
         router.get(`${basePath}/account-dashboard`);
     };
@@ -215,7 +227,16 @@ export default function AccountDashboard({
                     <div className="flex gap-2">
                         <ExportButton
                             exportUrl={`${basePath}/account-dashboard/export`}
-                            filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section }}
+                            filters={{
+                                classification,
+                                department_id: departmentId,
+                                program,
+                                year_level: yearLevel,
+                                section,
+                                account_id: routePrefix === 'super-accounting' && accountId !== 'all' ? accountId : undefined,
+                                date_from: dateRange?.from ? dateRange.from.toLocaleDateString('en-CA') : undefined,
+                                date_to: dateRange?.to ? dateRange.to.toLocaleDateString('en-CA') : undefined,
+                            }}
                             buttonText="Export Data"
                         />
                         <Button variant="outline" onClick={() => window.location.reload()}>
@@ -262,6 +283,18 @@ export default function AccountDashboard({
                         onChange={v => setSection(v === 'all' ? '' : v)}
                         placeholder="All Sections"
                     />
+                    {routePrefix === 'super-accounting' && (
+                        <FilterDropdown
+                            label="Cashier/Account"
+                            value={accountId}
+                            options={[
+                                { value: 'all', label: 'All Accounts' },
+                                ...accountingAccounts,
+                            ]}
+                            onChange={setAccountId}
+                            showAll={false}
+                        />
+                    )}
                     <DateRangePicker
                         label="Date Range"
                         value={dateRange}
@@ -371,6 +404,26 @@ export default function AccountDashboard({
                         </CardContent>
                     </Card>
                 </div>
+
+                {routePrefix === 'super-accounting' && accountingBreakdown.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Processed Amount Per Account</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                {accountingBreakdown.map((row) => (
+                                    <div key={row.account_id} className="rounded-lg border p-3">
+                                        <p className="text-sm text-muted-foreground">{row.account_name}</p>
+                                        <p className="text-lg font-semibold text-emerald-600">
+                                            {formatCurrency(row.total_amount_processed)}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 {/* Daily Collection Chart */}
                 <Card>
