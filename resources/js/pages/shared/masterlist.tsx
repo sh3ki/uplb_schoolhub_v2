@@ -3,6 +3,8 @@ import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -162,6 +164,9 @@ function GenderTable({ title, rows, headerColor, tableId }: { title: string; row
 export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }: Props) {
     const [k12Data, setK12Data] = useState(k12Groups);
     const [collegeData, setCollegeData] = useState(collegeGroups);
+    const [classificationFilter, setClassificationFilter] = useState<'all' | 'k12' | 'college'>('all');
+    const [departmentFilter, setDepartmentFilter] = useState('all');
+    const [gradeLevelFilter, setGradeLevelFilter] = useState('all');
 
     useEffect(() => {
         setK12Data(k12Groups);
@@ -201,6 +206,43 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
         };
     }, []);
 
+    const gradeLevelOptions = useMemo(() => k12Data.map((group) => group.group), [k12Data]);
+    const departmentOptions = useMemo(() => collegeData.map((group) => group.group), [collegeData]);
+
+    const filteredK12Groups = useMemo(() => {
+        if (classificationFilter === 'college') {
+            return [] as GroupRow[];
+        }
+
+        if (gradeLevelFilter !== 'all') {
+            return k12Data.filter((group) => group.group === gradeLevelFilter);
+        }
+
+        return k12Data;
+    }, [k12Data, classificationFilter, gradeLevelFilter]);
+
+    const filteredCollegeGroups = useMemo(() => {
+        if (classificationFilter === 'k12') {
+            return [] as GroupRow[];
+        }
+
+        if (departmentFilter !== 'all') {
+            return collegeData.filter((group) => group.group === departmentFilter);
+        }
+
+        return collegeData;
+    }, [collegeData, classificationFilter, departmentFilter]);
+
+    const k12TotalStudents = useMemo(
+        () => filteredK12Groups.reduce((sum, group) => sum + group.male.length + group.female.length, 0),
+        [filteredK12Groups],
+    );
+
+    const collegeTotalStudents = useMemo(
+        () => filteredCollegeGroups.reduce((sum, group) => sum + group.male.length + group.female.length, 0),
+        [filteredCollegeGroups],
+    );
+
     return (
         <RoleLayout rolePrefix={rolePrefix}>
             <Head title="Masterlist" />
@@ -213,15 +255,68 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                     </p>
                 </div>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-base">Masterlist Filters</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-3">
+                        <div className="space-y-2">
+                            <Label>Classification</Label>
+                            <Select value={classificationFilter} onValueChange={(value: 'all' | 'k12' | 'college') => setClassificationFilter(value)}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All</SelectItem>
+                                    <SelectItem value="k12">K-12</SelectItem>
+                                    <SelectItem value="college">College</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Department</Label>
+                            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Departments" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Departments</SelectItem>
+                                    {departmentOptions.map((option) => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Grade Level</Label>
+                            <Select value={gradeLevelFilter} onValueChange={setGradeLevelFilter}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Grade Levels" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Grade Levels</SelectItem>
+                                    {gradeLevelOptions.map((option) => (
+                                        <SelectItem key={option} value={option}>{option}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">K-12 Classification</h2>
-                    {k12Data.length === 0 ? (
+                    <h2 className="text-xl font-semibold">K-12 ({k12TotalStudents} students)</h2>
+                    {filteredK12Groups.length === 0 ? (
                         <Card><CardContent className="py-6 text-muted-foreground">No K-12 students found.</CardContent></Card>
                     ) : (
-                        k12Data.map((group) => (
+                        filteredK12Groups.map((group) => (
                             <Card key={`k12-${group.group}`}>
                                 <CardHeader>
-                                    <CardTitle>{group.group}</CardTitle>
+                                    <CardTitle>
+                                        {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 md:grid-cols-2">
                                     <GenderTable
@@ -243,14 +338,16 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                 </section>
 
                 <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">College Classification</h2>
-                    {collegeData.length === 0 ? (
+                    <h2 className="text-xl font-semibold">College ({collegeTotalStudents} students)</h2>
+                    {filteredCollegeGroups.length === 0 ? (
                         <Card><CardContent className="py-6 text-muted-foreground">No college students found.</CardContent></Card>
                     ) : (
-                        collegeData.map((group) => (
+                        filteredCollegeGroups.map((group) => (
                             <Card key={`college-${group.group}`}>
                                 <CardHeader>
-                                    <CardTitle>{group.group}</CardTitle>
+                                    <CardTitle>
+                                        {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
+                                    </CardTitle>
                                 </CardHeader>
                                 <CardContent className="grid gap-4 md:grid-cols-2">
                                     <GenderTable
