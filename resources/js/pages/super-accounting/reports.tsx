@@ -156,6 +156,14 @@ export default function AccountingReports({
         unpaid_count: 0,
     },
 }: Props) {
+    const page = usePage();
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'super-accounting';
+    const basePath = `/${routePrefix}`;
+    const ReportsLayoutComponent = routePrefix === 'owner' ? OwnerLayout : SuperAccountingLayout;
+
+    const [from, setFrom] = useState(filters.from || '');
+    const [to, setTo] = useState(filters.to || '');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
     const [departmentId, setDepartmentId] = useState(filters.department_id || 'all');
@@ -163,8 +171,10 @@ export default function AccountingReports({
 
     const handleFetchReport = () => {
         router.get(
-            '/super-accounting/reports',
+            `${basePath}/reports`,
             {
+                from: from || undefined,
+                to: to || undefined,
                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
                 status: status !== 'all' ? status : undefined,
                 department_id: departmentId !== 'all' ? departmentId : undefined,
@@ -217,7 +227,7 @@ export default function AccountingReports({
         summaryStats.unpaid_count;
 
     return (
-        <SuperAccountingLayout>
+        <ReportsLayoutComponent>
             <Head title="Reports" />
 
             <ReportsPageShell
@@ -226,8 +236,8 @@ export default function AccountingReports({
                 action={
                     <div className="flex gap-2">
                         <ExportButton
-                            exportUrl="/super-accounting/reports/export"
-                            filters={{ school_year: schoolYear, status, department_id: departmentId, classification }}
+                            exportUrl={`${basePath}/reports/export`}
+                            filters={{ from, to, school_year: schoolYear, status, department_id: departmentId, classification }}
                             buttonText="Export Report"
                         />
                         <Button variant="outline" onClick={handlePrint}>
@@ -284,7 +294,7 @@ export default function AccountingReports({
 
                     <Card>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Partial Record</CardTitle>
+                            <CardTitle className="text-sm font-medium">Unpaid</CardTitle>
                             <Users className="h-4 w-4 text-red-500" />
                         </CardHeader>
                         <CardContent>
@@ -310,13 +320,35 @@ export default function AccountingReports({
                     <CardContent>
                         <FilterBar
                             onReset={() => {
+                                setFrom('');
+                                setTo('');
                                 setSchoolYear('all');
                                 setStatus('all');
                                 setDepartmentId('all');
                                 setClassification('all');
-                                router.get('/super-accounting/reports');
+                                router.get(`${basePath}/reports`);
                             }}
                         >
+                            <div className="space-y-2">
+                                <Label htmlFor="from">Date From</Label>
+                                <Input
+                                    id="from"
+                                    type="date"
+                                    value={from}
+                                    onChange={(e) => setFrom(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="to">Date To</Label>
+                                <Input
+                                    id="to"
+                                    type="date"
+                                    value={to}
+                                    onChange={(e) => setTo(e.target.value)}
+                                />
+                            </div>
+
                             <div className="min-w-[160px]">
                                 <FilterDropdown
                                     label="School Year"
@@ -480,6 +512,14 @@ export default function AccountingReports({
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
+                                {paymentSummary.length > 0 && (
+                                    <div className="mb-3 flex justify-end gap-6 text-sm font-semibold">
+                                        <span>Total Payments: {paymentSummary.reduce((sum, s) => sum + s.count, 0)}</span>
+                                        <span className="text-green-600">
+                                            Total Amount: {formatCurrency(paymentSummary.reduce((sum, s) => sum + parseFloat(s.total_amount), 0))}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="rounded-lg border">
                                     <Table>
                                         <TableHeader>
@@ -507,7 +547,7 @@ export default function AccountingReports({
                                                         key={index}
                                                         className="cursor-pointer hover:bg-muted/60"
                                                         onClick={() => {
-                                                            router.get('/super-accounting/account-dashboard', {
+                                                            router.get(`${basePath}/account-dashboard`, {
                                                                 date_from: summary.date,
                                                                 date_to: summary.date,
                                                             });
@@ -802,6 +842,6 @@ export default function AccountingReports({
                     </TabsContent>
                 </Tabs>
             </ReportsPageShell>
-        </SuperAccountingLayout>
+        </ReportsLayoutComponent>
     );
 }
