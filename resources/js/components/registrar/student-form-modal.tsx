@@ -829,21 +829,6 @@ export function StudentFormModal({
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label htmlFor="complete_address">Complete Address *</Label>
-                            <Textarea
-                                id="complete_address"
-                                value={data.complete_address}
-                                onChange={e => setData('complete_address', e.target.value)}
-                                placeholder="Enter complete address"
-                                rows={3}
-                                className={errors.complete_address ? 'border-red-500' : ''}
-                            />
-                            {errors.complete_address && (
-                                <p className="text-xs text-red-500">{errors.complete_address}</p>
-                            )}
-                        </div>
-
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="city_municipality">City/Municipality *</Label>
@@ -882,6 +867,21 @@ export function StudentFormModal({
                                     <p className="text-xs text-red-500">{errors.zip_code}</p>
                                 )}
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="complete_address">Complete Address *</Label>
+                            <Textarea
+                                id="complete_address"
+                                value={data.complete_address}
+                                onChange={e => setData('complete_address', e.target.value)}
+                                placeholder="Enter complete address"
+                                rows={3}
+                                className={errors.complete_address ? 'border-red-500' : ''}
+                            />
+                            {errors.complete_address && (
+                                <p className="text-xs text-red-500">{errors.complete_address}</p>
+                            )}
                         </div>
                     </div>
 
