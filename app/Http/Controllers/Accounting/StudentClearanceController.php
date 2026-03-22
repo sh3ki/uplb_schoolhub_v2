@@ -6,9 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\FeeItem;
 use App\Models\GrantRecipient;
+use App\Models\EnrollmentClearance;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\EnrollmentClearance;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -20,15 +20,50 @@ class StudentClearanceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Student::with(['enrollmentClearance', 'fees'])
+        $baseQuery = Student::with(['enrollmentClearance', 'fees'])
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
             ->orderBy('last_name')
             ->orderBy('first_name');
 
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $baseQuery->where(function ($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('middle_name', 'like', "%{$search}%")
+                    ->orWhere('lrn', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Program filter
+        if ($request->filled('program') && $request->input('program') !== 'all') {
+            $baseQuery->where('program', $request->input('program'));
+        }
+
+        // Year level filter
+        if ($request->filled('year_level') && $request->input('year_level') !== 'all') {
+            $baseQuery->where('year_level', $request->input('year_level'));
+        }
+
+        // Department filter
+        if ($departmentId = $request->input('department_id')) {
+            $baseQuery->where('department_id', $departmentId);
+        }
+
+        // Classification filter
+        if ($classification = $request->input('classification')) {
+            $baseQuery->whereHas('department', function ($q) use ($classification) {
+                $q->where('classification', $classification);
+            });
+        }
+
         // Filter by clearance status — default to 'pending'
         $status = $request->filled('status') ? $request->status : 'pending';
+        $query = clone $baseQuery;
 
         if ($status !== 'all') {
             if ($status === 'pending') {
@@ -43,40 +78,6 @@ class StudentClearanceController extends Controller
                     $q->where('accounting_clearance', true);
                 });
             }
-        }
-
-        // Search filter
-        if ($request->filled('search')) {
-            $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('middle_name', 'like', "%{$search}%")
-                    ->orWhere('lrn', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
-            });
-        }
-
-        // Program filter
-        if ($request->filled('program') && $request->input('program') !== 'all') {
-            $query->where('program', $request->input('program'));
-        }
-
-        // Year level filter
-        if ($request->filled('year_level') && $request->input('year_level') !== 'all') {
-            $query->where('year_level', $request->input('year_level'));
-        }
-
-        // Department filter
-        if ($departmentId = $request->input('department_id')) {
-            $query->where('department_id', $departmentId);
-        }
-
-        // Classification filter
-        if ($classification = $request->input('classification')) {
-            $query->whereHas('department', function ($q) use ($classification) {
-                $q->where('classification', $classification);
-            });
         }
 
         $students = $query->paginate(20)->withQueryString();
@@ -173,9 +174,16 @@ class StudentClearanceController extends Controller
 
         // Get stats
         $stats = [
-            'total' => EnrollmentClearance::where('registrar_clearance', true)->count(),
-            'pending' => EnrollmentClearance::where('registrar_clearance', true)->where('accounting_clearance', false)->count(),
-            'cleared' => EnrollmentClearance::where('registrar_clearance', true)->where('accounting_clearance', true)->count(),
+            'total' => (clone $baseQuery)->count(),
+            'pending' => (clone $baseQuery)->whereHas('enrollmentClearance', function ($q) {
+                $q->where(function ($q2) {
+                    $q2->where('accounting_clearance', false)
+                        ->orWhereNull('accounting_clearance');
+                });
+            })->count(),
+            'cleared' => (clone $baseQuery)->whereHas('enrollmentClearance', function ($q) {
+                $q->where('accounting_clearance', true);
+            })->count(),
         ];
 
         // Get departments and classifications
