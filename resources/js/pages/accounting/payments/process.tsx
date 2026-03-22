@@ -201,6 +201,20 @@ function formatDate(dateString: string): string {
     });
 }
 
+function renderPesoAmount(amount: number | null, className = '') {
+    const safeAmount = amount ?? 0;
+
+    return (
+        <span className={`inline-flex items-center gap-1 ${className}`.trim()}>
+            <PhilippinePeso className="h-3.5 w-3.5" />
+            {safeAmount.toLocaleString('en-PH', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            })}
+        </span>
+    );
+}
+
 export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], enrollmentClearance = null, currentUser }: Props) {
     const defaultTab = useMemo(() => {
         if (typeof window === 'undefined') {
@@ -1056,7 +1070,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     </div>
                                                     <div className="text-right">
                                                         <p className="text-sm text-muted-foreground">Balance</p>
-                                                        <p className="font-semibold text-red-600">{formatCurrency(fee.balance)}</p>
+                                                        <p className="font-semibold text-red-600">{renderPesoAmount(fee.balance)}</p>
                                                     </div>
                                                 </div>
 
@@ -1079,7 +1093,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                         {category.items.map((item) => (
                                                                             <TableRow key={item.id}>
                                                                                 <TableCell className="text-foreground">{item.name}</TableCell>
-                                                                                <TableCell className="text-right text-foreground">{formatCurrency(item.amount)}</TableCell>
+                                                                                <TableCell className="text-right text-foreground">{renderPesoAmount(item.amount)}</TableCell>
                                                                             </TableRow>
                                                                         ))}
                                                                     </TableBody>
@@ -1094,17 +1108,17 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <div className="flex justify-end gap-6 mt-4 pt-4 border-t text-sm">
                                                     <div>
                                                         <span className="text-muted-foreground">Total: </span>
-                                                        <span className="font-medium">{formatCurrency(fee.total_amount)}</span>
+                                                        <span className="font-medium">{renderPesoAmount(fee.total_amount)}</span>
                                                     </div>
                                                     {fee.grant_discount > 0 && (
                                                         <div>
                                                             <span className="text-muted-foreground">Discount: </span>
-                                                            <span className="font-medium text-green-600">-{formatCurrency(fee.grant_discount)}</span>
+                                                            <span className="font-medium text-green-600">- {renderPesoAmount(fee.grant_discount)}</span>
                                                         </div>
                                                     )}
                                                     <div>
                                                         <span className="text-muted-foreground">Paid: </span>
-                                                        <span className="font-medium text-blue-600">{formatCurrency(fee.total_paid)}</span>
+                                                        <span className="font-medium text-blue-600">{renderPesoAmount(fee.total_paid)}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1138,7 +1152,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableCell>{grant.school_year}</TableCell>
                                                     <TableCell>{getStatusBadge(grant.status)}</TableCell>
                                                     <TableCell className="text-right text-green-600">
-                                                        -{formatCurrency(grant.discount_amount)}
+                                                        - {renderPesoAmount(grant.discount_amount)}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
