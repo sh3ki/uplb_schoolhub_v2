@@ -105,7 +105,41 @@ class SelfEnrollmentController extends Controller
                     'payment_for'  => $p->payment_for,
                     'notes'        => $p->notes,
                     'school_year'  => $p->studentFee?->school_year,
+                    'sort_at'      => $p->created_at?->timestamp ?? now()->timestamp,
                 ]);
+
+            $refundRows = \App\Models\RefundRequest::where('student_id', $student->id)
+                ->where('status', 'approved')
+                ->whereHas('studentFee', function ($query) use ($targetSchoolYear) {
+                    $query->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)]);
+                })
+                ->with(['studentFee:id,school_year'])
+                ->orderByDesc('processed_at')
+                ->get()
+                ->map(function ($refund) {
+                    $processedAt = $refund->processed_at ?: $refund->updated_at ?: $refund->created_at;
+
+                    return [
+                        'id'           => 100000 + $refund->id,
+                        'payment_date' => ($processedAt ?: now())->format('M d, Y h:i A'),
+                        'or_number'    => 'RF-' . $refund->id,
+                        'amount'       => -abs((float) $refund->amount),
+                        'payment_mode' => 'REFUND',
+                        'payment_for'  => strtoupper((string) $refund->type) . ' approved',
+                        'notes'        => $refund->accounting_notes ?: $refund->reason,
+                        'school_year'  => $refund->studentFee?->school_year,
+                        'sort_at'      => ($processedAt ?: now())->timestamp,
+                    ];
+                });
+
+            $payments = $payments
+                ->concat($refundRows)
+                ->sortByDesc('sort_at')
+                ->map(function ($row) {
+                    unset($row['sort_at']);
+                    return $row;
+                })
+                ->values();
 
             // Promissory notes for the billing school year.
             $promissoryNotes = \App\Models\PromissoryNote::where('student_id', $student->id)
