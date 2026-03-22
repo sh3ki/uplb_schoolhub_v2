@@ -113,8 +113,8 @@ interface Props {
 }
 
 interface AppSettingsFlags {
-    has_k12?: boolean;
-    has_college?: boolean;
+    has_k12?: boolean | number | string | null;
+    has_college?: boolean | number | string | null;
 }
 
 export default function AccountDashboard({
@@ -148,8 +148,24 @@ export default function AccountDashboard({
         : routePrefix === 'super-accounting'
             ? SuperAccountingLayout
             : AccountingLayout;
-    const hasK12 = props.appSettings?.has_k12 !== false;
-    const hasCollege = props.appSettings?.has_college !== false;
+    const isAcademicEnabled = (value: AppSettingsFlags['has_k12']) => {
+        if (value === undefined || value === null) {
+            return true;
+        }
+
+        if (typeof value === 'boolean') {
+            return value;
+        }
+
+        if (typeof value === 'number') {
+            return value === 1;
+        }
+
+        return value === '1' || value.toLowerCase() === 'true';
+    };
+
+    const hasK12 = isAcademicEnabled(props.appSettings?.has_k12);
+    const hasCollege = isAcademicEnabled(props.appSettings?.has_college);
     const classificationOptions = [
         ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
         ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
