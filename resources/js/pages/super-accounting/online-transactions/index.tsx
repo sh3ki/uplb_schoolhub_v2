@@ -10,6 +10,7 @@ import {
     AlertTriangle,
     Undo2,
     ExternalLink,
+    Eye,
 } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
@@ -35,6 +36,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Pagination } from '@/components/ui/pagination';
+import { PdfViewer } from '@/components/ui/pdf-viewer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
     Table,
@@ -115,6 +117,19 @@ export default function OnlineTransactionsIndex({
 
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedTransaction, setSelectedTransaction] = useState<OnlineTransaction | null>(null);
+    const [isProofViewerOpen, setIsProofViewerOpen] = useState(false);
+    const [proofViewerPath, setProofViewerPath] = useState<string | null>(null);
+    const [proofViewerTitle, setProofViewerTitle] = useState('Payment Proof');
+
+    const openProofViewer = (transaction: OnlineTransaction) => {
+        if (!transaction.payment_proof_url) {
+            return;
+        }
+
+        setProofViewerPath(transaction.payment_proof_url);
+        setProofViewerTitle(`Payment Proof - ${transaction.transaction_reference}`);
+        setIsProofViewerOpen(true);
+    };
 
     const handleFilter = () => {
         router.get('/super-accounting/online-transactions', {
@@ -386,6 +401,17 @@ export default function OnlineTransactionsIndex({
                                                         <ExternalLink className="h-4 w-4 mr-2" />
                                                         View Details
                                                     </DropdownMenuItem>
+                                                    {transaction.payment_proof_url && (
+                                                        <DropdownMenuItem
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openProofViewer(transaction);
+                                                            }}
+                                                        >
+                                                            <Eye className="h-4 w-4 mr-2" />
+                                                            View Uploaded File
+                                                        </DropdownMenuItem>
+                                                    )}
                                                     {transaction.status === 'pending' && (
                                                         <>
                                                             <DropdownMenuSeparator />
@@ -540,13 +566,14 @@ export default function OnlineTransactionsIndex({
                             {selectedTransaction.payment_proof_url && (
                                 <div>
                                     <p className="text-muted-foreground text-sm mb-2">Payment Proof / Receipt Screenshot</p>
-                                    <div className="border rounded-lg overflow-hidden">
-                                        <img 
-                                            src={selectedTransaction.payment_proof_url} 
-                                            alt="Payment proof"
-                                            className="w-full h-auto max-h-96 object-contain bg-gray-50"
-                                        />
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => openProofViewer(selectedTransaction)}
+                                    >
+                                        <Eye className="h-4 w-4 mr-2" />
+                                        Open Uploaded File
+                                    </Button>
                                 </div>
                             )}
                         </div>
@@ -571,6 +598,15 @@ export default function OnlineTransactionsIndex({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {proofViewerPath && (
+                <PdfViewer
+                    open={isProofViewerOpen}
+                    onOpenChange={setIsProofViewerOpen}
+                    title={proofViewerTitle}
+                    filePath={proofViewerPath}
+                />
+            )}
         </SuperAccountingLayout>
     );
 }
