@@ -318,7 +318,6 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                     </CardContent>
                 </Card>
 
-                <section className="space-y-4">
                 {showK12Section && (
                     <section className="space-y-4">
                         <h2 className="text-xl font-semibold">K-12 ({k12TotalStudents} students)</h2>
