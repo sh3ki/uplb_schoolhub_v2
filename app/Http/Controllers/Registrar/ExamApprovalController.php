@@ -97,14 +97,10 @@ class ExamApprovalController extends Controller
             })
             ->values();
 
-        $eligibleStudents = $allExamStudents
-            ->filter(fn($student) => $student['payment_status'] !== 'overdue' && $student['payment_status'] !== 'unpaid')
-            ->values();
+        $fullyPaidMale   = $allExamStudents->where('gender', 'male')->values();
+        $fullyPaidFemale = $allExamStudents->where('gender', 'female')->values();
 
-        $fullyPaidMale   = $eligibleStudents->where('gender', 'male')->values();
-        $fullyPaidFemale = $eligibleStudents->where('gender', 'female')->values();
-
-        return Inertia::render('registrar/exam-approval/index', [
+        return Inertia::render('accounting/exam-approval/index', [
             'fullyPaidMale'   => $fullyPaidMale,
             'fullyPaidFemale' => $fullyPaidFemale,
             'filters'         => $request->only(['search']),
