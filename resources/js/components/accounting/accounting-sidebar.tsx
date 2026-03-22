@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    Calendar,
     ClipboardCheck,
     CreditCard,
     FileCheck,
@@ -61,6 +62,11 @@ export function AccountingSidebar() {
             badge: announcementCount || undefined,
         },
         {
+            title: 'Chat',
+            href: '/accounting/chat',
+            icon: MessageCircle,
+        },
+        {
             title: 'Student Accounts',
             href: '/accounting/student-accounts',
             icon: Users,
@@ -120,9 +126,9 @@ export function AccountingSidebar() {
             badge: pendingDropRequestCount || undefined,
         },
         {
-            title: 'Chat',
-            href: '/accounting/chat',
-            icon: MessageCircle,
+            title: 'Calendar View',
+            href: '/accounting/calendar',
+            icon: Calendar,
         },
     ];
 
