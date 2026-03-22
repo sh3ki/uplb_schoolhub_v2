@@ -168,6 +168,9 @@ export default function AccountingReports({
     const currentPath = page.url || '';
     const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'super-accounting';
     const basePath = `/${routePrefix}`;
+    const departmentAccountsPath = routePrefix === 'owner'
+        ? '/owner/account-dashboard'
+        : '/super-accounting/student-accounts';
     const ReportsLayoutComponent = routePrefix === 'owner' ? OwnerLayout : SuperAccountingLayout;
 
     const [from, setFrom] = useState(filters.from || '');
@@ -752,13 +755,13 @@ export default function AccountingReports({
                                                     return (
                                                         <TableRow
                                                             key={`${d.department_id}-${d.department}`}
-                                                            className={routePrefix === 'super-accounting' ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                                            className={d.department_id ? 'cursor-pointer hover:bg-muted/50' : ''}
                                                             onClick={() => {
-                                                                if (routePrefix !== 'super-accounting') {
+                                                                if (!d.department_id) {
                                                                     return;
                                                                 }
 
-                                                                router.visit(`/super-accounting/student-accounts?status=all&department_id=${d.department_id}&sort_school_year=desc`);
+                                                                router.visit(`${departmentAccountsPath}?status=all&department_id=${d.department_id}&sort_school_year=desc`);
                                                             }}
                                                         >
                                                             <TableCell className="font-medium">
