@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { ChevronDown, Printer, Users } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
@@ -31,6 +31,8 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AccountingLayout from '@/layouts/accounting-layout';
+import RegistrarLayout from '@/layouts/registrar/registrar-layout';
+import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface FullyPaidStudent {
     id: number;
@@ -61,6 +63,20 @@ export default function ExamApprovalIndex({
     fullyPaidMale,
     fullyPaidFemale,
 }: Props) {
+    const page = usePage();
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/registrar/')
+        ? 'registrar'
+        : currentPath.startsWith('/super-accounting/')
+            ? 'super-accounting'
+            : 'accounting';
+
+    const LayoutComponent = routePrefix === 'registrar'
+        ? RegistrarLayout
+        : routePrefix === 'super-accounting'
+            ? SuperAccountingLayout
+            : AccountingLayout;
+
     const [activeGenderTab, setActiveGenderTab] = useState<'all' | 'male' | 'female'>('all');
     const [fpYearLevel, setFpYearLevel] = useState('all');
     const [fpSection, setFpSection] = useState('all');
@@ -197,7 +213,7 @@ export default function ExamApprovalIndex({
     };
 
     return (
-        <AccountingLayout>
+        <LayoutComponent>
             <Head title="Exam Approval" />
 
             <div className="space-y-6 p-6">
@@ -389,6 +405,6 @@ export default function ExamApprovalIndex({
                     })}
                 </Tabs>
             </div>
-        </AccountingLayout>
+        </LayoutComponent>
     );
 }
