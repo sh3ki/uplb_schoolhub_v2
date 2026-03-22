@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
     Calculator,
+    Calendar,
     FileCheck,
     Globe,
     LayoutDashboard,
@@ -62,6 +63,11 @@ export function SuperAccountingSidebar() {
             badge: announcementCount || undefined,
         },
         {
+            title: 'Chat',
+            href: '/super-accounting/chat',
+            icon: MessageCircle,
+        },
+        {
             title: 'Fee Management',
             href: '/super-accounting/fee-management',
             icon: Calculator,
@@ -118,9 +124,9 @@ export function SuperAccountingSidebar() {
             icon: ShieldCheck,
         },
         {
-            title: 'Chat',
-            href: '/super-accounting/chat',
-            icon: MessageCircle,
+            title: 'Calendar View',
+            href: '/super-accounting/calendar',
+            icon: Calendar,
         },
     ];
 
