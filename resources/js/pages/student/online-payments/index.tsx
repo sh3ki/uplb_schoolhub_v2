@@ -1,7 +1,8 @@
 import { Head, useForm } from '@inertiajs/react';
-import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus } from 'lucide-react';
+import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus, Eye } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
+import { Pagination } from '@/components/ui/pagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { PdfViewer } from '@/components/ui/pdf-viewer';
 import StudentLayout from '@/layouts/student/student-layout';
 
 interface FeeItem {
@@ -41,12 +43,25 @@ interface OnlinePayment {
     submitted_at: string;
     verified_at: string | null;
     notes: string | null;
+    payment_proof_url?: string | null;
+    payment_proof_path?: string | null;
+}
+
+interface PaginatedRecentPayments {
+    data: OnlinePayment[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+    links: { url: string | null; label: string; active: boolean }[];
 }
 
 interface Props {
     feeItems: FeeItem[];
     summary: FeeSummary;
-    recentPayments: OnlinePayment[];
+    recentPayments: PaginatedRecentPayments;
     paymentMethods: { value: string; label: string }[];
     enrollmentStatus?: string;
     isDropped?: boolean;
@@ -104,6 +119,9 @@ function formatDate(dateString: string): string {
 
 export default function OnlinePayment({ feeItems, summary, recentPayments, paymentMethods, enrollmentStatus, isDropped = false }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [viewerOpen, setViewerOpen] = useState(false);
+    const [viewerTitle, setViewerTitle] = useState('Payment Proof');
+    const [viewerFilePath, setViewerFilePath] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm({
@@ -131,6 +149,18 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
         if (fileInputRef.current) {
             fileInputRef.current.value = '';
         }
+    };
+
+    const openProofViewer = (payment: OnlinePayment) => {
+        const proofPath = payment.payment_proof_url || payment.payment_proof_path;
+        if (!proofPath) {
+            toast.error('No uploaded file found for this submission.');
+            return;
+        }
+
+        setViewerTitle(`Payment Proof - ${payment.reference_number}`);
+        setViewerFilePath(proofPath);
+        setViewerOpen(true);
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -434,23 +464,35 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                                 <CardDescription>Your recent payment submissions</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {recentPayments.length === 0 ? (
+                                {recentPayments.data.length === 0 ? (
                                     <p className="text-center py-8 text-muted-foreground">
                                         No payment submissions yet.
                                     </p>
                                 ) : (
                                     <div className="space-y-4">
-                                        {recentPayments.map((payment) => {
+                                        {recentPayments.data.map((payment) => {
                                             const status = statusConfig[payment.status] || statusConfig.pending;
                                             const StatusIcon = status.icon;
                                             return (
                                                 <div key={payment.id} className="border rounded-lg p-4">
                                                     <div className="flex items-center justify-between mb-2">
                                                         <span className="font-medium">{formatCurrency(payment.amount)}</span>
-                                                        <Badge className={`${status.bgColor} ${status.textColor} border-0`}>
-                                                            <StatusIcon className="h-3 w-3 mr-1" />
-                                                            {status.label}
-                                                        </Badge>
+                                                        <div className="flex items-center gap-2">
+                                                            {(payment.payment_proof_url || payment.payment_proof_path) && (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="outline"
+                                                                    size="sm"
+                                                                    onClick={() => openProofViewer(payment)}
+                                                                >
+                                                                    <Eye className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            <Badge className={`${status.bgColor} ${status.textColor} border-0`}>
+                                                                <StatusIcon className="h-3 w-3 mr-1" />
+                                                                {status.label}
+                                                            </Badge>
+                                                        </div>
                                                     </div>
                                                     <div className="text-sm text-muted-foreground space-y-1">
                                                         <p>Ref: {payment.reference_number}</p>
@@ -463,6 +505,8 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                                                 </div>
                                             );
                                         })}
+
+                                        <Pagination data={recentPayments} />
                                     </div>
                                 )}
                             </CardContent>
@@ -490,6 +534,15 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                     </div>
                 </div>
             </div>
+
+            {viewerFilePath && (
+                <PdfViewer
+                    open={viewerOpen}
+                    onOpenChange={setViewerOpen}
+                    title={viewerTitle}
+                    filePath={viewerFilePath}
+                />
+            )}
         </StudentLayout>
     );
 }
