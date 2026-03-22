@@ -448,7 +448,7 @@ class StudentPaymentController extends Controller
 
         // Include online transactions in the payment history.
         $onlineTransactions = OnlineTransaction::where('student_id', $student->id)
-            ->whereIn('status', ['completed', 'verified'])
+            ->whereIn('status', ['completed', 'verified', 'refunded'])
             ->whereNull('student_payment_id')
             ->with(['verifiedBy', 'payment.recordedBy'])
             ->orderBy('transaction_date', 'desc')
@@ -458,11 +458,15 @@ class StudentPaymentController extends Controller
                 if ($rawMethod === 'bank_transfer') $rawMethod = 'bank';
                 $paymentMode = strtoupper($rawMethod);
                 $sortDateTime = $tx->transaction_date ?: $tx->created_at;
+                $amount = (float) $tx->amount;
+                if ($tx->status === 'refunded') {
+                    $amount = -abs($amount);
+                }
                 return [
                     'id' => $tx->id + 1000000, // offset to avoid ID collision with StudentPayment
                     'payment_date' => $tx->transaction_date?->format('Y-m-d') ?? $tx->created_at->format('Y-m-d'),
                     'or_number' => $tx->transaction_id,
-                    'amount' => (float) $tx->amount,
+                    'amount' => $amount,
                     'payment_for' => 'Online Payment (' . ucfirst($tx->status) . ')',
                     'payment_mode' => $paymentMode,
                     'bank_name' => $tx->bank_name,
@@ -472,11 +476,40 @@ class StudentPaymentController extends Controller
                     'created_at' => $sortDateTime->format('h:i A'),
                     'sort_at' => $sortDateTime->timestamp,
                     'type' => 'online',
+                    'transaction_type' => $tx->status === 'refunded' ? 'refund' : 'fee',
+                ];
+            });
+
+        $refundTransactions = \App\Models\RefundRequest::where('student_id', $student->id)
+            ->where('status', 'approved')
+            ->with(['processedBy', 'studentFee'])
+            ->orderByDesc('processed_at')
+            ->get()
+            ->map(function ($refund) {
+                $processedAt = $refund->processed_at ?: $refund->updated_at ?: $refund->created_at;
+
+                return [
+                    'id' => 2000000 + $refund->id,
+                    'payment_date' => ($processedAt ?: now())->format('Y-m-d'),
+                    'or_number' => 'RF-' . $refund->id,
+                    'amount' => -abs((float) $refund->amount),
+                    'payment_for' => strtoupper($refund->type) . ' APPROVED',
+                    'payment_mode' => 'REFUND',
+                    'bank_name' => null,
+                    'notes' => $refund->accounting_notes ?: $refund->reason,
+                    'recorded_by' => $refund->processedBy?->name ?? 'Accounting',
+                    'school_year' => $refund->studentFee?->school_year,
+                    'created_at' => ($processedAt ?: now())->format('h:i A'),
+                    'sort_at' => ($processedAt ?: now())->timestamp,
+                    'type' => 'on-site',
+                    'transaction_type' => 'refund',
                 ];
             });
 
         // Merge on-site and online payments, sorted by date descending.
-        $payments = $payments->concat($onlineTransactions)
+        $payments = $payments
+            ->concat($onlineTransactions)
+            ->concat($refundTransactions)
             ->sortByDesc('sort_at')
             ->map(function ($row) {
                 unset($row['sort_at']);
