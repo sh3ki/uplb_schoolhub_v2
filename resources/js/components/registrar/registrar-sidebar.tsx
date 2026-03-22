@@ -71,9 +71,19 @@ export function RegistrarSidebar() {
             badge: announcementCount || undefined,
         },
         {
+            title: 'Chat',
+            href: '/registrar/chat',
+            icon: MessageCircle,
+        },
+        {
             title: 'Students',
             href: '/registrar/students',
             icon: Users,
+        },
+        {
+            title: 'Requirements',
+            href: '/registrar/requirements',
+            icon: ListChecks,
         },
         {
             title: 'Masterlist',
@@ -95,11 +105,6 @@ export function RegistrarSidebar() {
             title: 'Student Status',
             href: '/registrar/student-status',
             icon: UserCog,
-        },
-        {
-            title: 'Requirements',
-            href: '/registrar/requirements',
-            icon: ListChecks,
         },
         {
             title: 'Create Documents',
@@ -143,9 +148,9 @@ export function RegistrarSidebar() {
             icon: Calendar,
         },
         {
-            title: 'Chat',
-            href: '/registrar/chat',
-            icon: MessageCircle,
+            title: 'Calendar View',
+            href: '/registrar/calendar',
+            icon: Calendar,
         },
     ];
 
