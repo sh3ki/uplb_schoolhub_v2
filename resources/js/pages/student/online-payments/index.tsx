@@ -39,7 +39,7 @@ interface OnlinePayment {
     reference_number: string;
     amount: number;
     payment_method: string;
-    status: 'pending' | 'verified' | 'failed' | 'refunded';
+    status: 'pending' | 'verified' | 'completed' | 'failed' | 'refunded';
     submitted_at: string;
     verified_at: string | null;
     notes: string | null;
