@@ -12,7 +12,14 @@ interface PdfViewerProps {
 }
 
 export function PdfViewer({ open, onOpenChange, title, filePath }: PdfViewerProps) {
-    const url = filePath.startsWith('/storage/') ? filePath : `/storage/${filePath}`;
+    const resolvedPath = filePath || '';
+    const isAbsoluteUrl = /^https?:\/\//i.test(resolvedPath);
+    const url = isAbsoluteUrl
+        ? resolvedPath
+        : (resolvedPath.startsWith('/storage/') ? resolvedPath : `/storage/${resolvedPath}`);
+
+    const lowerUrl = url.toLowerCase();
+    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/.test(lowerUrl);
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -37,23 +44,33 @@ export function PdfViewer({ open, onOpenChange, title, filePath }: PdfViewerProp
                     </div>
                 </DialogHeader>
                 <div className="flex-1 min-h-0">
-                    <object
-                        data={url}
-                        type="application/pdf"
-                        className="w-full h-full rounded-lg border"
-                    >
-                        <div className="flex flex-col items-center justify-center h-full gap-4">
-                            <p className="text-muted-foreground text-center">
-                                Unable to display PDF. Your browser may not support inline PDF viewing.
-                            </p>
-                            <Button asChild>
-                                <a href={url} target="_blank" rel="noopener noreferrer">
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    Open PDF in New Tab
-                                </a>
-                            </Button>
+                    {isImage ? (
+                        <div className="h-full w-full rounded-lg border bg-muted/30 p-2">
+                            <img
+                                src={url}
+                                alt={title}
+                                className="h-full w-full object-contain rounded-md"
+                            />
                         </div>
-                    </object>
+                    ) : (
+                        <object
+                            data={url}
+                            type="application/pdf"
+                            className="w-full h-full rounded-lg border"
+                        >
+                            <div className="flex flex-col items-center justify-center h-full gap-4">
+                                <p className="text-muted-foreground text-center">
+                                    Unable to display file preview. Open it in a new tab.
+                                </p>
+                                <Button asChild>
+                                    <a href={url} target="_blank" rel="noopener noreferrer">
+                                        <ExternalLink className="mr-2 h-4 w-4" />
+                                        Open File in New Tab
+                                    </a>
+                                </Button>
+                            </div>
+                        </object>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>
