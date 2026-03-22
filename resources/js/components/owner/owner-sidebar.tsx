@@ -4,6 +4,7 @@ import {
     FileText,
     GraduationCap,
     LayoutGrid,
+    MessageCircle,
     Rows3,
     Users,
     Megaphone,
@@ -58,6 +59,11 @@ export function OwnerSidebar() {
             href: '/owner/dashboard',
             icon: LayoutGrid,
         },
+        {
+            title: 'Chat',
+            href: '/owner/chat',
+            icon: MessageCircle,
+        },
         // {
         //     title: 'Academic Structure',
         //     icon: Building2,
@@ -73,11 +79,6 @@ export function OwnerSidebar() {
         //     href: '/owner/schedules',
         //     icon: Calendar,
         // },
-        {
-            title: 'Calendar View',
-            href: '/owner/calendar',
-            icon: Calendar,
-        },
         {
             title: 'User Management',
             href: '/owner/users',
@@ -113,6 +114,11 @@ export function OwnerSidebar() {
             title: 'App Settings',
             href: '/owner/app-settings',
             icon: Settings,
+        },
+        {
+            title: 'Calendar View',
+            href: '/owner/calendar',
+            icon: Calendar,
         },
     ];
 
