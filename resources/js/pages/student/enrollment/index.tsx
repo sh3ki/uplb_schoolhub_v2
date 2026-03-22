@@ -43,6 +43,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { Pagination } from '@/components/ui/pagination';
 import StudentLayout from '@/layouts/student/student-layout';
 
 // â”€â”€â”€ Shared types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -198,6 +199,30 @@ const reqStatusIcon = (status: string) => {
 // â”€â”€â”€ Enrolled Details View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function EnrollmentDetails({ student, fees, payments, promissoryNotes, requirements, clearance, summary, currentSchoolYear, classification, collegeEnrollmentOpen }: EnrolledProps) {
     const [tab, setTab] = useState<'fees' | 'payments' | 'requirements' | 'notes'>('fees');
+    const [paymentsPage, setPaymentsPage] = useState(1);
+
+    const paymentsPerPage = 20;
+    const paymentsTotalPages = Math.max(1, Math.ceil(payments.length / paymentsPerPage));
+    const safePaymentsPage = Math.min(paymentsPage, paymentsTotalPages);
+    const paymentsStart = (safePaymentsPage - 1) * paymentsPerPage;
+    const pagedPayments = payments.slice(paymentsStart, paymentsStart + paymentsPerPage);
+
+    const paymentPaginationData = {
+        current_page: safePaymentsPage,
+        last_page: paymentsTotalPages,
+        per_page: paymentsPerPage,
+        total: payments.length,
+        from: payments.length === 0 ? 0 : paymentsStart + 1,
+        to: Math.min(paymentsStart + paymentsPerPage, payments.length),
+        links: Array.from({ length: paymentsTotalPages }, (_, index) => {
+            const page = index + 1;
+            return {
+                url: `#payments-page-${page}`,
+                label: page.toString(),
+                active: page === safePaymentsPage,
+            };
+        }),
+    };
 
     const currentFee = fees.find(f => f.school_year === currentSchoolYear);
 
@@ -487,32 +512,43 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, requireme
                             {payments.length === 0 ? (
                                 <p className="text-sm text-muted-foreground py-6 text-center">No payments recorded yet.</p>
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Date</TableHead>
-                                            <TableHead>OR No.</TableHead>
-                                            <TableHead>School Year</TableHead>
-                                            <TableHead>Mode</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {payments.map(p => (
-                                            <TableRow key={p.id}>
-                                                <TableCell>{p.payment_date}</TableCell>
-                                                <TableCell className="font-mono text-sm">{p.or_number ?? 'â€”'}</TableCell>
-                                                <TableCell>{p.school_year ?? 'â€”'}</TableCell>
-                                                <TableCell>{p.payment_mode}</TableCell>
-                                                <TableCell className="text-right font-semibold text-green-700">{formatCurrency(p.amount)}</TableCell>
+                                <>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>OR No.</TableHead>
+                                                <TableHead>School Year</TableHead>
+                                                <TableHead>Mode</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
                                             </TableRow>
-                                        ))}
-                                        <TableRow className="font-bold bg-muted/30">
-                                            <TableCell colSpan={4}>Total Paid</TableCell>
-                                            <TableCell className="text-right text-green-700">{formatCurrency(payments.reduce((s, p) => s + p.amount, 0))}</TableCell>
-                                        </TableRow>
-                                    </TableBody>
-                                </Table>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {pagedPayments.map(p => (
+                                                <TableRow key={p.id}>
+                                                    <TableCell>{p.payment_date}</TableCell>
+                                                    <TableCell className="font-mono text-sm">{p.or_number ?? 'â€”'}</TableCell>
+                                                    <TableCell>{p.school_year ?? 'â€”'}</TableCell>
+                                                    <TableCell>{p.payment_mode}</TableCell>
+                                                    <TableCell className="text-right font-semibold">
+                                                        <span className={p.amount < 0 ? 'text-red-700' : 'text-green-700'}>
+                                                            {formatCurrency(p.amount)}
+                                                        </span>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                            <TableRow className="font-bold bg-muted/30">
+                                                <TableCell colSpan={4}>Net Paid</TableCell>
+                                                <TableCell className="text-right text-green-700">{formatCurrency(payments.reduce((s, p) => s + p.amount, 0))}</TableCell>
+                                            </TableRow>
+                                        </TableBody>
+                                    </Table>
+
+                                    <Pagination
+                                        data={paymentPaginationData}
+                                        onPageChange={setPaymentsPage}
+                                    />
+                                </>
                             )}
                         </CardContent>
                     </Card>
