@@ -127,7 +127,7 @@ interface Payment {
     school_year: string | null;
     created_at: string;
     type?: 'on-site' | 'online';
-    transaction_type?: 'fee' | 'document';
+    transaction_type?: 'fee' | 'document' | 'refund';
 }
 
 interface PromissoryNote {
@@ -1592,7 +1592,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <Badge variant="outline" className="capitalize text-xs">{payment.payment_for || 'General'}</Badge>
                                                         </TableCell>
                                                         <TableCell className="text-xs uppercase">{payment.payment_mode || 'CASH'}</TableCell>
-                                                        <TableCell className="text-right font-medium text-green-600">+{formatCurrency(payment.amount)}</TableCell>
+                                                        <TableCell className="text-right font-medium">
+                                                            <span className={payment.amount < 0 ? 'text-red-600' : 'text-green-600'}>
+                                                                {payment.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(payment.amount))}
+                                                            </span>
+                                                        </TableCell>
                                                         <TableCell className="max-w-[140px] truncate text-xs text-muted-foreground">{payment.notes || '-'}</TableCell>
                                                         <TableCell className="text-xs">{payment.recorded_by}</TableCell>
                                                     </TableRow>
@@ -1603,7 +1607,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <div className="text-right">
                                                 <p className="text-xs text-muted-foreground">Total Paid</p>
                                                 <p className="text-lg font-semibold text-green-600">
-                                                    +{formatCurrency(syFilteredPayments.reduce((s, p) => s + p.amount, 0))}
+                                                    {formatCurrency(syFilteredPayments.reduce((s, p) => s + p.amount, 0))}
                                                 </p>
                                             </div>
                                         </div>
@@ -1999,8 +2003,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             {payment.payment_for || 'General'}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="text-right font-medium text-green-600">
-                                                        +{formatCurrency(payment.amount)}
+                                                    <TableCell className="text-right font-medium">
+                                                        <span className={payment.amount < 0 ? 'text-red-600' : 'text-green-600'}>
+                                                            {payment.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(payment.amount))}
+                                                        </span>
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant="outline">
@@ -2008,11 +2014,17 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant={payment.type === 'online' ? 'secondary' : 'default'}>
-                                                            {payment.type === 'online'
-                                                                ? 'Online'
-                                                                : (payment.transaction_type === 'document' ? 'Document' : 'On-site')}
-                                                        </Badge>
+                                                        {payment.transaction_type === 'refund' ? (
+                                                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                                                                Refunded
+                                                            </Badge>
+                                                        ) : (
+                                                            <Badge variant={payment.type === 'online' ? 'secondary' : 'default'}>
+                                                                {payment.type === 'online'
+                                                                    ? 'Online'
+                                                                    : (payment.transaction_type === 'document' ? 'Document' : 'On-site')}
+                                                            </Badge>
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="max-w-xs truncate text-muted-foreground">
                                                         {payment.notes || '-'}
