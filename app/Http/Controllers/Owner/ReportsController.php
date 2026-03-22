@@ -149,6 +149,7 @@ class ReportsController extends Controller
                 $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
 
                 return [
+                    'department_id' => $department->id,
                     'department' => $department->name,
                     'students' => $studentIds->count(),
                     'billed' => round($totalBilled, 2),
