@@ -169,7 +169,7 @@ class ExamApprovalController extends Controller
 
         $schoolYears = StudentFee::distinct()->pluck('school_year')->filter()->sort()->values();
 
-        return Inertia::render($this->viewPrefix() . '/exam-approval/index', [
+        return Inertia::render('accounting/exam-approval/index', [
             'approvals'       => $approvals,
             'eligibleStudents' => $eligibleStudents,
             'fullyPaidMale'   => $fullyPaidMale,
