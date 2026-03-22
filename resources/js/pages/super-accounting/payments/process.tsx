@@ -32,7 +32,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -237,11 +236,14 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const [clearanceDialog, setClearanceDialog] = useState(false);
     const [clearanceLoading, setClearanceLoading] = useState(false);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('all');
-    const [printReceipt, setPrintReceipt] = useState(true);
     const [amountReceived, setAmountReceived] = useState<string>('');
     const feesWithBalance = fees.filter(f => f.balance > 0);
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
         feesWithBalance.length > 0 ? feesWithBalance[0].id.toString() : ''
+    );
+    const selectedFee = useMemo(
+        () => fees.find((fee) => fee.id.toString() === selectedFeeId),
+        [fees, selectedFeeId]
     );
 
     // Payment allocation calculation
@@ -415,7 +417,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             payment_mode: 'CASH',
             payment_for: 'tuition',
             notes: paymentForm.data.notes,
-            print_receipt: printReceipt,
+            print_receipt: false,
         }, {
             onSuccess: () => {
                 setAmountReceived('');
@@ -423,6 +425,80 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                 toast.success('Payment recorded successfully');
             },
         });
+    };
+
+    const handlePrintCurrentTransaction = () => {
+        const amount = parseFloat(amountReceived) || 0;
+
+        if (amount <= 0 || !selectedFee) {
+            toast.error('Enter a valid payment amount and select a fee before printing.');
+            return;
+        }
+
+        const paymentDate = paymentForm.data.payment_date || new Date().toISOString().split('T')[0];
+        const orNumber = paymentForm.data.or_number?.trim() || 'Pending OR Number';
+        const receiptWindow = window.open('', '_blank', 'width=760,height=920');
+
+        if (!receiptWindow) {
+            toast.error('Unable to open print window. Please allow pop-ups and try again.');
+            return;
+        }
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Payment Receipt</title>
+                <style>
+                    body { font-family: Arial, sans-serif; margin: 24px; color: #111827; }
+                    .receipt { border: 1px solid #d1d5db; border-radius: 10px; padding: 20px; max-width: 680px; margin: 0 auto; }
+                    .header { display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px; }
+                    .title { font-size: 20px; font-weight: 700; margin: 0; }
+                    .subtitle { color: #4b5563; margin-top: 4px; font-size: 12px; }
+                    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 20px; margin-top: 12px; }
+                    .label { color: #6b7280; font-size: 12px; margin-bottom: 2px; }
+                    .value { font-size: 14px; font-weight: 600; }
+                    .amount { margin-top: 18px; padding: 12px; border-radius: 8px; background: #eff6ff; }
+                    .amount .value { font-size: 22px; color: #1d4ed8; }
+                    .notes { margin-top: 12px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #374151; }
+                    .footer { margin-top: 18px; font-size: 11px; color: #6b7280; text-align: center; }
+                </style>
+            </head>
+            <body>
+                <div class="receipt">
+                    <div class="header">
+                        <div>
+                            <p class="title">Payment Transaction Receipt</p>
+                            <p class="subtitle">Generated from Payment Processing</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="label">OR Number</div>
+                            <div class="value">${orNumber}</div>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <div><div class="label">Student</div><div class="value">${student.full_name}</div></div>
+                        <div><div class="label">Student No.</div><div class="value">${student.lrn}</div></div>
+                        <div><div class="label">School Year</div><div class="value">${selectedFee.school_year}</div></div>
+                        <div><div class="label">Payment Date</div><div class="value">${paymentDate}</div></div>
+                        <div><div class="label">Cashier</div><div class="value">${currentUser.name}</div></div>
+                        <div><div class="label">Payment For</div><div class="value">Tuition</div></div>
+                    </div>
+                    <div class="amount">
+                        <div class="label">Current Transaction Amount</div>
+                        <div class="value">${formatCurrency(amount)}</div>
+                    </div>
+                    <div class="notes">${paymentForm.data.notes?.trim() ? `Notes: ${paymentForm.data.notes.trim()}` : 'No additional notes.'}</div>
+                    <div class="footer">This printout includes only the current transaction details.</div>
+                </div>
+                <script>window.onload = function() { window.print(); };</script>
+            </body>
+            </html>
+        `;
+
+        receiptWindow.document.open();
+        receiptWindow.document.write(html);
+        receiptWindow.document.close();
     };
 
     const handlePromissorySubmit = (e: React.FormEvent) => {
@@ -1197,17 +1273,16 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     className="bg-muted"
                                                 />
                                             </div>
-                                            <div className="flex items-center gap-3 py-2">
-                                                <Checkbox
-                                                    id="print_receipt"
-                                                    checked={printReceipt}
-                                                    onCheckedChange={(checked) => setPrintReceipt(checked as boolean)}
-                                                />
-                                                <Label htmlFor="print_receipt" className="flex items-center gap-2 cursor-pointer">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={handlePrintCurrentTransaction}
+                                                disabled={!selectedFeeId || !amountReceived || parseFloat(amountReceived) <= 0}
+                                                className="w-full"
+                                            >
                                                     <Printer className="h-4 w-4" />
-                                                    Print Receipt
-                                                </Label>
-                                            </div>
+                                                    Print Current Transaction
+                                            </Button>
                                             <div className="grid gap-2">
                                                 <Label htmlFor="notes">Notes (Optional)</Label>
                                                 <Textarea
@@ -1256,7 +1331,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         className="w-full h-12 text-lg"
                                         disabled={!amountReceived || parseFloat(amountReceived) <= 0 || !paymentForm.data.or_number || !selectedFeeId}
                                     >
-                                        <Receipt className="h-5 w-5 mr-2" />
+                                        <PhilippinePeso className="h-5 w-5 mr-2" />
                                         Record Payment
                                     </Button>
                                 </div>
