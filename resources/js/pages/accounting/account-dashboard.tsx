@@ -1,6 +1,5 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import {
-    DollarSign,
     FileText,
     CreditCard,
     TrendingUp,
@@ -430,7 +429,7 @@ export default function AccountDashboard({
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center gap-2">
-                                <DollarSign className="h-5 w-5" />
+                                <PhilippinePeso className="h-5 w-5" />
                                 Daily Collection (8:00 AM - 5:00 PM)
                             </CardTitle>
                         </div>
