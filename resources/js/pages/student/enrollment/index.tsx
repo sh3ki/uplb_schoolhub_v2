@@ -110,6 +110,13 @@ interface PromissoryNote {
     review_notes: string | null;
 }
 
+interface StaffNote {
+    id: number;
+    message: string;
+    author: string | null;
+    created_at: string | null;
+}
+
 interface Requirement {
     id: number;
     name: string;
@@ -144,6 +151,7 @@ interface EnrolledProps {
     fees: Fee[];
     payments: Payment[];
     promissoryNotes: PromissoryNote[];
+    staffNotes: StaffNote[];
     requirements: Requirement[];
     clearance: Clearance | null;
     summary: { total_fees: number; total_discount: number; total_paid: number; total_balance: number; };
@@ -197,7 +205,7 @@ const reqStatusIcon = (status: string) => {
 };
 
 // â”€â”€â”€ Enrolled Details View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function EnrollmentDetails({ student, fees, payments, promissoryNotes, requirements, clearance, summary, currentSchoolYear, classification, collegeEnrollmentOpen }: EnrolledProps) {
+function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNotes, requirements, clearance, summary, currentSchoolYear, classification, collegeEnrollmentOpen }: EnrolledProps) {
     const [tab, setTab] = useState<'fees' | 'payments' | 'requirements' | 'notes'>('fees');
     const [paymentsPage, setPaymentsPage] = useState(1);
 
@@ -601,12 +609,28 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, requireme
                                     <MessageSquare className="h-4 w-4" /> Registrar Notes
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
-                                {student.remarks ? (
-                                    <p className="text-sm whitespace-pre-wrap">{student.remarks}</p>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground italic">No notes from Registrar.</p>
+                            <CardContent className="space-y-3">
+                                {student.remarks && (
+                                    <div className="rounded-md border bg-muted/30 p-3">
+                                        <p className="text-sm whitespace-pre-wrap">{student.remarks}</p>
+                                    </div>
                                 )}
+
+                                {staffNotes.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {staffNotes.map((note) => (
+                                            <div key={note.id} className="rounded-md border p-3">
+                                                <p className="text-sm whitespace-pre-wrap">{note.message}</p>
+                                                <p className="mt-1 text-xs text-muted-foreground">
+                                                    {note.author ? `By ${note.author}` : 'By Staff'}
+                                                    {note.created_at ? ` • ${note.created_at}` : ''}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : !student.remarks ? (
+                                    <p className="text-sm text-muted-foreground italic">No notes from Registrar.</p>
+                                ) : null}
                             </CardContent>
                         </Card>
 
