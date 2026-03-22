@@ -195,9 +195,10 @@ class DocumentApprovalController extends Controller
                 'student_fee_id' => $studentFee->id,
                 'payment_date' => now()->toDateString(),
                 'amount'       => $documentRequest->fee,
-                'payment_for'  => 'Document - ' . $label,
+                'payment_for'  => 'other',
                 'payment_mode' => 'CASH',
                 'or_number'    => $validated['or_number'] ?? null,
+                'notes'        => 'Document payment: ' . $label,
                 'recorded_by'  => auth()->id(),
             ]);
         }
