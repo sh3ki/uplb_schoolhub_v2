@@ -9,6 +9,7 @@ use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -221,7 +222,41 @@ class OnlineTransactionController extends Controller
             'remarks' => 'nullable|string',
         ]);
 
-        $transaction->refund($validated['remarks'] ?? null);
+        if (!in_array($transaction->status, ['completed', 'verified'], true)) {
+            return redirect()->back()->with('error', 'Only completed or verified transactions can be refunded.');
+        }
+
+        DB::transaction(function () use ($transaction, $validated) {
+            $linkedPayment = $transaction->student_payment_id
+                ? StudentPayment::find($transaction->student_payment_id)
+                : null;
+
+            if ($linkedPayment) {
+                $reversalAmount = -abs((float) $linkedPayment->amount);
+
+                StudentPayment::create([
+                    'student_id' => $linkedPayment->student_id,
+                    'student_fee_id' => $linkedPayment->student_fee_id,
+                    'payment_date' => now()->toDateString(),
+                    'or_number' => ($linkedPayment->or_number ?: 'OT-' . $transaction->transaction_id) . '-RFND',
+                    'amount' => $reversalAmount,
+                    'payment_for' => $linkedPayment->payment_for ?: 'other',
+                    'payment_mode' => $linkedPayment->payment_mode ?: 'CASH',
+                    'payment_method' => $linkedPayment->payment_method,
+                    'reference_number' => $linkedPayment->reference_number,
+                    'bank_name' => $linkedPayment->bank_name,
+                    'notes' => 'Refund reversal for online transaction ' . $transaction->transaction_id,
+                    'recorded_by' => auth()->id(),
+                ]);
+
+                $fee = StudentFee::find($linkedPayment->student_fee_id);
+                if ($fee) {
+                    $fee->updateBalance();
+                }
+            }
+
+            $transaction->refund($validated['remarks'] ?? null);
+        });
 
         return redirect()->back()->with('success', 'Transaction refunded.');
     }
