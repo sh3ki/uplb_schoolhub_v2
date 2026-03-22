@@ -38,12 +38,13 @@ class OnlinePaymentController extends Controller
         // Get student's fee summary
         $summary = $this->getFeeSummary($student, $targetSchoolYear);
 
-        // Get recent online payments
+        // Get recent online payments (paginated, latest first)
         $recentPayments = OnlineTransaction::where('student_id', $student->id)
-            ->orderBy('created_at', 'desc')
-            ->limit(10)
-            ->get()
-            ->map(function ($transaction) {
+            ->orderByDesc('created_at')
+            ->paginate(5)
+            ->withQueryString();
+
+        $recentPayments->through(function ($transaction) {
                 return [
                     'id' => $transaction->id,
                     'reference_number' => $transaction->reference_number,
@@ -53,6 +54,8 @@ class OnlinePaymentController extends Controller
                     'submitted_at' => $transaction->created_at->format('Y-m-d H:i:s'),
                     'verified_at' => $transaction->verified_at?->format('Y-m-d H:i:s'),
                     'notes' => $transaction->notes,
+                    'payment_proof_url' => $transaction->payment_proof_url,
+                    'payment_proof_path' => $transaction->payment_proof,
                 ];
             });
 
@@ -86,7 +89,7 @@ class OnlinePaymentController extends Controller
             'amount' => 'required|numeric|min:1',
             'payment_method' => 'required|string|in:gcash,bank_transfer',
             'reference_number' => 'required|string|max:255',
-            'receipt_image' => 'required|image|max:5120', // 5MB max
+            'receipt_image' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
             'notes' => 'nullable|string|max:500',
             'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
         ]);
