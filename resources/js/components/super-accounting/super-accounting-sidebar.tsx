@@ -10,6 +10,7 @@ import {
     MessageCircle,
     Rows3,
     RotateCcw,
+    ShieldCheck,
     ScrollText,
     UserX,
     Users,
@@ -110,6 +111,11 @@ export function SuperAccountingSidebar() {
             href: '/super-accounting/drop-approvals',
             icon: UserX,
             badge: pendingDropRequestCount || undefined,
+        },
+        {
+            title: 'Exam Approval',
+            href: '/super-accounting/exam-approval',
+            icon: ShieldCheck,
         },
         {
             title: 'Chat',
