@@ -5,7 +5,6 @@ import {
     Clock,
     Globe,
     MoreHorizontal,
-    RefreshCcw,
     X,
     AlertTriangle,
     Undo2,
@@ -176,15 +175,6 @@ export default function OnlineTransactionsIndex({
         if (reason) {
             router.post(`/accounting/online-transactions/${id}/failed`, {
                 remarks: reason,
-            });
-        }
-    };
-
-    const handleRefund = (id: number) => {
-        const remarks = prompt('Enter refund remarks (optional):');
-        if (confirm('Process refund for this transaction? This action cannot be undone.')) {
-            router.post(`/accounting/online-transactions/${id}/refund`, {
-                remarks: remarks || undefined,
             });
         }
     };
@@ -438,21 +428,6 @@ export default function OnlineTransactionsIndex({
                                                             >
                                                                 <X className="h-4 w-4 mr-2" />
                                                                 Mark Failed
-                                                            </DropdownMenuItem>
-                                                        </>
-                                                    )}
-                                                    {(transaction.status === 'verified' || transaction.status === 'completed') && (
-                                                        <>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleRefund(transaction.id);
-                                                                }}
-                                                                className="text-purple-600"
-                                                            >
-                                                                <RefreshCcw className="h-4 w-4 mr-2" />
-                                                                Process Refund
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
