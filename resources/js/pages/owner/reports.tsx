@@ -66,6 +66,7 @@ interface DocumentFeeCategory {
 }
 
 interface DepartmentRow {
+    department_id?: number;
     department: string;
     students: number;
     billed: number;
@@ -145,6 +146,14 @@ export default function OwnerReports({
     monthlyTrend = [],
 }: ReportsProps) {
     const [txSearch, setTxSearch] = useState('');
+
+    const navigateToDepartmentAccounts = (departmentId?: number) => {
+        if (!departmentId) {
+            return;
+        }
+
+        window.location.href = `/owner/account-dashboard?department_id=${departmentId}`;
+    };
 
     const filteredTx = txSearch.trim()
         ? recentTransactions.filter(
@@ -364,7 +373,11 @@ export default function OwnerReports({
                                         </TableHeader>
                                         <TableBody>
                                             {departmentAnalysis.slice(0, 6).map((department) => (
-                                                <TableRow key={department.department}>
+                                                <TableRow
+                                                    key={department.department}
+                                                    className={department.department_id ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                                    onClick={() => navigateToDepartmentAccounts(department.department_id)}
+                                                >
                                                     <TableCell className="font-medium">{department.department}</TableCell>
                                                     <TableCell className="text-right">{department.students.toLocaleString()}</TableCell>
                                                     <TableCell className="text-right font-medium text-green-600">{fmt(department.collected)}</TableCell>
@@ -406,7 +419,11 @@ export default function OwnerReports({
                                             </TableHeader>
                                             <TableBody>
                                                 {departmentAnalysis.map((department) => (
-                                                    <TableRow key={department.department}>
+                                                    <TableRow
+                                                        key={department.department}
+                                                        className={department.department_id ? 'cursor-pointer hover:bg-muted/50' : ''}
+                                                        onClick={() => navigateToDepartmentAccounts(department.department_id)}
+                                                    >
                                                         <TableCell className="font-medium">{department.department}</TableCell>
                                                         <TableCell className="text-right">{department.students.toLocaleString()}</TableCell>
                                                         <TableCell className="text-right">{fmt(department.billed)}</TableCell>
