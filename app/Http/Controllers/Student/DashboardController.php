@@ -3,8 +3,12 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeeItem;
+use App\Models\FeeItemAssignment;
+use App\Models\GrantRecipient;
 use App\Models\Student;
 use App\Models\StudentFee;
+use App\Models\StudentPayment;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -90,6 +94,36 @@ class DashboardController extends Controller
         $totalFees = (float) $currentFees->sum('total_amount');
         $totalDiscount = (float) $currentFees->sum('grant_discount');
         $totalPaid = (float) $currentFees->flatMap->payments->sum('amount');
+
+        if ($currentFees->isEmpty()) {
+            $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
+            $totalFees = (float) collect($feeItems)->sum('amount');
+
+            $totalDiscount = 0.0;
+            $grantRecipients = GrantRecipient::where('student_id', $student->id)
+                ->where('status', 'active')
+                ->where(function ($query) use ($targetSchoolYear, $student) {
+                    $query->where('school_year', $targetSchoolYear)
+                        ->orWhere('school_year', $student->school_year);
+                })
+                ->with('grant')
+                ->get()
+                ->unique('grant_id');
+
+            foreach ($grantRecipients as $recipient) {
+                if ($recipient->grant) {
+                    $totalDiscount += $recipient->grant->calculateDiscount($totalFees);
+                }
+            }
+
+            $totalPaid = (float) StudentPayment::query()
+                ->where('student_id', $student->id)
+                ->whereHas('studentFee', function ($query) use ($targetSchoolYear) {
+                    $query->where('school_year', $targetSchoolYear);
+                })
+                ->sum('amount');
+        }
+
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         $previousBalance = (float) $fees
@@ -166,6 +200,42 @@ class DashboardController extends Controller
         }
 
         return null;
+    }
+
+    private function getStudentFeeItems(Student $student, string $schoolYear): array
+    {
+        $assignedFeeItemIds = FeeItemAssignment::where('school_year', $schoolYear)
+            ->where('is_active', true)
+            ->where(function ($query) use ($student) {
+                if ($student->classification) {
+                    $query->where('classification', $student->classification);
+                }
+                if ($student->department_id) {
+                    $query->where('department_id', $student->department_id);
+                }
+                if ($student->year_level_id) {
+                    $query->where('year_level_id', $student->year_level_id);
+                }
+            })
+            ->pluck('fee_item_id')
+            ->toArray();
+
+        $allScopeFeeItems = FeeItem::where('school_year', $schoolYear)
+            ->where('is_active', true)
+            ->where('assignment_scope', 'all')
+            ->pluck('id')
+            ->toArray();
+
+        $feeItemIds = array_unique(array_merge($assignedFeeItemIds, $allScopeFeeItems));
+
+        return FeeItem::whereIn('id', $feeItemIds)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn ($item) => [
+                'id' => $item->id,
+                'amount' => (float) $item->selling_price,
+            ])
+            ->toArray();
     }
 }
 
