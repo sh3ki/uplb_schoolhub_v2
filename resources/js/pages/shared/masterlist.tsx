@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import axios from 'axios';
 import { Printer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
 import { Label } from '@/components/ui/label';
