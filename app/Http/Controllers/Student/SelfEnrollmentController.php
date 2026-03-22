@@ -160,6 +160,18 @@ class SelfEnrollmentController extends Controller
                     'review_notes'   => $n->review_notes,
                 ]);
 
+            $staffNotes = StudentActionLog::with('performer:id,name')
+                ->where('student_id', $student->id)
+                ->where('action_type', 'note')
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(fn ($log) => [
+                    'id' => $log->id,
+                    'message' => $log->details ?: $log->notes ?: $log->action,
+                    'author' => $log->performer?->name,
+                    'created_at' => $log->created_at?->format('M d, Y h:i A'),
+                ]);
+
             // Summary — use the student's active billing year so this matches accounting/payment processing.
             $currentYearFees = $fees->filter(fn ($f) => $f['school_year'] === $targetSchoolYear);
             $totalFees     = $currentYearFees->sum('total_amount');
@@ -218,6 +230,7 @@ class SelfEnrollmentController extends Controller
                 'fees'          => $fees->values(),
                 'payments'      => $payments->values(),
                 'promissoryNotes' => $promissoryNotes->values(),
+                'staffNotes' => $staffNotes->values(),
                 'requirements'  => $requirements->values(),
                 'clearance'     => $clearance,
                 'summary' => [
