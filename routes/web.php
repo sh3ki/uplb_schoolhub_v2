@@ -95,6 +95,7 @@ Route::prefix('owner')->name('owner.')->middleware(['auth', 'verified', 'role:ow
     Route::get('income/expected', [App\Http\Controllers\Owner\IncomeController::class, 'expected'])->name('income.expected');
 
     Route::get('calendar', [App\Http\Controllers\Owner\CalendarController::class, 'index'])->name('calendar');
+    Route::get('chat', fn () => \Inertia\Inertia::render('shared/chat/index', ['rolePrefix' => 'owner']))->name('chat.index');
 
     Route::get('reports', [App\Http\Controllers\Owner\ReportsController::class, 'index'])->name('reports');
     Route::get('reports/export/financial', [App\Http\Controllers\Owner\ReportsController::class, 'exportFinancial'])->name('reports.export.financial');
@@ -259,6 +260,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::post('students/{student}/activate', [\App\Http\Controllers\StudentController::class, 'activateStudent'])->name('students.activate');
 
     Route::get('schedule', [App\Http\Controllers\Registrar\ScheduleController::class, 'index'])->name('schedule');
+    Route::get('calendar', [App\Http\Controllers\Owner\CalendarController::class, 'index'])->name('calendar');
 
     // Drop Request Management
     Route::get('drop-requests', [App\Http\Controllers\Registrar\DropRequestController::class, 'index'])->name('drop-requests.index');
@@ -279,7 +281,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::patch('active-semester', [App\Http\Controllers\StudentController::class, 'updateActiveSemester'])->name('active-semester.update');
 
     // Chat
-    Route::get('chat', fn () => \Inertia\Inertia::render('registrar/chat/index'))->name('chat.index');
+    Route::get('chat', fn () => \Inertia\Inertia::render('shared/chat/index', ['rolePrefix' => 'registrar']))->name('chat.index');
 });
 
 // Accounting Routes
@@ -290,6 +292,7 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::get('dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'index'])->name('dashboard');
     Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
     Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
+    Route::get('calendar', [App\Http\Controllers\Owner\CalendarController::class, 'index'])->name('calendar');
     Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
     
     // Student Accounts Management
@@ -416,7 +419,7 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
 
     // Chat
-    Route::get('chat', fn () => \Inertia\Inertia::render('accounting/chat/index'))->name('chat.index');
+    Route::get('chat', fn () => \Inertia\Inertia::render('shared/chat/index', ['rolePrefix' => 'accounting']))->name('chat.index');
 
 });
 
@@ -581,6 +584,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::get('dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'index'])->name('dashboard');
     Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
     Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
+    Route::get('calendar', [App\Http\Controllers\Owner\CalendarController::class, 'index'])->name('calendar');
     Route::get('masterlist', [App\Http\Controllers\MasterlistController::class, 'index'])->name('masterlist');
 
     // Online Transactions (oversight)
@@ -667,7 +671,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
 
     // Chat
-    Route::get('chat', fn () => \Inertia\Inertia::render('super-accounting/chat/index'))->name('chat.index');
+    Route::get('chat', fn () => \Inertia\Inertia::render('shared/chat/index', ['rolePrefix' => 'super-accounting']))->name('chat.index');
 });
 
 require __DIR__.'/settings.php';
