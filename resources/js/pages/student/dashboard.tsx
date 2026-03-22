@@ -103,8 +103,9 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
 
     const isNotEnrolled = student.enrollment_status !== 'enrolled';
 
-    // Calculate total previous balance
-    const totalPreviousBalance = previousBalances.reduce((sum, b) => sum + b.balance, 0);
+    // Calculate total previous balance with payload safety.
+    const safePreviousBalances = Array.isArray(previousBalances) ? previousBalances : [];
+    const totalPreviousBalance = safePreviousBalances.reduce((sum, b) => sum + b.balance, 0);
     const currentBalance = paymentInfo?.balance || 0;
     const totalAllBalance = currentBalance + totalPreviousBalance;
 
@@ -300,7 +301,7 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                                             <span className="font-semibold text-red-700">{formatCurrency(currentBalance)}</span>
                                         </div>
                                     )}
-                                    {previousBalances.map(prev => (
+                                    {safePreviousBalances.map(prev => (
                                         <div key={prev.id} className="flex items-center justify-between gap-4 text-sm">
                                             <span className="text-orange-600">Previous ({prev.school_year}):</span>
                                             <span className="font-semibold text-orange-700">{formatCurrency(prev.balance)}</span>
