@@ -502,20 +502,20 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         }}
                     />
                     <FilterDropdown
-                        label="Department"
-                        value={departmentId}
-                        options={departmentOptions}
-                        onChange={(value) => {
-                            setDepartmentId(value);
-                            setTimeout(handleFilter, 0);
-                        }}
-                    />
-                    <FilterDropdown
                         label="Classification"
                         value={classification}
                         options={classificationOptions}
                         onChange={(value) => {
                             setClassification(value);
+                            setTimeout(handleFilter, 0);
+                        }}
+                    />
+                    <FilterDropdown
+                        label="Department"
+                        value={departmentId}
+                        options={departmentOptions}
+                        onChange={(value) => {
+                            setDepartmentId(value);
                             setTimeout(handleFilter, 0);
                         }}
                     />
