@@ -659,6 +659,9 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     // Student Clearance (super-accounting can also toggle accounting clearance)
     Route::put('clearance/{student}', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'updateClearance'])->name('clearance.update');
 
+    // Exam Approval (shared reference page)
+    Route::get('exam-approval', [App\Http\Controllers\Accounting\ExamApprovalController::class, 'index'])->name('exam-approval.index');
+
     // Dashboard exports
     Route::get('dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'export'])->name('dashboard.export');
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
