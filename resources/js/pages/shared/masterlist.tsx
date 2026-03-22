@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import axios from 'axios';
+import { Printer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
@@ -243,16 +244,27 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
         [filteredCollegeGroups],
     );
 
+    const showK12Section = classificationFilter !== 'college';
+    const showCollegeSection = classificationFilter !== 'k12';
+
     return (
         <RoleLayout rolePrefix={rolePrefix}>
             <Head title="Masterlist" />
 
             <div className="space-y-6 p-6">
                 <div>
-                    <h1 className="text-3xl font-bold">Masterlist</h1>
-                    <p className="text-sm text-muted-foreground">
-                        Student masterlist grouped by K-12 grade level and college department, separated by male and female.
-                    </p>
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <h1 className="text-3xl font-bold">Masterlist</h1>
+                            <p className="text-sm text-muted-foreground">
+                                Student masterlist grouped by K-12 grade level and college department, separated by male and female.
+                            </p>
+                        </div>
+                        <Button variant="outline" onClick={() => window.print()}>
+                            <Printer className="h-4 w-4 mr-2" />
+                            Print
+                        </Button>
+                    </div>
                 </div>
 
                 <Card>
@@ -307,66 +319,71 @@ export default function MasterlistPage({ rolePrefix, k12Groups, collegeGroups }:
                 </Card>
 
                 <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">K-12 ({k12TotalStudents} students)</h2>
-                    {filteredK12Groups.length === 0 ? (
-                        <Card><CardContent className="py-6 text-muted-foreground">No K-12 students found.</CardContent></Card>
-                    ) : (
-                        filteredK12Groups.map((group) => (
-                            <Card key={`k12-${group.group}`}>
-                                <CardHeader>
-                                    <CardTitle>
-                                        {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4 md:grid-cols-2">
-                                    <GenderTable
-                                        title="Male"
-                                        rows={group.male}
-                                        headerColor="oklch(58.8% 0.158 241.966)"
-                                        tableId={`k12-${group.group}-male`}
-                                    />
-                                    <GenderTable
-                                        title="Female"
-                                        rows={group.female}
-                                        headerColor="oklch(65.6% 0.241 354.308)"
-                                        tableId={`k12-${group.group}-female`}
-                                    />
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </section>
+                {showK12Section && (
+                    <section className="space-y-4">
+                        <h2 className="text-xl font-semibold">K-12 ({k12TotalStudents} students)</h2>
+                        {filteredK12Groups.length === 0 ? (
+                            <Card><CardContent className="py-6 text-muted-foreground">No K-12 students found.</CardContent></Card>
+                        ) : (
+                            filteredK12Groups.map((group) => (
+                                <Card key={`k12-${group.group}`}>
+                                    <CardHeader>
+                                        <CardTitle>
+                                            {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 md:grid-cols-2">
+                                        <GenderTable
+                                            title="Male"
+                                            rows={group.male}
+                                            headerColor="oklch(58.8% 0.158 241.966)"
+                                            tableId={`k12-${group.group}-male`}
+                                        />
+                                        <GenderTable
+                                            title="Female"
+                                            rows={group.female}
+                                            headerColor="oklch(65.6% 0.241 354.308)"
+                                            tableId={`k12-${group.group}-female`}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </section>
+                )}
 
-                <section className="space-y-4">
-                    <h2 className="text-xl font-semibold">College ({collegeTotalStudents} students)</h2>
-                    {filteredCollegeGroups.length === 0 ? (
-                        <Card><CardContent className="py-6 text-muted-foreground">No college students found.</CardContent></Card>
-                    ) : (
-                        filteredCollegeGroups.map((group) => (
-                            <Card key={`college-${group.group}`}>
-                                <CardHeader>
-                                    <CardTitle>
-                                        {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="grid gap-4 md:grid-cols-2">
-                                    <GenderTable
-                                        title="Male"
-                                        rows={group.male}
-                                        headerColor="oklch(58.8% 0.158 241.966)"
-                                        tableId={`college-${group.group}-male`}
-                                    />
-                                    <GenderTable
-                                        title="Female"
-                                        rows={group.female}
-                                        headerColor="oklch(65.6% 0.241 354.308)"
-                                        tableId={`college-${group.group}-female`}
-                                    />
-                                </CardContent>
-                            </Card>
-                        ))
-                    )}
-                </section>
+                {showCollegeSection && (
+                    <section className="space-y-4">
+                        <h2 className="text-xl font-semibold">College ({collegeTotalStudents} students)</h2>
+                        {filteredCollegeGroups.length === 0 ? (
+                            <Card><CardContent className="py-6 text-muted-foreground">No college students found.</CardContent></Card>
+                        ) : (
+                            filteredCollegeGroups.map((group) => (
+                                <Card key={`college-${group.group}`}>
+                                    <CardHeader>
+                                        <CardTitle>
+                                            {group.group} ({group.male.length + group.female.length} student{group.male.length + group.female.length !== 1 ? 's' : ''})
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="grid gap-4 md:grid-cols-2">
+                                        <GenderTable
+                                            title="Male"
+                                            rows={group.male}
+                                            headerColor="oklch(58.8% 0.158 241.966)"
+                                            tableId={`college-${group.group}-male`}
+                                        />
+                                        <GenderTable
+                                            title="Female"
+                                            rows={group.female}
+                                            headerColor="oklch(65.6% 0.241 354.308)"
+                                            tableId={`college-${group.group}-female`}
+                                        />
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </section>
+                )}
             </div>
         </RoleLayout>
     );
