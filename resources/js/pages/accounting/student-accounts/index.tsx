@@ -509,23 +509,6 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         }}
                     />
                     <FilterDropdown
-                        label="Department"
-                        value={departmentId}
-                        options={departmentOptions}
-                        onChange={(value) => {
-                            setDepartmentId(value);
-                            setViewMode('accounts');
-                            router.get('/accounting/student-accounts', {
-                                search: search || undefined,
-                                status: activeTab !== 'all' ? activeTab : undefined,
-                                school_year: schoolYear !== 'all' ? schoolYear : undefined,
-                                sort_school_year: schoolYearSort,
-                                department_id: value !== 'all' ? value : undefined,
-                                classification: classification !== 'all' ? classification : undefined,
-                            }, { preserveState: true, preserveScroll: true });
-                        }}
-                    />
-                    <FilterDropdown
                         label="Classification"
                         value={classification}
                         options={classificationOptions}
@@ -539,6 +522,23 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 sort_school_year: schoolYearSort,
                                 department_id: departmentId !== 'all' ? departmentId : undefined,
                                 classification: value !== 'all' ? value : undefined,
+                            }, { preserveState: true, preserveScroll: true });
+                        }}
+                    />
+                    <FilterDropdown
+                        label="Department"
+                        value={departmentId}
+                        options={departmentOptions}
+                        onChange={(value) => {
+                            setDepartmentId(value);
+                            setViewMode('accounts');
+                            router.get('/accounting/student-accounts', {
+                                search: search || undefined,
+                                status: activeTab !== 'all' ? activeTab : undefined,
+                                school_year: schoolYear !== 'all' ? schoolYear : undefined,
+                                sort_school_year: schoolYearSort,
+                                department_id: value !== 'all' ? value : undefined,
+                                classification: classification !== 'all' ? classification : undefined,
                             }, { preserveState: true, preserveScroll: true });
                         }}
                     />
