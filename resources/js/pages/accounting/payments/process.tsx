@@ -123,7 +123,7 @@ interface Payment {
     recorded_by: string;
     created_at: string;
     type?: 'on-site' | 'online';
-    transaction_type?: 'fee' | 'document';
+    transaction_type?: 'fee' | 'document' | 'refund';
 }
 
 interface PromissoryNote {
@@ -1421,7 +1421,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell className="text-right font-medium text-green-600">
-                                                        +{formatCurrency(payment.amount)}
+                                                        <span className={payment.amount < 0 ? 'text-red-600' : 'text-green-600'}>
+                                                            {payment.amount < 0 ? '-' : '+'}{formatCurrency(Math.abs(payment.amount))}
+                                                        </span>
                                                     </TableCell>
                                                     <TableCell className="font-medium">
                                                         {payment.payment_mode || 'CASH'}
@@ -1432,7 +1434,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             : (payment.notes || '-')}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {payment.transaction_type === 'document' ? (
+                                                        {payment.transaction_type === 'refund' ? (
+                                                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                                                                Refunded
+                                                            </Badge>
+                                                        ) : payment.transaction_type === 'document' ? (
                                                             <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-300">
                                                                 Document Request
                                                             </Badge>
