@@ -45,6 +45,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import AccountingLayout from '@/layouts/accounting-layout';
+import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 
 interface Grant {
     id: number;
@@ -95,6 +96,7 @@ interface PaginatedRecipients {
 }
 
 interface Props {
+    rolePrefix?: 'accounting' | 'registrar' | 'super-accounting';
     tab: string;
     grants: Grant[];
     recipients: PaginatedRecipients;
@@ -124,8 +126,11 @@ interface Props {
     };
 }
 
-export default function GrantsIndex({ tab, grants, recipients, students, schoolYears, currentSchoolYear, departments = [], classifications = [], yearLevels = [], programs = [], grantsStats, filters }: Props) {
+export default function GrantsIndex({ rolePrefix, tab, grants, recipients, students, schoolYears, currentSchoolYear, departments = [], classifications = [], yearLevels = [], programs = [], grantsStats, filters }: Props) {
     const { props } = usePage<{ appSettings?: { has_college?: boolean } }>();
+    const activeRolePrefix = rolePrefix ?? (typeof window !== 'undefined' && window.location.pathname.startsWith('/registrar') ? 'registrar' : 'accounting');
+    const basePath = `/${activeRolePrefix}`;
+    const LayoutComponent = activeRolePrefix === 'registrar' ? RegistrarLayout : AccountingLayout;
     const hasCollege = props.appSettings?.has_college !== false;
     const [activeTab, setActiveTab] = useState(tab || 'recipients');
     const [isGrantModalOpen, setIsGrantModalOpen] = useState(false);
@@ -161,11 +166,11 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
-        router.get('/accounting/grants', { tab: value }, { preserveState: true });
+        router.get(`${basePath}/grants`, { tab: value }, { preserveState: true });
     };
 
     const handleFilter = () => {
-        router.get('/accounting/grants', {
+        router.get(`${basePath}/grants`, {
             tab: 'recipients',
             search: search || undefined,
             grant_id: grantFilter !== 'all' ? grantFilter : undefined,
@@ -190,7 +195,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
         setDepartmentFilter('all');
         setYearLevelFilter('all');
         setProgramFilter('all');
-        router.get('/accounting/grants', { tab: 'recipients' });
+        router.get(`${basePath}/grants`, { tab: 'recipients' });
     };
 
     const printRecipientsTable = () => {
@@ -211,6 +216,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                     <td>${escapeHtml(recipient.grant.name)}</td>
                     <td>${escapeHtml(recipient.school_year)}</td>
                     <td>${escapeHtml(recipient.status)}</td>
+                    <td>${escapeHtml(recipient.assigned_by?.name ?? 'N/A')}</td>
                 </tr>
             `).join('');
 
@@ -241,6 +247,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                                 <th>Grant</th>
                                 <th>School Year</th>
                                 <th>Status</th>
+                                <th>Assigned By</th>
                             </tr>
                         </thead>
                         <tbody>${rows}</tbody>
@@ -256,7 +263,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const handleCreateGrant = (e: React.FormEvent) => {
         e.preventDefault();
-        grantForm.post('/accounting/grants', {
+        grantForm.post(`${basePath}/grants`, {
             onSuccess: () => {
                 toast.success('Changes saved successfully');
                 setIsGrantModalOpen(false);
@@ -268,7 +275,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
     const handleEditGrant = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingGrant) {
-            grantForm.put(`/accounting/grants/${editingGrant.id}`, {
+            grantForm.put(`${basePath}/grants/${editingGrant.id}`, {
                 onSuccess: () => {
                     toast.success('Changes saved successfully');
                     setIsGrantModalOpen(false);
@@ -281,7 +288,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const handleDeleteGrant = (id: number) => {
         if (confirm('Are you sure you want to delete this grant?')) {
-            router.delete(`/accounting/grants/${id}`);
+            router.delete(`${basePath}/grants/${id}`);
         }
     };
 
@@ -301,7 +308,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const handleAssign = (e: React.FormEvent) => {
         e.preventDefault();
-        assignForm.post('/accounting/grants/recipients', {
+        assignForm.post(`${basePath}/grants/recipients`, {
             onSuccess: () => {
                 toast.success('Changes saved successfully');
                 setIsAssignModalOpen(false);
@@ -313,7 +320,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
 
     const handleRemoveRecipient = (id: number) => {
         if (confirm('Are you sure you want to remove this recipient?')) {
-            router.delete(`/accounting/grants/recipients/${id}`);
+            router.delete(`${basePath}/grants/recipients/${id}`);
         }
     };
 
@@ -338,7 +345,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
     ];
 
     return (
-        <AccountingLayout>
+        <LayoutComponent>
             <Head title="Student Grants" />
 
             <div className="space-y-6 p-6">
@@ -758,13 +765,14 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                                         <TableHead>School Year</TableHead>
                                         <TableHead className="text-right">Discount</TableHead>
                                         <TableHead>Status</TableHead>
+                                        <TableHead>Assigned By</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {recipients.data.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                                 No grant recipients found.
                                             </TableCell>
                                         </TableRow>
@@ -808,6 +816,7 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                                                         {recipient.status}
                                                     </Badge>
                                                 </TableCell>
+                                                <TableCell>{recipient.assigned_by?.name ?? 'N/A'}</TableCell>
                                                 <TableCell className="text-right">
                                                     <Button
                                                         variant="ghost"
@@ -932,6 +941,6 @@ export default function GrantsIndex({ tab, grants, recipients, students, schoolY
                     </form>
                 </DialogContent>
             </Dialog>
-        </AccountingLayout>
+        </LayoutComponent>
     );
 }
