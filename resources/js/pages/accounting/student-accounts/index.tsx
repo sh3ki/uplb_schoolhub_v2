@@ -687,7 +687,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     <TableRow
                                         key={account.id}
                                         className={`cursor-pointer hover:bg-muted/50 ${account.is_overdue ? 'bg-red-50 hover:bg-red-100' : ''}`}
-                                        onClick={() => router.visit(`/accounting/payments/process/${account.student.id}`)}
+                                        onClick={() => router.visit(`/accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`)}
                                     >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -743,7 +743,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/accounting/payments/process/${account.student.id}`}>
+                                                        <Link href={`/accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
                                                             <PhilippinePeso className="h-4 w-4 mr-2" />
                                                             Process Payment
                                                         </Link>
