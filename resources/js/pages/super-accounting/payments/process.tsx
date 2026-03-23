@@ -2168,7 +2168,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
             {/* Edit Fee Dialog */}
             <Dialog open={isEditFeeDialogOpen} onOpenChange={setIsEditFeeDialogOpen}>
-                <DialogContent className="sm:max-w-[460px]">
+                <DialogContent className="sm:max-w-[460px] max-h-[85vh] overflow-y-auto">
                     <form onSubmit={handleEditFeeSubmit}>
                         <DialogHeader>
                             <DialogTitle>Edit Fee Record — {editingFee?.school_year}</DialogTitle>
