@@ -169,7 +169,7 @@ export default function AccountingReports({
     const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'super-accounting';
     const basePath = `/${routePrefix}`;
     const departmentAccountsPath = routePrefix === 'owner'
-        ? '/owner/account-dashboard'
+        ? '/owner/student-accounts'
         : '/super-accounting/student-accounts';
     const ReportsLayoutComponent = routePrefix === 'owner' ? OwnerLayout : SuperAccountingLayout;
 
