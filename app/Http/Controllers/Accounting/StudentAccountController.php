@@ -802,10 +802,14 @@ class StudentAccountController extends Controller
             }
         }
 
-        $eligibleStudents = $studentsQuery->get(['id', 'school_year', 'department_id', 'program', 'year_level', 'section']);
-        $eligibleStudentIds = $eligibleStudents->pluck('id');
+        $eligibleStudentIds = $studentsQuery->pluck('id');
+        $eligibleStudents = Student::whereIn('id', $eligibleStudentIds)->get();
 
         foreach ($eligibleStudents as $eligibleStudent) {
+            if (!$eligibleStudent instanceof Student) {
+                continue;
+            }
+
             $targetSchoolYear = $requestedSchoolYear ?: ($eligibleStudent->school_year ?: $appSchoolYear);
             $this->calculateStudentFees($eligibleStudent, $targetSchoolYear);
         }
@@ -819,6 +823,10 @@ class StudentAccountController extends Controller
             ->get();
 
         foreach ($candidateFees as $fee) {
+            if (!$fee instanceof StudentFee) {
+                continue;
+            }
+
             $totalPaid = (float) $fee->payments->sum('amount');
             $balance = max(0.0, (float) $fee->total_amount - (float) $fee->grant_discount - $totalPaid);
 
@@ -826,11 +834,13 @@ class StudentAccountController extends Controller
                 continue;
             }
 
-            $fee->total_paid = $totalPaid;
-            $fee->balance = $balance;
-            $fee->is_overdue = true;
-            $fee->due_date = $request->overdue_date;
-            $fee->payment_status = 'overdue';
+            $fee->fill([
+                'total_paid' => $totalPaid,
+                'balance' => $balance,
+                'is_overdue' => true,
+                'due_date' => $request->overdue_date,
+                'payment_status' => 'overdue',
+            ]);
             $fee->save();
             $count++;
         }
