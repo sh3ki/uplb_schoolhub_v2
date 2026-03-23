@@ -88,6 +88,7 @@ Route::prefix('owner')->name('owner.')->middleware(['auth', 'verified', 'role:ow
     Route::get('main-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'mainDashboard'])->name('main-dashboard');
     Route::get('account-dashboard', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'accountDashboard'])->name('account-dashboard');
     Route::get('account-dashboard/export', [App\Http\Controllers\Accounting\AccountingDashboardController::class, 'exportAccountDashboard'])->name('account-dashboard.export');
+    Route::get('student-accounts', [App\Http\Controllers\Accounting\StudentAccountController::class, 'index'])->name('student-accounts.index');
     Route::get('payments/process/{student}', [App\Http\Controllers\Accounting\StudentPaymentController::class, 'process'])->name('payments.process');
 
     Route::get('income/today', [App\Http\Controllers\Owner\IncomeController::class, 'today'])->name('income.today');
