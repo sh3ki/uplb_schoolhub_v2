@@ -61,8 +61,7 @@ class StudentAccountController extends Controller
                     $sq->where('registrar_clearance', true)
                         ->orWhere('enrollment_status', 'completed');
                 });
-            })
-            ->where('enrollment_status', '!=', 'not-enrolled');
+            });
 
         // Search
         if ($search = $request->input('search')) {
@@ -163,7 +162,6 @@ class StudentAccountController extends Controller
             $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
         })
         ->when($selectedSchoolYear, fn($q) => $q->where('school_year', $selectedSchoolYear))
-        ->where('enrollment_status', '!=', 'not-enrolled')
         ->pluck('id');
 
         $stats = $this->calculateStats($allStudentIds, $selectedSchoolYear);
@@ -202,7 +200,6 @@ class StudentAccountController extends Controller
                         ->orWhere('enrollment_status', 'completed');
                 });
             })
-            ->where('enrollment_status', '!=', 'not-enrolled')
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
         return Inertia::render($this->viewPrefix() . '/student-accounts/index', [
@@ -772,8 +769,7 @@ class StudentAccountController extends Controller
                     $sq->where('registrar_clearance', true)
                         ->orWhere('enrollment_status', 'completed');
                 });
-            })
-            ->where('enrollment_status', '!=', 'not-enrolled');
+            });
 
         if ($classification = $request->classification) {
             if ($classification !== 'all') {
