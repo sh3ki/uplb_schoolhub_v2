@@ -90,6 +90,7 @@ class DashboardController extends Controller
 
         $currentFees = $fees->filter(fn($fee) => trim((string) $fee->school_year) === trim((string) $targetSchoolYear));
         $studentFee = $currentFees->first();
+        $isUsingAllYears = false;
 
         $totalFees = (float) $currentFees->sum('total_amount');
         $totalDiscount = (float) $currentFees->sum('grant_discount');
@@ -124,11 +125,21 @@ class DashboardController extends Controller
                 ->sum('amount');
         }
 
+        if ($totalFees <= 0 && (float) $fees->sum('balance') > 0) {
+            $isUsingAllYears = true;
+            $studentFee = $fees->firstWhere('balance', '>', 0) ?: $fees->first();
+            $totalFees = (float) $fees->sum('total_amount');
+            $totalDiscount = (float) $fees->sum('grant_discount');
+            $totalPaid = (float) $fees->sum('total_paid');
+        }
+
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
-        $previousBalance = (float) $fees
-            ->filter(fn($fee) => trim((string) $fee->school_year) !== trim((string) $targetSchoolYear))
-            ->sum('balance');
+        $previousBalance = $isUsingAllYears
+            ? 0.0
+            : (float) $fees
+                ->filter(fn($fee) => trim((string) $fee->school_year) !== trim((string) $targetSchoolYear))
+                ->sum('balance');
         $currentFeesBalance = $balance;
 
         // Get approved promissory notes
@@ -144,7 +155,7 @@ class DashboardController extends Controller
                      $studentFee?->due_date && now()->gt($studentFee->due_date);
 
         // Only fully paid if fee records exist AND balance is zero
-        $isFullyPaid = !$currentFees->isEmpty() && $balance <= 0;
+        $isFullyPaid = ($isUsingAllYears ? !$fees->isEmpty() : !$currentFees->isEmpty()) && $balance <= 0;
 
         return [
             'total_fees' => $totalFees,
