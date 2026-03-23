@@ -1327,7 +1327,7 @@ class StudentPaymentController extends Controller
                 $yearLevelCandidates
             ))));
 
-            $query->where(function ($sq) use ($yearLevelCandidates) {
+            $query->where(function ($sq) use ($yearLevelCandidates, $normalizedCandidates) {
                 $sq->whereNull('year_level_id')
                     ->orWhereHas('yearLevel', function ($ylQuery) use ($yearLevelCandidates, $normalizedCandidates) {
                         $ylQuery->where(function ($nameQuery) use ($yearLevelCandidates, $normalizedCandidates) {
