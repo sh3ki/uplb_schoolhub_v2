@@ -26,6 +26,8 @@ class StudentFee extends Model
         'due_date',
         'grant_discount',
         'payment_status',
+        'processed_by',
+        'processed_at',
         'carried_forward_balance',
         'carried_forward_from',
     ];
@@ -41,6 +43,7 @@ class StudentFee extends Model
         'balance' => 'decimal:2',
         'is_overdue' => 'boolean',
         'due_date' => 'date',
+        'processed_at' => 'datetime',
         'grant_discount' => 'decimal:2',
         'carried_forward_balance' => 'decimal:2',
     ];
@@ -51,6 +54,14 @@ class StudentFee extends Model
     public function student(): BelongsTo
     {
         return $this->belongsTo(Student::class);
+    }
+
+    /**
+     * Get the user who last processed or edited this fee record.
+     */
+    public function processedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'processed_by');
     }
 
     /**
