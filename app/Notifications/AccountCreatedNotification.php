@@ -6,6 +6,7 @@ use App\Models\AppSetting;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AccountCreatedNotification extends VerifyEmail
 {
@@ -21,15 +22,7 @@ class AccountCreatedNotification extends VerifyEmail
         $settings     = AppSetting::current();
         $appName      = $settings->app_name ?? config('app.name');
         $primaryColor = $settings->primary_color ?? '#1d4ed8';
-        $logoUrl      = $settings->logo_url ?? null;
-
-        // Gmail blocks external/localhost images — encode logo as base64 data URI so it always displays
-        $logoInline = null;
-        if (!empty($settings->logo_path) && Storage::disk('public')->exists($settings->logo_path)) {
-            $mime       = Storage::disk('public')->mimeType($settings->logo_path) ?: 'image/png';
-            $data       = base64_encode(Storage::disk('public')->get($settings->logo_path));
-            $logoInline = "data:{$mime};base64,{$data}";
-        }
+        $logoUrl      = $this->resolveLogoUrl($settings);
 
         return (new MailMessage)
             ->subject("Welcome to {$appName} — Please Verify Your Email")
@@ -41,7 +34,30 @@ class AccountCreatedNotification extends VerifyEmail
                 'initialPassword' => $this->initialPassword,
                 'appName'         => $appName,
                 'primaryColor'    => $primaryColor,
-                'logoUrl'         => $logoInline ?? $logoUrl,
+                'logoUrl'         => $logoUrl,
             ]);
+    }
+
+    private function resolveLogoUrl(?AppSetting $settings): ?string
+    {
+        if (!$settings) {
+            return null;
+        }
+
+        $logoUrl = $settings->logo_url;
+
+        if (!$logoUrl && !empty($settings->logo_path) && Storage::disk('public')->exists($settings->logo_path)) {
+            $logoUrl = Storage::url($settings->logo_path);
+        }
+
+        if (!$logoUrl) {
+            return null;
+        }
+
+        if (Str::startsWith($logoUrl, ['http://', 'https://'])) {
+            return $logoUrl;
+        }
+
+        return url($logoUrl);
     }
 }
