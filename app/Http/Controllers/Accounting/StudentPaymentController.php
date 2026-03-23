@@ -16,8 +16,10 @@ use App\Models\StudentFee;
 use App\Models\OnlineTransaction;
 use App\Models\StudentPayment;
 use App\Models\AppSetting;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -1703,7 +1705,14 @@ class StudentPaymentController extends Controller
 
         if ($isSuperAccountingRoute) {
             $validated = $request->validate([
-                'school_year' => 'required|string|max:20',
+                'school_year' => [
+                    'required',
+                    'string',
+                    'max:20',
+                    Rule::unique('student_fees', 'school_year')
+                        ->where(fn ($query) => $query->where('student_id', $student->id))
+                        ->ignore($fee->id),
+                ],
                 'total_amount' => 'required|numeric|min:0',
                 'grant_discount' => 'required|numeric|min:0',
                 'total_paid' => 'required|numeric|min:0',
@@ -1730,7 +1739,18 @@ class StudentPaymentController extends Controller
             $fee->is_overdue = $validated['status'] === 'overdue';
             $fee->processed_by = $request->user()->id;
             $fee->processed_at = now();
-            $fee->save();
+
+            try {
+                $fee->save();
+            } catch (QueryException $e) {
+                if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                    return redirect()->back()->withErrors([
+                        'school_year' => "A fee record for school year {$validated['school_year']} already exists for this student.",
+                    ])->withInput();
+                }
+
+                throw $e;
+            }
 
             StudentActionLog::log(
                 studentId: $student->id,
