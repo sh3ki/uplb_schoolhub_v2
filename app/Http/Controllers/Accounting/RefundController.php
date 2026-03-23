@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\RefundRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
+use App\Models\StudentPayment;
 use App\Models\Department;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -177,22 +179,38 @@ class RefundController extends Controller
             'accounting_notes' => 'nullable|string|max:1000',
         ]);
 
-        $refund->update([
-            'status'           => 'approved',
-            'processed_by'     => Auth::id(),
-            'processed_at'     => now(),
-            'accounting_notes' => $validated['accounting_notes'] ?? null,
-        ]);
+        DB::transaction(function () use ($refund, $validated) {
+            $processedAt = now();
 
-        // Adjust the student fee record if one is attached
-        if ($refund->student_fee_id) {
-            $fee = StudentFee::find($refund->student_fee_id);
-            if ($fee) {
-                $fee->total_paid = max(0, (float) $fee->total_paid - (float) $refund->amount);
-                $fee->balance    = (float) $fee->total_amount - (float) $fee->total_paid;
-                $fee->save();
+            $refund->update([
+                'status'           => 'approved',
+                'processed_by'     => Auth::id(),
+                'processed_at'     => $processedAt,
+                'accounting_notes' => $validated['accounting_notes'] ?? null,
+            ]);
+
+            if ($refund->student_fee_id) {
+                $fee = StudentFee::find($refund->student_fee_id);
+
+                if ($fee) {
+                    StudentPayment::create([
+                        'student_id' => $refund->student_id,
+                        'student_fee_id' => $fee->id,
+                        'payment_date' => $processedAt->toDateString(),
+                        'or_number' => 'RF-' . $refund->id,
+                        'amount' => -abs((float) $refund->amount),
+                        'payment_for' => strtoupper((string) $refund->type) . ' approved',
+                        'payment_mode' => 'REFUND',
+                        'payment_method' => 'other',
+                        'notes' => $refund->accounting_notes ?: $refund->reason,
+                        'recorded_by' => Auth::id(),
+                    ]);
+
+                    $fee->refresh();
+                    $fee->updateBalance();
+                }
             }
-        }
+        });
 
         return back()->with('success', 'Refund/void request approved and fees adjusted.');
     }
