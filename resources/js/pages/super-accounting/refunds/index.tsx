@@ -76,14 +76,13 @@ interface StudentWithFees {
 interface RefundRequest {
     id: number;
     student: Student;
-    amount: string;
+    amount: number;
+    type: 'refund' | 'void';
     reason: string;
-    payment_method: string;
-    account_details: string | null;
-    receipt_path: string | null;
+    school_year: string | null;
     status: 'pending' | 'approved' | 'rejected';
-    admin_notes: string | null;
-    processed_by: { name: string } | null;
+    accounting_notes: string | null;
+    processed_by: string | null;
     processed_at: string | null;
     created_at: string;
 }
@@ -146,11 +145,11 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const approveForm = useForm({
-        notes: '',
+        accounting_notes: '',
     });
 
     const rejectForm = useForm({
-        notes: '',
+        accounting_notes: '',
     });
 
     const createForm = useForm({
@@ -305,20 +304,18 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                                 <span className="line-clamp-2 max-w-[200px]">{request.reason}</span>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline">{request.payment_method}</Badge>
+                                <Badge variant="outline" className="uppercase">{request.type}</Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
-                                {format(new Date(request.created_at), 'MMM d, yyyy')}
+                                {request.created_at}
                             </TableCell>
                             {!showActions && (
                                 <TableCell>
                                     {request.processed_by ? (
                                         <div>
-                                            <p className="text-sm">{request.processed_by.name}</p>
+                                            <p className="text-sm">{request.processed_by}</p>
                                             {request.processed_at && (
-                                                <p className="text-xs text-muted-foreground">
-                                                    {format(new Date(request.processed_at), 'MMM d, yyyy')}
-                                                </p>
+                                                <p className="text-xs text-muted-foreground">{request.processed_at}</p>
                                             )}
                                         </div>
                                     ) : (
@@ -570,50 +567,32 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label className="text-muted-foreground">Payment Method</Label>
-                                    <p className="font-medium">{selectedRequest.payment_method}</p>
+                                    <Label className="text-muted-foreground">Request Type</Label>
+                                    <p className="font-medium uppercase">{selectedRequest.type}</p>
                                 </div>
-                                {selectedRequest.account_details && (
-                                    <div>
-                                        <Label className="text-muted-foreground">Account Details</Label>
-                                        <p className="font-medium">{selectedRequest.account_details}</p>
-                                    </div>
-                                )}
+                                <div>
+                                    <Label className="text-muted-foreground">School Year</Label>
+                                    <p className="font-medium">{selectedRequest.school_year || '-'}</p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <Label className="text-muted-foreground">Requested On</Label>
-                                    <p className="text-sm">
-                                        {format(new Date(selectedRequest.created_at), 'MMMM d, yyyy')}
-                                    </p>
+                                    <p className="text-sm">{selectedRequest.created_at}</p>
                                 </div>
                                 {selectedRequest.processed_at && (
                                     <div>
                                         <Label className="text-muted-foreground">Processed On</Label>
-                                        <p className="text-sm">
-                                            {format(new Date(selectedRequest.processed_at), 'MMMM d, yyyy')}
-                                        </p>
+                                        <p className="text-sm">{selectedRequest.processed_at}</p>
                                     </div>
                                 )}
                             </div>
 
-                            {selectedRequest.admin_notes && (
+                            {selectedRequest.accounting_notes && (
                                 <div>
                                     <Label className="text-muted-foreground">Admin Notes</Label>
-                                    <p className="text-sm">{selectedRequest.admin_notes}</p>
-                                </div>
-                            )}
-
-                            {selectedRequest.receipt_path && (
-                                <div>
-                                    <Label className="text-muted-foreground">Receipt</Label>
-                                    <Button asChild variant="outline" size="sm" className="mt-1">
-                                        <a href={selectedRequest.receipt_path} target="_blank" rel="noopener noreferrer">
-                                            <FileText className="h-4 w-4 mr-2" />
-                                            View Receipt
-                                        </a>
-                                    </Button>
+                                    <p className="text-sm">{selectedRequest.accounting_notes}</p>
                                 </div>
                             )}
                         </div>
@@ -644,8 +623,8 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                             <Textarea
                                 id="approve-notes"
                                 placeholder="Add any notes about this approval..."
-                                value={approveForm.data.notes}
-                                onChange={(e) => approveForm.setData('notes', e.target.value)}
+                                value={approveForm.data.accounting_notes}
+                                onChange={(e) => approveForm.setData('accounting_notes', e.target.value)}
                             />
                         </div>
                     </div>
@@ -680,12 +659,12 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                             <Textarea
                                 id="reject-notes"
                                 placeholder="Explain why this refund request is being rejected..."
-                                value={rejectForm.data.notes}
-                                onChange={(e) => rejectForm.setData('notes', e.target.value)}
+                                value={rejectForm.data.accounting_notes}
+                                onChange={(e) => rejectForm.setData('accounting_notes', e.target.value)}
                                 required
                             />
-                            {rejectForm.errors.notes && (
-                                <p className="text-sm text-red-500 mt-1">{rejectForm.errors.notes}</p>
+                            {rejectForm.errors.accounting_notes && (
+                                <p className="text-sm text-red-500 mt-1">{rejectForm.errors.accounting_notes}</p>
                             )}
                         </div>
                     </div>
@@ -696,7 +675,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                         <Button
                             variant="destructive"
                             onClick={handleReject}
-                            disabled={rejectForm.processing || !rejectForm.data.notes}
+                            disabled={rejectForm.processing || !rejectForm.data.accounting_notes}
                         >
                             <XCircle className="h-4 w-4 mr-2" />
                             {rejectForm.processing ? 'Rejecting...' : 'Reject Request'}
