@@ -239,6 +239,15 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
 
     Route::get('reports', [App\Http\Controllers\Registrar\ReportsController::class, 'index'])->name('reports');
 
+    // Student Grants Management
+    Route::get('grants', [App\Http\Controllers\Accounting\GrantController::class, 'index'])->name('grants.index');
+    Route::post('grants', [App\Http\Controllers\Accounting\GrantController::class, 'store'])->name('grants.store');
+    Route::put('grants/{grant}', [App\Http\Controllers\Accounting\GrantController::class, 'update'])->name('grants.update');
+    Route::delete('grants/{grant}', [App\Http\Controllers\Accounting\GrantController::class, 'destroy'])->name('grants.destroy');
+    Route::post('grants/recipients', [App\Http\Controllers\Accounting\GrantController::class, 'assignRecipient'])->name('grants.assign-recipient');
+    Route::put('grants/recipients/{recipient}', [App\Http\Controllers\Accounting\GrantController::class, 'updateRecipient'])->name('grants.update-recipient');
+    Route::delete('grants/recipients/{recipient}', [App\Http\Controllers\Accounting\GrantController::class, 'removeRecipient'])->name('grants.remove-recipient');
+
     // Archived Students (soft-deleted)
     Route::get('archived', [App\Http\Controllers\Registrar\ArchivedStudentController::class, 'index'])->name('archived');
     Route::post('archived/{id}/restore', [App\Http\Controllers\Registrar\ArchivedStudentController::class, 'restore'])->name('archived.restore');
