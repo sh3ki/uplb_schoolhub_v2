@@ -357,10 +357,16 @@ class StudentPaymentController extends Controller
         // Load student with department for classification matching
         $student->load(['department', 'enrollmentClearance']);
 
-        $activeSchoolYear = $request->input('school_year')
-            ?: ($student->school_year
-                ?: (\App\Models\AppSetting::current()?->school_year
-                    ?: date('Y') . '-' . (date('Y') + 1)));
+        $requestedSchoolYear = $request->input('school_year');
+        if ($requestedSchoolYear === 'all' || blank($requestedSchoolYear)) {
+            $requestedSchoolYear = null;
+        }
+
+        $defaultSchoolYear = $student->school_year
+            ?: (\App\Models\AppSetting::current()?->school_year
+                ?: date('Y') . '-' . (date('Y') + 1));
+
+        $activeSchoolYear = $requestedSchoolYear ?: $defaultSchoolYear;
 
         // Keep this student's active school-year status in sync with due date rules.
         StudentFee::syncOverdueByDueDate($activeSchoolYear);
@@ -368,6 +374,24 @@ class StudentPaymentController extends Controller
         // Simplified flow: process payments against the active school year only.
         $fees = collect();
         $feeData = $this->calculateFeesForSchoolYear($student, $activeSchoolYear);
+
+        if (!$requestedSchoolYear && (!$feeData || (float) ($feeData['total_amount'] ?? 0) <= 0)) {
+            $preferredFeeYear = StudentFee::where('student_id', $student->id)
+                ->where(function ($query) {
+                    $query->where('total_amount', '>', 0)
+                        ->orWhere('balance', '>', 0)
+                        ->orWhere('total_paid', '>', 0);
+                })
+                ->orderByDesc('school_year')
+                ->value('school_year');
+
+            if ($preferredFeeYear && $preferredFeeYear !== $activeSchoolYear) {
+                $activeSchoolYear = $preferredFeeYear;
+                StudentFee::syncOverdueByDueDate($activeSchoolYear);
+                $feeData = $this->calculateFeesForSchoolYear($student, $activeSchoolYear);
+            }
+        }
+
         if ($feeData) {
             $fees->push($feeData);
         }
