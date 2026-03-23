@@ -875,10 +875,12 @@ class StudentPaymentController extends Controller
             'grant_discount' => (float) $grantDiscount,
             'total_paid' => (float) $totalPaid,
             'balance' => (float) $balance,
-            'status' => $balance <= 0 ? 'paid' : ($isOverdue ? 'overdue' : 'pending'),
+            'status' => $balance <= 0 ? 'paid' : ($isOverdue ? 'overdue' : 'unpaid'),
             'is_overdue' => $isOverdue,
             'due_date' => $dueDate,
             'categories' => $itemsByCategory,
+            'processed_by' => $studentFee?->processedBy?->name,
+            'processed_at' => $studentFee?->processed_at?->format('Y-m-d H:i:s'),
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -988,10 +990,12 @@ class StudentPaymentController extends Controller
             'grant_discount' => (float) $grantDiscount,
             'total_paid' => $totalPaid,
             'balance' => $balance,
-            'status' => $balance <= 0 ? 'paid' : ($studentFee->is_overdue ? 'overdue' : 'pending'),
+            'status' => $balance <= 0 ? 'paid' : ($studentFee->is_overdue ? 'overdue' : 'unpaid'),
             'is_overdue' => (bool) $studentFee->is_overdue,
             'due_date' => $studentFee->due_date,
             'categories' => $this->buildFeeCategoriesForStudentYear($student, (string) $studentFee->school_year),
+            'processed_by' => $studentFee->processedBy?->name,
+            'processed_at' => $studentFee->processed_at?->format('Y-m-d H:i:s'),
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -1581,7 +1585,9 @@ class StudentPaymentController extends Controller
             'total_paid'    => 0,
             'balance'       => (float) $validated['total_amount'],
             'grant_discount' => 0,
-            'status'        => 'pending',
+            'payment_status' => 'unpaid',
+            'processed_by' => $request->user()->id,
+            'processed_at' => now(),
         ]);
 
         StudentActionLog::log(
@@ -1666,6 +1672,66 @@ class StudentPaymentController extends Controller
         // Ensure the fee belongs to this student
         if ((int) $fee->student_id !== (int) $student->id) {
             return redirect()->back()->with('error', 'Fee record does not belong to this student.');
+        }
+
+        $routeName = $request->route()?->getName() ?? '';
+        $isSuperAccountingRoute = str_starts_with($routeName, 'super-accounting.');
+
+        if ($isSuperAccountingRoute) {
+            $validated = $request->validate([
+                'school_year' => 'required|string|max:20',
+                'total_amount' => 'required|numeric|min:0',
+                'grant_discount' => 'required|numeric|min:0',
+                'total_paid' => 'required|numeric|min:0',
+                'balance' => 'required|numeric|min:0',
+                'status' => 'required|in:unpaid,partial,paid,overdue',
+                'reason' => 'required|string|max:500',
+            ]);
+
+            $oldData = [
+                'school_year' => $fee->school_year,
+                'total_amount' => (float) $fee->total_amount,
+                'grant_discount' => (float) $fee->grant_discount,
+                'total_paid' => (float) $fee->total_paid,
+                'balance' => (float) $fee->balance,
+                'status' => (string) ($fee->payment_status ?? 'unpaid'),
+            ];
+
+            $fee->school_year = $validated['school_year'];
+            $fee->total_amount = (float) $validated['total_amount'];
+            $fee->grant_discount = (float) $validated['grant_discount'];
+            $fee->total_paid = (float) $validated['total_paid'];
+            $fee->balance = (float) $validated['balance'];
+            $fee->payment_status = $validated['status'];
+            $fee->is_overdue = $validated['status'] === 'overdue';
+            $fee->processed_by = $request->user()->id;
+            $fee->processed_at = now();
+            $fee->save();
+
+            StudentActionLog::log(
+                studentId: $student->id,
+                action: "Fee record edited for {$fee->school_year} — {$validated['reason']}",
+                actionType: 'fee_edit',
+                details: "Updated {$fee->school_year} fee details in School Year tab.",
+                notes: null,
+                changes: [
+                    'old' => $oldData,
+                    'new' => [
+                        'school_year' => $fee->school_year,
+                        'total_amount' => (float) $fee->total_amount,
+                        'grant_discount' => (float) $fee->grant_discount,
+                        'total_paid' => (float) $fee->total_paid,
+                        'balance' => (float) $fee->balance,
+                        'status' => (string) $fee->payment_status,
+                        'processed_by' => $request->user()->name,
+                        'processed_at' => $fee->processed_at?->toDateTimeString(),
+                    ],
+                    'reason' => $validated['reason'],
+                ],
+                performedBy: $request->user()->id,
+            );
+
+            return redirect()->back()->with('success', "Fee record for {$fee->school_year} updated.");
         }
 
         $validated = $request->validate([
