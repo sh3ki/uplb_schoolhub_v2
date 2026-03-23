@@ -260,8 +260,7 @@ function renderPesoAmount(amount: number | null, className = '') {
     );
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, enrollmentClearance = null, currentUser }: Props) {
-    export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
@@ -270,53 +269,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('all');
     const [schoolYearPage, setSchoolYearPage] = useState(1);
 
-        const schoolYearRows = useMemo(() => {
-            const feeRows = filteredFees.map((fee) => ({
-                id: `fee-${fee.id}`,
-                school_year: fee.school_year,
-                total_amount: fee.total_amount,
-                grant_discount: fee.grant_discount,
-                total_paid: fee.total_paid,
-                balance: fee.balance,
-                status: fee.status,
-                processed_by: fee.processed_by || '-',
-                processed_at: fee.processed_at || '',
-                is_history: false,
-            }));
-
-            const historyRows = feeEditRows
-                .filter((row) => selectedSchoolYear === 'all' || row.school_year === selectedSchoolYear)
-                .map((row) => ({ ...row, is_history: true }));
-
-            return [...feeRows, ...historyRows].sort((a, b) => {
-                const aTime = new Date(a.processed_at || 0).getTime();
-                const bTime = new Date(b.processed_at || 0).getTime();
-                return bTime - aTime;
-            });
-        }, [filteredFees, feeEditRows, selectedSchoolYear]);
-
-        const schoolYearPerPage = 15;
-        const schoolYearLastPage = Math.max(1, Math.ceil(schoolYearRows.length / schoolYearPerPage));
-        const safeSchoolYearPage = Math.min(schoolYearPage, schoolYearLastPage);
-        const schoolYearStart = (safeSchoolYearPage - 1) * schoolYearPerPage;
-        const pagedSchoolYearRows = schoolYearRows.slice(schoolYearStart, schoolYearStart + schoolYearPerPage);
-
-        const schoolYearPaginationData = {
-            current_page: safeSchoolYearPage,
-            last_page: schoolYearLastPage,
-            per_page: schoolYearPerPage,
-            total: schoolYearRows.length,
-            from: schoolYearRows.length === 0 ? 0 : schoolYearStart + 1,
-            to: Math.min(schoolYearStart + schoolYearPerPage, schoolYearRows.length),
-            links: Array.from({ length: schoolYearLastPage }, (_, index) => {
-                const page = index + 1;
-                return {
-                    url: `#school-year-page-${page}`,
-                    label: page.toString(),
-                    active: page === safeSchoolYearPage,
-                };
-            }),
-        };
     const [amountReceived, setAmountReceived] = useState<string>('');
     const feesWithBalance = fees.filter(f => f.balance > 0);
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
@@ -634,6 +586,54 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const filteredFees = selectedSchoolYear === 'all' 
         ? fees 
         : fees.filter(f => f.school_year === selectedSchoolYear);
+
+    const schoolYearRows = useMemo(() => {
+        const feeRows = filteredFees.map((fee) => ({
+            id: `fee-${fee.id}`,
+            school_year: fee.school_year,
+            total_amount: fee.total_amount,
+            grant_discount: fee.grant_discount,
+            total_paid: fee.total_paid,
+            balance: fee.balance,
+            status: fee.status,
+            processed_by: fee.processed_by || '-',
+            processed_at: fee.processed_at || '',
+            is_history: false,
+        }));
+
+        const historyRows = feeEditRows
+            .filter((row) => selectedSchoolYear === 'all' || row.school_year === selectedSchoolYear)
+            .map((row) => ({ ...row, is_history: true }));
+
+        return [...feeRows, ...historyRows].sort((a, b) => {
+            const aTime = new Date(a.processed_at || 0).getTime();
+            const bTime = new Date(b.processed_at || 0).getTime();
+            return bTime - aTime;
+        });
+    }, [filteredFees, feeEditRows, selectedSchoolYear]);
+
+    const schoolYearPerPage = 15;
+    const schoolYearLastPage = Math.max(1, Math.ceil(schoolYearRows.length / schoolYearPerPage));
+    const safeSchoolYearPage = Math.min(schoolYearPage, schoolYearLastPage);
+    const schoolYearStart = (safeSchoolYearPage - 1) * schoolYearPerPage;
+    const pagedSchoolYearRows = schoolYearRows.slice(schoolYearStart, schoolYearStart + schoolYearPerPage);
+
+    const schoolYearPaginationData = {
+        current_page: safeSchoolYearPage,
+        last_page: schoolYearLastPage,
+        per_page: schoolYearPerPage,
+        total: schoolYearRows.length,
+        from: schoolYearRows.length === 0 ? 0 : schoolYearStart + 1,
+        to: Math.min(schoolYearStart + schoolYearPerPage, schoolYearRows.length),
+        links: Array.from({ length: schoolYearLastPage }, (_, index) => {
+            const page = index + 1;
+            return {
+                url: `#school-year-page-${page}`,
+                label: page.toString(),
+                active: page === safeSchoolYearPage,
+            };
+        }),
+    };
 
     const schoolYears = [...new Set(fees.map(f => f.school_year))];
 
@@ -1573,7 +1573,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         <div className="flex items-center gap-2 flex-wrap">
                             <button
                                 type="button"
-                                onClick={() => setSelectedSchoolYear('all')}
+                                onClick={() => {
+                                    setSelectedSchoolYear('all');
+                                    setSchoolYearPage(1);
+                                }}
                                 className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                                     selectedSchoolYear === 'all'
                                         ? 'bg-primary text-primary-foreground border-primary'
@@ -1586,7 +1589,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 <button
                                     key={sy}
                                     type="button"
-                                    onClick={() => setSelectedSchoolYear(sy)}
+                                    onClick={() => {
+                                        setSelectedSchoolYear(sy);
+                                        setSchoolYearPage(1);
+                                    }}
                                     className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                                         selectedSchoolYear === sy
                                             ? 'bg-primary text-primary-foreground border-primary'
@@ -1612,7 +1618,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 </div>
                             </CardHeader>
                             <CardContent>
-                                {filteredFees.length === 0 ? (
                                 {schoolYearRows.length === 0 ? (
                                     <p className="text-center py-6 text-muted-foreground text-sm">No fee records found.</p>
                                 ) : (
