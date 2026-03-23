@@ -240,6 +240,15 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
     };
 
     const currentFee = fees.find(f => f.school_year === currentSchoolYear);
+    const categoryRows = currentFee
+        ? [
+            { label: 'Registration', amount: currentFee.registration_fee ?? 0 },
+            { label: 'Tuition', amount: currentFee.tuition_fee ?? 0 },
+            { label: 'Miscellaneous', amount: currentFee.misc_fee ?? 0 },
+            { label: 'Books', amount: currentFee.books_fee ?? 0 },
+            { label: 'Other Fees', amount: currentFee.other_fees ?? 0 },
+        ].filter((row) => row.amount > 0)
+        : [];
 
     return (
         <StudentLayout>
@@ -485,6 +494,34 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
                                     </TableBody>
                                 </Table>
                             )}
+
+                            <div className="mt-4 rounded-md border p-4">
+                                <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                                    <Receipt className="h-4 w-4" /> Fee Breakdown by Category
+                                </div>
+                                {!currentFee ? (
+                                    <p className="text-sm text-muted-foreground">No category breakdown available.</p>
+                                ) : categoryRows.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
+                                ) : (
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Category</TableHead>
+                                                <TableHead className="text-right">Amount</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {categoryRows.map((row) => (
+                                                <TableRow key={row.label}>
+                                                    <TableCell>{row.label}</TableCell>
+                                                    <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </div>
 
                             {/* Promissory notes if any */}
                             {promissoryNotes.length > 0 && (
