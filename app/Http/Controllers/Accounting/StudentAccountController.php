@@ -88,7 +88,7 @@ class StudentAccountController extends Controller
 
         // Calculate fees dynamically for each student
         $accounts = $students->through(function ($student) use ($selectedSchoolYear, $currentAppYear) {
-            $targetSchoolYear = $selectedSchoolYear ?: ($student->school_year ?: $currentAppYear);
+            $targetSchoolYear = $selectedSchoolYear ?: ($currentAppYear ?: $student->school_year);
 
             // Per-year data for metadata (is_overdue, due_date, student_fee_id, payments_count)
             $feeData = $this->calculateStudentFees($student, $targetSchoolYear);
