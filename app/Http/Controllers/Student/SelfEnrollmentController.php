@@ -245,6 +245,41 @@ class SelfEnrollmentController extends Controller
         // ── NOT ENROLLED: show re-enrollment form ──────────────────────────────
         $hasPendingRequest = $student->enrollment_status === 'pending-registrar';
         $enrollmentOpen    = $settings->isEnrollmentOpen($classification);
+        $notEnrolledTargetYear = $student->school_year ?: $currentSchoolYear;
+
+        $rawNotEnrolledFees = StudentFee::where('student_id', $student->id)
+            ->orderBy('school_year', 'desc')
+            ->get();
+
+        $notEnrolledFees = $rawNotEnrolledFees->map(function (StudentFee $fee) {
+            $freshPaid = (float) $fee->payments()->sum('amount');
+            $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshPaid);
+
+            return [
+                'id'                => $fee->id,
+                'school_year'       => $fee->school_year,
+                'total_amount'      => (float) $fee->total_amount,
+                'total_paid'        => $freshPaid,
+                'balance'           => $freshBalance,
+                'grant_discount'    => (float) $fee->grant_discount,
+                'payment_status'    => $this->resolvePaymentStatus((float) $fee->total_amount, $freshPaid, $freshBalance),
+                'is_overdue'        => (bool) $fee->is_overdue,
+                'due_date'          => $fee->due_date?->format('M d, Y'),
+                'registration_fee'  => (float) $fee->registration_fee,
+                'tuition_fee'       => (float) $fee->tuition_fee,
+                'misc_fee'          => (float) $fee->misc_fee,
+                'books_fee'         => (float) $fee->books_fee,
+                'other_fees'        => (float) $fee->other_fees,
+            ];
+        });
+
+        $notEnrolledCurrentYearFees = $notEnrolledFees->filter(fn ($f) => $f['school_year'] === $notEnrolledTargetYear);
+        $notEnrolledSummary = [
+            'total_fees' => (float) $notEnrolledCurrentYearFees->sum('total_amount'),
+            'total_discount' => (float) $notEnrolledCurrentYearFees->sum('grant_discount'),
+            'total_paid' => (float) $notEnrolledCurrentYearFees->sum('total_paid'),
+            'total_balance' => (float) $notEnrolledCurrentYearFees->sum('balance'),
+        ];
 
         $departments = Department::orderBy('name')->get(['id', 'name', 'code', 'classification']);
         $programs    = Program::orderBy('name')->get(['id', 'name', 'department_id']);
@@ -269,6 +304,8 @@ class SelfEnrollmentController extends Controller
                 'school_year'       => $student->school_year,
                 'student_photo_url' => $student->student_photo_url,
             ],
+            'fees' => $notEnrolledFees->values(),
+            'summary' => $notEnrolledSummary,
             'hasPendingRequest' => $hasPendingRequest,
             'enrollmentOpen'    => $enrollmentOpen,
             'enrollmentPeriod'  => [
