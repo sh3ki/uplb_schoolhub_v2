@@ -20,6 +20,7 @@ class GrantController extends Controller
      */
     public function index(Request $request): Response
     {
+        $rolePrefix = $this->resolveRolePrefix($request);
         $tab = $request->input('tab', 'recipients');
 
         // Get all grants for library tab
@@ -133,13 +134,14 @@ class GrantController extends Controller
         $grantsStats = [
             'total_grants' => Grant::count(),
             'active_grants' => Grant::where('is_active', true)->count(),
-            'total_recipients' => GrantRecipient::count(),
-            'active_recipients' => GrantRecipient::where('status', 'active')->count(),
+            'total_recipients' => GrantRecipient::distinct('student_id')->count('student_id'),
+            'active_recipients' => GrantRecipient::where('status', 'active')->distinct('student_id')->count('student_id'),
             'total_discount_amount' => (float) GrantRecipient::sum('discount_amount'),
         ];
 
-        return Inertia::render($this->viewPrefix() . '/grants/index', [
+        return Inertia::render($this->resolveGrantsView($rolePrefix), [
             'tab' => $tab,
+            'rolePrefix' => $rolePrefix,
             'grants' => $grants,
             'recipients' => $recipients,
             'students' => $students,
@@ -152,6 +154,30 @@ class GrantController extends Controller
             'grantsStats' => $grantsStats,
             'filters' => $request->only(['search', 'grant_id', 'school_year', 'status', 'classification', 'department_id', 'year_level', 'program']),
         ]);
+    }
+
+    private function resolveRolePrefix(Request $request): string
+    {
+        $routeName = $request->route()?->getName() ?? '';
+
+        if (str_starts_with($routeName, 'registrar.')) {
+            return 'registrar';
+        }
+
+        if (str_starts_with($routeName, 'super-accounting.')) {
+            return 'super-accounting';
+        }
+
+        return 'accounting';
+    }
+
+    private function resolveGrantsView(string $rolePrefix): string
+    {
+        if ($rolePrefix === 'super-accounting') {
+            return 'super-accounting/grants/index';
+        }
+
+        return 'accounting/grants/index';
     }
 
     /**
