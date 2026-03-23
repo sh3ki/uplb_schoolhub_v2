@@ -68,6 +68,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AccountingLayout from '@/layouts/accounting-layout';
+import OwnerLayout from '@/layouts/owner/owner-layout';
 
 interface Student {
     id: number;
@@ -216,15 +217,24 @@ function renderPesoAmount(amount: number | null, className = '') {
 }
 
 export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], enrollmentClearance = null, currentUser }: Props) {
+    const page = usePage();
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'accounting';
+    const basePath = `/${routePrefix}`;
+    const isOwnerView = routePrefix === 'owner';
+    const ProcessLayout = isOwnerView ? OwnerLayout : AccountingLayout;
+
     const defaultTab = useMemo(() => {
         if (typeof window === 'undefined') {
-            return 'make-payment';
+            return isOwnerView ? 'breakdown' : 'make-payment';
         }
 
         const requestedTab = new URLSearchParams(window.location.search).get('tab') || '';
-        const allowedTabs = ['make-payment', 'breakdown', 'school-year', 'promissory', 'transactions'];
-        return allowedTabs.includes(requestedTab) ? requestedTab : 'make-payment';
-    }, []);
+        const allowedTabs = isOwnerView
+            ? ['breakdown', 'school-year', 'promissory', 'transactions']
+            : ['make-payment', 'breakdown', 'school-year', 'promissory', 'transactions'];
+        return allowedTabs.includes(requestedTab) ? requestedTab : (isOwnerView ? 'breakdown' : 'make-payment');
+    }, [isOwnerView]);
 
     const [activeTab, setActiveTab] = useState<string>(defaultTab);
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
@@ -325,7 +335,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
     const handlePaymentSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        paymentForm.post('/accounting/payments', {
+        paymentForm.post(`${basePath}/payments`, {
             onSuccess: () => {
                 setIsPaymentDialogOpen(false);
                 paymentForm.reset();
@@ -339,7 +349,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         if (amount <= 0) return;
         if (!selectedFeeId) return;
         
-        router.post('/accounting/payments', {
+        router.post(`${basePath}/payments`, {
             student_id: student.id.toString(),
             student_fee_id: selectedFeeId,
             payment_date: paymentForm.data.payment_date,
@@ -434,7 +444,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
     const handlePromissorySubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        promissoryForm.post('/accounting/promissory-notes', {
+        promissoryForm.post(`${basePath}/promissory-notes`, {
             onSuccess: () => {
                 setIsPromissoryDialogOpen(false);
                 promissoryForm.reset();
@@ -449,7 +459,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const handleClearanceToggle = () => {
         const newStatus = !enrollmentClearance?.accounting_clearance;
         setClearanceLoading(true);
-        router.put(`/accounting/clearance/${student.id}`, {
+        router.put(`${basePath}/clearance/${student.id}`, {
             status: newStatus,
         }, {
             onSuccess: () => {
@@ -467,11 +477,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     };
 
     const handleApprovePromissory = (noteId: number) => {
-        router.post(`/accounting/promissory-notes/${noteId}/approve`);
+        router.post(`${basePath}/promissory-notes/${noteId}/approve`);
     };
 
     const handleDeclinePromissory = (noteId: number) => {
-        router.post(`/accounting/promissory-notes/${noteId}/decline`);
+        router.post(`${basePath}/promissory-notes/${noteId}/decline`);
     };
 
     const getStatusBadge = (status: string) => {
@@ -498,14 +508,14 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const schoolYears = [...new Set(fees.map(f => f.school_year))];
 
     return (
-        <AccountingLayout>
+        <ProcessLayout>
             <Head title={`Payment Processing - ${student.full_name}`} />
 
             <div className="space-y-6 p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link href="/accounting/student-accounts">
+                        <Link href={`${basePath}/student-accounts`}>
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4 mr-2" />
                                 Back
@@ -754,7 +764,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 </div>
                                 <div className="flex flex-col items-center gap-1">
                                     <p className="text-sm text-muted-foreground">Clearance</p>
-                                    {enrollmentClearance?.accounting_clearance ? (
+                                    {isOwnerView ? (
+                                        <Badge variant="outline">View Only</Badge>
+                                    ) : enrollmentClearance?.accounting_clearance ? (
                                         <>
                                             <Badge className="bg-green-100 text-green-700 border-green-200">
                                                 <ShieldCheck className="mr-1 h-3 w-3" />
@@ -794,11 +806,13 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
                 {/* Tabs */}
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                    <TabsList className="grid w-full grid-cols-5">
-                        <TabsTrigger value="make-payment" className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            Make Payment
-                        </TabsTrigger>
+                    <TabsList className={`grid w-full ${isOwnerView ? 'grid-cols-4' : 'grid-cols-5'}`}>
+                        {!isOwnerView && (
+                            <TabsTrigger value="make-payment" className="flex items-center gap-2">
+                                <CreditCard className="h-4 w-4" />
+                                Make Payment
+                            </TabsTrigger>
+                        )}
                         <TabsTrigger value="breakdown" className="flex items-center gap-2">
                             <PhilippinePeso className="h-4 w-4" />
                             Fee Breakdown
@@ -818,7 +832,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                     </TabsList>
 
                     {/* Tab 0: Make Payment */}
-                    <TabsContent value="make-payment" className="space-y-4">
+                    {!isOwnerView && <TabsContent value="make-payment" className="space-y-4">
                         <form onSubmit={handleMakePayment}>
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                                 {/* Left Column - Payment Form */}
@@ -1042,6 +1056,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             </div>
                         </form>
                     </TabsContent>
+                    }
 
                     {/* Tab 1: Payment Breakdown */}
                     <TabsContent value="breakdown" className="space-y-4">
@@ -1182,21 +1197,23 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 </p>
                                             </div>
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100"
-                                            onClick={() => {
-                                                if (confirm(`Carry forward ₱${summary.previous_balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })} from previous school year(s) to the current year record?`)) {
-                                                    router.post(`/accounting/payments/process/${student.id}/carry-forward`, {}, {
-                                                        preserveScroll: true,
-                                                    });
-                                                }
-                                            }}
-                                        >
-                                            <RefreshCw className="mr-1.5 h-4 w-4" />
-                                            Carry Forward
-                                        </Button>
+                                        {!isOwnerView && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100"
+                                                onClick={() => {
+                                                    if (confirm(`Carry forward ₱${summary.previous_balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })} from previous school year(s) to the current year record?`)) {
+                                                        router.post(`${basePath}/payments/process/${student.id}/carry-forward`, {}, {
+                                                            preserveScroll: true,
+                                                        });
+                                                    }
+                                                }}
+                                            >
+                                                <RefreshCw className="mr-1.5 h-4 w-4" />
+                                                Carry Forward
+                                            </Button>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -1421,7 +1438,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableCell className="max-w-xs truncate">{note.reason}</TableCell>
                                                     <TableCell>{getStatusBadge(note.status)}</TableCell>
                                                     <TableCell className="text-right">
-                                                        {note.status === 'pending' && (
+                                                        {!isOwnerView && note.status === 'pending' && (
                                                             <div className="flex justify-end gap-2">
                                                                 <Button
                                                                     size="sm"
@@ -1443,7 +1460,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                 </Button>
                                                             </div>
                                                         )}
-                                                        {note.status !== 'pending' && note.reviewed_by && (
+                                                        {(isOwnerView || note.status !== 'pending') && note.reviewed_by && (
                                                             <span className="text-xs text-muted-foreground">
                                                                 by {note.reviewed_by}
                                                             </span>
@@ -1558,7 +1575,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             </div>
 
             {/* Clearance Confirmation Dialog */}
-            <AlertDialog open={clearanceDialog} onOpenChange={setClearanceDialog}>
+            {!isOwnerView && <AlertDialog open={clearanceDialog} onOpenChange={setClearanceDialog}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
@@ -1593,7 +1610,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
-            </AlertDialog>
-        </AccountingLayout>
+            </AlertDialog>}
+        </ProcessLayout>
     );
 }
