@@ -269,7 +269,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                     <TableHead>Student</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead>Payment Method</TableHead>
+                    <TableHead>Request Type</TableHead>
                     <TableHead>Requested</TableHead>
                     {!showActions && <TableHead>Processed By</TableHead>}
                     <TableHead className="text-right">Actions</TableHead>
