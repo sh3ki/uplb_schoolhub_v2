@@ -70,6 +70,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Pagination } from '@/components/ui/pagination';
 import { Textarea } from '@/components/ui/textarea';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
@@ -177,6 +178,19 @@ interface BalanceAdjustment {
     created_at: string;
 }
 
+interface FeeEditRow {
+    id: string;
+    school_year: string;
+    total_amount: number;
+    grant_discount: number;
+    total_paid: number;
+    balance: number;
+    status: 'unpaid' | 'partial' | 'paid' | 'overdue';
+    processed_by: string;
+    processed_at: string;
+    is_history: boolean;
+}
+
 interface EnrollmentClearance {
     id: number;
     accounting_clearance: boolean;
@@ -193,6 +207,7 @@ interface Props {
     summary: Summary;
     cashiers?: Cashier[];
     balanceAdjustments: BalanceAdjustment[];
+    feeEditRows: FeeEditRow[];
     enrollmentClearance?: EnrollmentClearance | null;
     currentUser: {
         id: number;
@@ -246,12 +261,62 @@ function renderPesoAmount(amount: number | null, className = '') {
 }
 
 export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, enrollmentClearance = null, currentUser }: Props) {
+    export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
     const [clearanceDialog, setClearanceDialog] = useState(false);
     const [clearanceLoading, setClearanceLoading] = useState(false);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('all');
+    const [schoolYearPage, setSchoolYearPage] = useState(1);
+
+        const schoolYearRows = useMemo(() => {
+            const feeRows = filteredFees.map((fee) => ({
+                id: `fee-${fee.id}`,
+                school_year: fee.school_year,
+                total_amount: fee.total_amount,
+                grant_discount: fee.grant_discount,
+                total_paid: fee.total_paid,
+                balance: fee.balance,
+                status: fee.status,
+                processed_by: fee.processed_by || '-',
+                processed_at: fee.processed_at || '',
+                is_history: false,
+            }));
+
+            const historyRows = feeEditRows
+                .filter((row) => selectedSchoolYear === 'all' || row.school_year === selectedSchoolYear)
+                .map((row) => ({ ...row, is_history: true }));
+
+            return [...feeRows, ...historyRows].sort((a, b) => {
+                const aTime = new Date(a.processed_at || 0).getTime();
+                const bTime = new Date(b.processed_at || 0).getTime();
+                return bTime - aTime;
+            });
+        }, [filteredFees, feeEditRows, selectedSchoolYear]);
+
+        const schoolYearPerPage = 15;
+        const schoolYearLastPage = Math.max(1, Math.ceil(schoolYearRows.length / schoolYearPerPage));
+        const safeSchoolYearPage = Math.min(schoolYearPage, schoolYearLastPage);
+        const schoolYearStart = (safeSchoolYearPage - 1) * schoolYearPerPage;
+        const pagedSchoolYearRows = schoolYearRows.slice(schoolYearStart, schoolYearStart + schoolYearPerPage);
+
+        const schoolYearPaginationData = {
+            current_page: safeSchoolYearPage,
+            last_page: schoolYearLastPage,
+            per_page: schoolYearPerPage,
+            total: schoolYearRows.length,
+            from: schoolYearRows.length === 0 ? 0 : schoolYearStart + 1,
+            to: Math.min(schoolYearStart + schoolYearPerPage, schoolYearRows.length),
+            links: Array.from({ length: schoolYearLastPage }, (_, index) => {
+                const page = index + 1;
+                return {
+                    url: `#school-year-page-${page}`,
+                    label: page.toString(),
+                    active: page === safeSchoolYearPage,
+                };
+            }),
+        };
     const [amountReceived, setAmountReceived] = useState<string>('');
     const feesWithBalance = fees.filter(f => f.balance > 0);
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
@@ -1548,75 +1613,92 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             </CardHeader>
                             <CardContent>
                                 {filteredFees.length === 0 ? (
+                                {schoolYearRows.length === 0 ? (
                                     <p className="text-center py-6 text-muted-foreground text-sm">No fee records found.</p>
                                 ) : (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>School Year</TableHead>
-                                                <TableHead className="text-right">Total Fees</TableHead>
-                                                <TableHead className="text-right">Discount</TableHead>
-                                                <TableHead className="text-right">Paid</TableHead>
-                                                <TableHead className="text-right">Balance</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Processed By</TableHead>
-                                                <TableHead>Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredFees.map((fee) => (
-                                                <TableRow key={fee.id} className={fee.is_overdue ? 'bg-red-50' : ''}>
-                                                    <TableCell className="font-medium">
-                                                        {fee.school_year}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">{formatCurrency(fee.total_amount)}</TableCell>
-                                                    <TableCell className="text-right text-green-600">
-                                                        {fee.grant_discount > 0 ? `-${formatCurrency(fee.grant_discount)}` : '-'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-blue-600">{formatCurrency(fee.total_paid)}</TableCell>
-                                                    <TableCell className="text-right font-medium text-red-600">{formatCurrency(fee.balance)}</TableCell>
-                                                    <TableCell>{getStatusBadge(fee.status)}</TableCell>
-                                                    <TableCell>
-                                                        <div className="text-sm">
-                                                            <p className="font-medium">{fee.processed_by || '-'}</p>
-                                                            {fee.processed_at && <p className="text-xs text-muted-foreground">{formatDate(fee.processed_at)}</p>}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-1">
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                                                onClick={() => openEditFeeDialog(fee)}
-                                                                title="Edit fee record"
-                                                            >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </div>
-                                                    </TableCell>
+                                    <>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>School Year</TableHead>
+                                                    <TableHead className="text-right">Total Fees</TableHead>
+                                                    <TableHead className="text-right">Discount</TableHead>
+                                                    <TableHead className="text-right">Paid</TableHead>
+                                                    <TableHead className="text-right">Balance</TableHead>
+                                                    <TableHead>Status</TableHead>
+                                                    <TableHead>Processed By</TableHead>
+                                                    <TableHead>Actions</TableHead>
                                                 </TableRow>
-                                            ))}
-                                        </TableBody>
-                                        {filteredFees.length > 1 && (
-                                            <tfoot>
-                                                <TableRow className="font-semibold bg-muted/50 border-t-2">
-                                                    <TableCell className="text-muted-foreground text-sm">TOTAL</TableCell>
-                                                    <TableCell className="text-right">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_amount, 0))}</TableCell>
-                                                    <TableCell className="text-right text-green-600">
-                                                        {filteredFees.reduce((s, f) => s + f.grant_discount, 0) > 0
-                                                            ? `-${formatCurrency(filteredFees.reduce((s, f) => s + f.grant_discount, 0))}`
-                                                            : '-'}
-                                                    </TableCell>
-                                                    <TableCell className="text-right text-blue-600">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_paid, 0))}</TableCell>
-                                                    <TableCell className="text-right font-bold text-red-600">
-                                                        {formatCurrency(selectedSchoolYear === 'all' ? summary.total_balance : filteredFees.reduce((s, f) => s + f.balance, 0))}
-                                                    </TableCell>
-                                                    <TableCell colSpan={3} />
-                                                </TableRow>
-                                            </tfoot>
-                                        )}
-                                    </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {pagedSchoolYearRows.map((row) => {
+                                                    const linkedFee = !row.is_history
+                                                        ? filteredFees.find((fee) => `fee-${fee.id}` === row.id)
+                                                        : null;
+
+                                                    return (
+                                                        <TableRow key={row.id} className={row.is_history ? 'bg-slate-50/70' : ''}>
+                                                            <TableCell className="font-medium">
+                                                                {row.school_year}
+                                                                {row.is_history && (
+                                                                    <Badge variant="outline" className="ml-2 text-[10px]">Edited Snapshot</Badge>
+                                                                )}
+                                                            </TableCell>
+                                                            <TableCell className="text-right">{formatCurrency(row.total_amount)}</TableCell>
+                                                            <TableCell className="text-right text-green-600">
+                                                                {row.grant_discount > 0 ? `-${formatCurrency(row.grant_discount)}` : '-'}
+                                                            </TableCell>
+                                                            <TableCell className="text-right text-blue-600">{formatCurrency(row.total_paid)}</TableCell>
+                                                            <TableCell className="text-right font-medium text-red-600">{formatCurrency(row.balance)}</TableCell>
+                                                            <TableCell>{getStatusBadge(row.status)}</TableCell>
+                                                            <TableCell>
+                                                                <div className="text-sm">
+                                                                    <p className="font-medium">{row.processed_by || '-'}</p>
+                                                                    {row.processed_at && <p className="text-xs text-muted-foreground">{formatDate(row.processed_at)}</p>}
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                {!row.is_history && linkedFee ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                                                            onClick={() => openEditFeeDialog(linkedFee)}
+                                                                            title="Edit fee record"
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground">-</span>
+                                                                )}
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                            {filteredFees.length > 1 && (
+                                                <tfoot>
+                                                    <TableRow className="font-semibold bg-muted/50 border-t-2">
+                                                        <TableCell className="text-muted-foreground text-sm">TOTAL</TableCell>
+                                                        <TableCell className="text-right">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_amount, 0))}</TableCell>
+                                                        <TableCell className="text-right text-green-600">
+                                                            {filteredFees.reduce((s, f) => s + f.grant_discount, 0) > 0
+                                                                ? `-${formatCurrency(filteredFees.reduce((s, f) => s + f.grant_discount, 0))}`
+                                                                : '-'}
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-blue-600">{formatCurrency(filteredFees.reduce((s, f) => s + f.total_paid, 0))}</TableCell>
+                                                        <TableCell className="text-right font-bold text-red-600">
+                                                            {formatCurrency(selectedSchoolYear === 'all' ? summary.total_balance : filteredFees.reduce((s, f) => s + f.balance, 0))}
+                                                        </TableCell>
+                                                        <TableCell colSpan={3} />
+                                                    </TableRow>
+                                                </tfoot>
+                                            )}
+                                        </Table>
+                                        <Pagination data={schoolYearPaginationData} onPageChange={setSchoolYearPage} />
+                                    </>
                                 )}
                             </CardContent>
                         </Card>
