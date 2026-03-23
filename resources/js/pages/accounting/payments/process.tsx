@@ -800,7 +800,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             Make Payment
                         </TabsTrigger>
                         <TabsTrigger value="breakdown" className="flex items-center gap-2">
-                            <Receipt className="h-4 w-4" />
+                            <PhilippinePeso className="h-4 w-4" />
                             Fee Breakdown
                         </TabsTrigger>
                         <TabsTrigger value="school-year" className="flex items-center gap-2">
