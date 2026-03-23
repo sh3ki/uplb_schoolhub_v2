@@ -106,10 +106,12 @@ interface Fee {
     grant_discount: number;
     total_paid: number;
     balance: number;
-    status: 'paid' | 'overdue' | 'pending';
+    status: 'unpaid' | 'partial' | 'paid' | 'overdue';
     is_overdue: boolean;
     due_date: string | null;
     categories: FeeCategory[];
+    processed_by?: string | null;
+    processed_at?: string | null;
     carried_forward_balance: number;
     carried_forward_from: string | null;
 }
@@ -342,20 +344,26 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
     const [isEditFeeDialogOpen, setIsEditFeeDialogOpen] = useState(false);
     const [editingFee, setEditingFee] = useState<Fee | null>(null);
-    const [isDeleteFeeConfirmOpen, setIsDeleteFeeConfirmOpen] = useState(false);
-    const [deletingFee, setDeletingFee] = useState<Fee | null>(null);
 
     const editFeeForm = useForm({
+        school_year: '',
+        total_amount: '',
         grant_discount: '',
-        due_date: '',
+        total_paid: '',
+        balance: '',
+        status: 'unpaid',
         reason: '',
     });
 
     const openEditFeeDialog = (fee: Fee) => {
         setEditingFee(fee);
         editFeeForm.setData({
+            school_year: fee.school_year,
+            total_amount: fee.total_amount.toString(),
             grant_discount: fee.grant_discount.toString(),
-            due_date: fee.due_date ?? '',
+            total_paid: fee.total_paid.toString(),
+            balance: fee.balance.toString(),
+            status: fee.status,
             reason: '',
         });
         setIsEditFeeDialogOpen(true);
@@ -372,23 +380,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                 toast.success('Fee record updated.');
             },
             onError: () => toast.error('Failed to update fee record.'),
-        });
-    };
-
-    const openDeleteFeeConfirm = (fee: Fee) => {
-        setDeletingFee(fee);
-        setIsDeleteFeeConfirmOpen(true);
-    };
-
-    const handleDeleteFee = () => {
-        if (!deletingFee) return;
-        router.delete(`/super-accounting/payments/process/${student.id}/fees/${deletingFee.id}`, {
-            onSuccess: () => {
-                setIsDeleteFeeConfirmOpen(false);
-                setDeletingFee(null);
-                toast.success('Fee record deleted.');
-            },
-            onError: () => toast.error('Failed to delete fee record.'),
         });
     };
 
@@ -560,7 +551,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const getStatusBadge = (status: string) => {
         const configs: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; color: string }> = {
             paid: { label: 'Fully Paid', variant: 'default', color: 'bg-green-100 text-green-700' },
-            pending: { label: 'Pending', variant: 'secondary', color: 'bg-yellow-100 text-yellow-700' },
+            unpaid: { label: 'Unpaid', variant: 'secondary', color: 'bg-yellow-100 text-yellow-700' },
+            partial: { label: 'Partial', variant: 'outline', color: 'bg-blue-100 text-blue-700' },
             overdue: { label: 'Overdue', variant: 'destructive', color: 'bg-red-100 text-red-700' },
             approved: { label: 'Approved', variant: 'default', color: 'bg-green-100 text-green-700' },
             declined: { label: 'Declined', variant: 'destructive', color: 'bg-red-100 text-red-700' },
@@ -570,7 +562,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             graduated: { label: 'Graduated', variant: 'default', color: 'bg-blue-100 text-blue-700' },
             withdrawn: { label: 'Withdrawn', variant: 'destructive', color: 'bg-red-100 text-red-700' },
         };
-        const config = configs[status] || configs.pending;
+        const config = configs[status] || configs.unpaid;
         return <Badge className={config.color}>{config.label}</Badge>;
     };
 
@@ -1081,7 +1073,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             Make Payment
                         </TabsTrigger>
                         <TabsTrigger value="breakdown" className="flex items-center gap-2">
-                            <Receipt className="h-4 w-4" />
+                            <PhilippinePeso className="h-4 w-4" />
                             Fee Breakdown
                         </TabsTrigger>
                         <TabsTrigger value="school-year" className="flex items-center gap-2">
@@ -1567,7 +1559,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <TableHead className="text-right">Paid</TableHead>
                                                 <TableHead className="text-right">Balance</TableHead>
                                                 <TableHead>Status</TableHead>
-                                                <TableHead>Due Date</TableHead>
+                                                <TableHead>Processed By</TableHead>
                                                 <TableHead>Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1584,7 +1576,12 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableCell className="text-right text-blue-600">{formatCurrency(fee.total_paid)}</TableCell>
                                                     <TableCell className="text-right font-medium text-red-600">{formatCurrency(fee.balance)}</TableCell>
                                                     <TableCell>{getStatusBadge(fee.status)}</TableCell>
-                                                    <TableCell>{fee.due_date ? formatDate(fee.due_date) : '-'}</TableCell>
+                                                    <TableCell>
+                                                        <div className="text-sm">
+                                                            <p className="font-medium">{fee.processed_by || '-'}</p>
+                                                            {fee.processed_at && <p className="text-xs text-muted-foreground">{formatDate(fee.processed_at)}</p>}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell>
                                                         <div className="flex items-center gap-1">
                                                             <Button
@@ -1592,21 +1589,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                 variant="ghost"
                                                                 className="h-7 w-7 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
                                                                 onClick={() => openEditFeeDialog(fee)}
-                                                                title="Edit discount / due date"
+                                                                title="Edit fee record"
                                                             >
                                                                 <Pencil className="h-3.5 w-3.5" />
                                                             </Button>
-                                                            {fee.total_paid === 0 && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                    onClick={() => openDeleteFeeConfirm(fee)}
-                                                                    title="Delete fee record"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </Button>
-                                                            )}
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -2187,34 +2173,88 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         <DialogHeader>
                             <DialogTitle>Edit Fee Record — {editingFee?.school_year}</DialogTitle>
                             <DialogDescription>
-                                Update the discount override or due date for this fee record. Changes are permanently logged.
+                                Update the school year fee values. Changes are permanently logged.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid gap-2">
-                                <Label>Discount Override (₱)</Label>
+                                <Label>School Year</Label>
+                                <Input
+                                    value={editFeeForm.data.school_year}
+                                    onChange={(e) => editFeeForm.setData('school_year', e.target.value)}
+                                    placeholder="YYYY-YYYY"
+                                />
+                                {editFeeForm.errors.school_year && (
+                                    <p className="text-sm text-red-500">{editFeeForm.errors.school_year}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Total Fees (₱)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={editFeeForm.data.total_amount}
+                                    onChange={(e) => editFeeForm.setData('total_amount', e.target.value)}
+                                />
+                                {editFeeForm.errors.total_amount && (
+                                    <p className="text-sm text-red-500">{editFeeForm.errors.total_amount}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Discount (₱)</Label>
                                 <Input
                                     type="number"
                                     step="0.01"
                                     min="0"
                                     value={editFeeForm.data.grant_discount}
                                     onChange={(e) => editFeeForm.setData('grant_discount', e.target.value)}
-                                    placeholder="0.00"
                                 />
                                 {editFeeForm.errors.grant_discount && (
                                     <p className="text-sm text-red-500">{editFeeForm.errors.grant_discount}</p>
                                 )}
-                                <p className="text-xs text-muted-foreground">Leave blank to keep current value. This overrides the grant/scholarship discount.</p>
                             </div>
                             <div className="grid gap-2">
-                                <Label>Due Date</Label>
+                                <Label>Paid (₱)</Label>
                                 <Input
-                                    type="date"
-                                    value={editFeeForm.data.due_date}
-                                    onChange={(e) => editFeeForm.setData('due_date', e.target.value)}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={editFeeForm.data.total_paid}
+                                    onChange={(e) => editFeeForm.setData('total_paid', e.target.value)}
                                 />
-                                {editFeeForm.errors.due_date && (
-                                    <p className="text-sm text-red-500">{editFeeForm.errors.due_date}</p>
+                                {editFeeForm.errors.total_paid && (
+                                    <p className="text-sm text-red-500">{editFeeForm.errors.total_paid}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Balance (₱)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={editFeeForm.data.balance}
+                                    onChange={(e) => editFeeForm.setData('balance', e.target.value)}
+                                />
+                                {editFeeForm.errors.balance && (
+                                    <p className="text-sm text-red-500">{editFeeForm.errors.balance}</p>
+                                )}
+                            </div>
+                            <div className="grid gap-2">
+                                <Label>Status</Label>
+                                <Select value={editFeeForm.data.status} onValueChange={(value) => editFeeForm.setData('status', value as 'unpaid' | 'partial' | 'paid' | 'overdue')}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="unpaid">Unpaid</SelectItem>
+                                        <SelectItem value="partial">Partial</SelectItem>
+                                        <SelectItem value="paid">Paid</SelectItem>
+                                        <SelectItem value="overdue">Overdue</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                {editFeeForm.errors.status && (
+                                    <p className="text-sm text-red-500">{editFeeForm.errors.status}</p>
                                 )}
                             </div>
                             <div className="grid gap-2">
@@ -2222,7 +2262,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 <Textarea
                                     value={editFeeForm.data.reason}
                                     onChange={(e) => editFeeForm.setData('reason', e.target.value)}
-                                    placeholder="e.g. Additional scholarship granted, Corrected due date..."
+                                    placeholder="e.g. Corrected school-year fee data"
                                     rows={2}
                                     required
                                 />
@@ -2247,31 +2287,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                     </form>
                 </DialogContent>
             </Dialog>
-
-            {/* Delete Fee Confirmation */}
-            <AlertDialog open={isDeleteFeeConfirmOpen} onOpenChange={setIsDeleteFeeConfirmOpen}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-red-600">Delete Fee Record?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete the fee record for <strong>{deletingFee?.school_year}</strong>.
-                            The record will be recreated automatically the next time this page is viewed if matching fee items still exist.
-                            <br /><br />
-                            <strong>This action cannot be undone.</strong>
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={handleDeleteFee}
-                            className="bg-red-600 hover:bg-red-700"
-                        >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </SuperAccountingLayout>
     );
 }
