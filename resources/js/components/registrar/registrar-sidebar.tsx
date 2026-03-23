@@ -5,6 +5,7 @@ import {
     Calendar,
     ClipboardCheck,
     FileText,
+    Gift,
     GraduationCap,
     LayoutGrid,
     ListChecks,
@@ -84,6 +85,11 @@ export function RegistrarSidebar() {
             title: 'Requirements',
             href: '/registrar/requirements',
             icon: ListChecks,
+        },
+        {
+            title: 'Student Grants',
+            href: '/registrar/grants',
+            icon: Gift,
         },
         {
             title: 'Masterlist',
