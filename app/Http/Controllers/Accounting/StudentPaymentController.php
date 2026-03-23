@@ -617,6 +617,36 @@ class StudentPaymentController extends Controller
                 ];
             });
 
+        $feeEditRows = StudentActionLog::where('student_id', $student->id)
+            ->where('action_type', 'fee_edit')
+            ->whereNotNull('changes')
+            ->with('performer:id,name')
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function ($log) {
+                $changes = is_array($log->changes) ? $log->changes : [];
+                $new = is_array($changes['new'] ?? null) ? $changes['new'] : null;
+
+                if (!$new) {
+                    return null;
+                }
+
+                return [
+                    'id' => 'fee-edit-' . $log->id,
+                    'school_year' => (string) ($new['school_year'] ?? ''),
+                    'total_amount' => (float) ($new['total_amount'] ?? 0),
+                    'grant_discount' => (float) ($new['grant_discount'] ?? 0),
+                    'total_paid' => (float) ($new['total_paid'] ?? 0),
+                    'balance' => (float) ($new['balance'] ?? 0),
+                    'status' => (string) ($new['status'] ?? 'unpaid'),
+                    'processed_by' => (string) ($new['processed_by'] ?? ($log->performer?->name ?? '-')),
+                    'processed_at' => (string) ($new['processed_at'] ?? $log->created_at?->format('Y-m-d H:i:s')),
+                    'is_history' => true,
+                ];
+            })
+            ->filter()
+            ->values();
+
         // Get cashiers (accounting staff)
         $cashiers = \App\Models\User::where('role', 'accounting')
             ->orderBy('name')
@@ -646,6 +676,7 @@ class StudentPaymentController extends Controller
             'summary' => $summary,
             'cashiers' => $cashiers,
             'balanceAdjustments' => $balanceAdjustments,
+            'feeEditRows' => $feeEditRows,
             'enrollmentClearance' => $student->enrollmentClearance ? [
                 'id' => $student->enrollmentClearance->id,
                 'accounting_clearance' => (bool) $student->enrollmentClearance->accounting_clearance,
