@@ -154,8 +154,11 @@ class DashboardController extends Controller
         $isOverdue = $balance > 0 && !$approvedPromissoryNotes->count() &&
                      $studentFee?->due_date && now()->gt($studentFee->due_date);
 
-        // Only fully paid if fee records exist AND balance is zero
-        $isFullyPaid = ($isUsingAllYears ? !$fees->isEmpty() : !$currentFees->isEmpty()) && $balance <= 0;
+        // Only fully paid when there are actual billed/payment amounts and balance is zero.
+        $hasChargeableFees = $totalFees > 0 || $totalPaid > 0 || $totalDiscount > 0;
+        $isFullyPaid = $hasChargeableFees
+            && ($isUsingAllYears ? !$fees->isEmpty() : !$currentFees->isEmpty())
+            && $balance <= 0;
 
         return [
             'total_fees' => $totalFees,
@@ -170,6 +173,7 @@ class DashboardController extends Controller
             'is_overdue' => $isOverdue,
             'due_date' => $studentFee?->due_date,
             'has_promissory' => $approvedPromissoryNotes->count() > 0,
+            'has_chargeable_fees' => $hasChargeableFees,
         ];
     }
 
