@@ -1,4 +1,4 @@
-import { Head, router, useForm } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, MoreHorizontal, Users, TrendingUp, Clock, Plus, Upload, CreditCard, List } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
@@ -48,6 +48,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AccountingLayout from '@/layouts/accounting-layout';
+import OwnerLayout from '@/layouts/owner/owner-layout';
 
 interface Student {
     id: number;
@@ -160,6 +161,12 @@ interface Props {
 }
 
 export default function StudentAccounts({ accounts, schoolYears, stats, departments = [], classifications = [], yearLevels = [], filters, classListMale = [], classListFemale = [] }: Props) {
+    const page = usePage();
+    const currentPath = page.url || '';
+    const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'accounting';
+    const basePath = `/${routePrefix}`;
+    const AccountsLayout = routePrefix === 'owner' ? OwnerLayout : AccountingLayout;
+
     const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>(filters.status ? 'accounts' : 'classlist');
     const [search, setSearch] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.status || 'all');
@@ -179,7 +186,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     const handleFilter = (overrideSearch?: string) => {
         setViewMode('accounts');
         const searchValue = overrideSearch !== undefined ? overrideSearch : search;
-        router.get('/accounting/student-accounts', {
+        router.get(`${basePath}/student-accounts`, {
             search: searchValue || undefined,
             status: activeTab !== 'all' ? activeTab : undefined,
             school_year: schoolYear !== 'all' ? schoolYear : undefined,
@@ -194,7 +201,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
 
     const handleTabChange = (value: string) => {
         setActiveTab(value);
-        router.get('/accounting/student-accounts', {
+        router.get(`${basePath}/student-accounts`, {
             search: search || undefined,
             status: value !== 'all' ? value : undefined,
             school_year: schoolYear !== 'all' ? schoolYear : undefined,
@@ -214,7 +221,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         setSchoolYearSort('desc');
         setDepartmentId('all');
         setClassification('all');
-        router.get('/accounting/student-accounts');
+        router.get(`${basePath}/student-accounts`);
     };
 
     const handleBulkOverdue = (e: React.FormEvent) => {
@@ -223,7 +230,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             ...data,
             school_year: schoolYear !== 'all' ? schoolYear : 'all',
         }));
-        overdueForm.post('/accounting/student-accounts/bulk-mark-overdue', {
+        overdueForm.post(`${basePath}/student-accounts/bulk-mark-overdue`, {
             onSuccess: () => {
                 toast.success('Changes saved successfully');
                 setIsOverdueDialogOpen(false);
@@ -238,7 +245,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         }
 
         if (confirm('Are you sure you want to mark this account as overdue?')) {
-            router.post(`/accounting/student-accounts/${studentFeeId}/mark-overdue`);
+            router.post(`${basePath}/student-accounts/${studentFeeId}/mark-overdue`);
         }
     };
 
@@ -249,7 +256,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         }
 
         if (confirm('Are you sure you want to clear the overdue status?')) {
-            router.post(`/accounting/student-accounts/${studentFeeId}/clear-overdue`);
+            router.post(`${basePath}/student-accounts/${studentFeeId}/clear-overdue`);
         }
     };
 
@@ -297,7 +304,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     }));
 
     return (
-        <AccountingLayout>
+        <AccountsLayout>
             <Head title="Student Accounts" />
 
             <div className="space-y-6 p-6">
@@ -498,7 +505,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         onChange={(value) => {
                             setSchoolYear(value);
                             setViewMode('accounts');
-                            router.get('/accounting/student-accounts', {
+                            router.get(`${basePath}/student-accounts`, {
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: value !== 'all' ? value : undefined,
@@ -515,7 +522,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         onChange={(value) => {
                             setClassification(value);
                             setViewMode('accounts');
-                            router.get('/accounting/student-accounts', {
+                            router.get(`${basePath}/student-accounts`, {
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
@@ -532,7 +539,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         onChange={(value) => {
                             setDepartmentId(value);
                             setViewMode('accounts');
-                            router.get('/accounting/student-accounts', {
+                            router.get(`${basePath}/student-accounts`, {
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
@@ -553,7 +560,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                             const sortValue = value as 'asc' | 'desc';
                             setSchoolYearSort(sortValue);
                             setViewMode('accounts');
-                            router.get('/accounting/student-accounts', {
+                            router.get(`${basePath}/student-accounts`, {
                                 search: search || undefined,
                                 status: activeTab !== 'all' ? activeTab : undefined,
                                 school_year: schoolYear !== 'all' ? schoolYear : undefined,
@@ -603,7 +610,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListMale.length === 0 ? (
                                             <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No male students.</TableCell></TableRow>
                                         ) : classListMale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/payments/process/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`${basePath}/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
@@ -639,7 +646,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         {classListFemale.length === 0 ? (
                                             <TableRow><TableCell colSpan={6} className="text-center py-6 text-muted-foreground">No female students.</TableCell></TableRow>
                                         ) : classListFemale.map((s, i) => (
-                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`/accounting/payments/process/${s.id}`)}>
+                                            <TableRow key={s.id} className="cursor-pointer hover:bg-muted/50" onClick={() => router.visit(`${basePath}/payments/process/${s.id}`)}>
                                                 <TableCell className="text-muted-foreground text-sm">{i + 1}</TableCell>
                                                 <TableCell>
                                                     <div className="flex items-center gap-2">
@@ -687,7 +694,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     <TableRow
                                         key={account.id}
                                         className={`cursor-pointer hover:bg-muted/50 ${account.is_overdue ? 'bg-red-50 hover:bg-red-100' : ''}`}
-                                        onClick={() => router.visit(`/accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`)}
+                                        onClick={() => router.visit(`${basePath}/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`)}
                                     >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -743,7 +750,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
+                                                        <Link href={`${basePath}/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
                                                             <PhilippinePeso className="h-4 w-4 mr-2" />
                                                             Process Payment
                                                         </Link>
@@ -787,6 +794,6 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                     </TabsContent>
                 </Tabs>
             </div>
-        </AccountingLayout>
+        </AccountsLayout>
     );
 }
