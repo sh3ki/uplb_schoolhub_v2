@@ -84,10 +84,6 @@ class StudentAccountController extends Controller
             });
         }
 
-        if ($selectedSchoolYear) {
-            $studentsQuery->where('school_year', $selectedSchoolYear);
-        }
-
         $students = $studentsQuery->latest()->paginate(20)->withQueryString();
 
         // Calculate fees dynamically for each student
@@ -161,7 +157,6 @@ class StudentAccountController extends Controller
         ->when($request->input('classification'), function ($q, $classification) {
             $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
         })
-        ->when($selectedSchoolYear, fn($q) => $q->where('school_year', $selectedSchoolYear))
         ->pluck('id');
 
         $stats = $this->calculateStats($allStudentIds, $selectedSchoolYear);
@@ -317,6 +312,22 @@ class StudentAccountController extends Controller
         $totalPaid = $studentFee ? (float) $studentFee->payments()->sum('amount') : 0;
         $totalPaid += $this->getUnlinkedOnlineTransactionAmount($student, $schoolYear);
         $dueDate = $studentFee?->due_date;
+
+        if (!$studentFee && ($totalAmount > 0 || $grantDiscount > 0 || $totalPaid > 0)) {
+            $initialBalance = max(0, $totalAmount - $grantDiscount - $totalPaid);
+            $studentFee = StudentFee::create([
+                'student_id' => $student->id,
+                'school_year' => $schoolYear,
+                'total_amount' => $totalAmount,
+                'grant_discount' => $grantDiscount,
+                'total_paid' => $totalPaid,
+                'balance' => $initialBalance,
+                'payment_status' => $initialBalance <= 0 && $totalAmount > 0
+                    ? 'paid'
+                    : ($totalPaid > 0 ? 'partial' : 'unpaid'),
+            ]);
+            $dueDate = $studentFee->due_date;
+        }
 
         // Sync stored record with freshly calculated amounts (for reports accuracy)
         if ($studentFee) {
@@ -791,11 +802,13 @@ class StudentAccountController extends Controller
             }
         }
 
-        if ($requestedSchoolYear) {
-            $studentsQuery->where('school_year', $requestedSchoolYear);
-        }
+        $eligibleStudents = $studentsQuery->get(['id', 'school_year', 'department_id', 'program', 'year_level', 'section']);
+        $eligibleStudentIds = $eligibleStudents->pluck('id');
 
-        $eligibleStudentIds = $studentsQuery->pluck('id');
+        foreach ($eligibleStudents as $eligibleStudent) {
+            $targetSchoolYear = $requestedSchoolYear ?: ($eligibleStudent->school_year ?: $appSchoolYear);
+            $this->calculateStudentFees($eligibleStudent, $targetSchoolYear);
+        }
 
         // Mark all partial/unpaid accounts with live outstanding balances as overdue for the target year.
         $count = 0;
