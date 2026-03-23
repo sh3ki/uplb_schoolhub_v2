@@ -151,10 +151,18 @@ export default function AccountDashboard({
 
     const hasK12 = isAcademicEnabled(props.appSettings?.has_k12);
     const hasCollege = isAcademicEnabled(props.appSettings?.has_college);
-    const classificationOptions = [
+    const preferredClassificationOptions = [
         ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
         ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
     ];
+    const departmentDrivenClassifications = (departments || [])
+        .map((department) => department.label)
+        .filter((label): label is string => label === 'K-12' || label === 'College')
+        .filter((label, index, all) => all.indexOf(label) === index)
+        .map((label) => ({ value: label, label }));
+    const classificationOptions = preferredClassificationOptions.length > 0
+        ? preferredClassificationOptions
+        : departmentDrivenClassifications;
 
     const [classification, setClassification] = useState(filters.classification || '');
     const [departmentId, setDepartmentId]     = useState(filters.department_id || '');
