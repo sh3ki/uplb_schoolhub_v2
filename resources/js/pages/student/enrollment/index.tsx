@@ -86,6 +86,11 @@ interface Fee {
     payment_status: string;
     is_overdue: boolean;
     due_date: string | null;
+    registration_fee?: number;
+    tuition_fee?: number;
+    misc_fee?: number;
+    books_fee?: number;
+    other_fees?: number;
 }
 
 interface Payment {
@@ -163,6 +168,8 @@ interface NotEnrolledProps {
     classification: string;
     collegeEnrollmentOpen: boolean;
     student: NotEnrolledStudent;
+    fees: Fee[];
+    summary: { total_fees: number; total_discount: number; total_paid: number; total_balance: number; };
     hasPendingRequest: boolean;
     enrollmentOpen: boolean;
     enrollmentPeriod: { start: string | null; end: string | null; };
@@ -671,7 +678,7 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
 }
 
 // â”€â”€â”€ Non-enrolled Form View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function EnrollmentForm({ student, currentSchoolYear, hasPendingRequest, enrollmentOpen, enrollmentPeriod, classification, collegeEnrollmentOpen, departments, programs, yearLevels }: NotEnrolledProps) {
+function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingRequest, enrollmentOpen, enrollmentPeriod, classification, collegeEnrollmentOpen, departments, programs, yearLevels }: NotEnrolledProps) {
     const [selectedDeptId, setSelectedDeptId] = useState<number | null>(student.department_id);
 
     const filteredPrograms   = programs.filter(p => !selectedDeptId || p.department_id === selectedDeptId);
@@ -690,6 +697,16 @@ function EnrollmentForm({ student, currentSchoolYear, hasPendingRequest, enrollm
     };
 
     const statusInfo = { label: statusLabels[student.enrollment_status] ?? student.enrollment_status, color: statusColors[student.enrollment_status] ?? 'bg-gray-100 text-gray-800' };
+    const currentFee = fees.find(f => f.school_year === currentSchoolYear) ?? fees[0];
+    const categoryRows = currentFee
+        ? [
+            { label: 'Registration', amount: currentFee.registration_fee ?? 0 },
+            { label: 'Tuition', amount: currentFee.tuition_fee ?? 0 },
+            { label: 'Miscellaneous', amount: currentFee.misc_fee ?? 0 },
+            { label: 'Books', amount: currentFee.books_fee ?? 0 },
+            { label: 'Other Fees', amount: currentFee.other_fees ?? 0 },
+        ].filter((row) => row.amount > 0)
+        : [];
 
     return (
         <StudentLayout>
@@ -737,6 +754,80 @@ function EnrollmentForm({ student, currentSchoolYear, hasPendingRequest, enrollm
                                 {student.school_year && <p className="text-xs text-muted-foreground">Last S.Y.: {student.school_year}</p>}
                             </div>
                             <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium uppercase ${statusInfo.color}`}>{statusInfo.label}</span>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <PhilippinePeso className="h-4 w-4" /> Fee Breakdown by School Year
+                        </CardTitle>
+                        <CardDescription>View your balances even before final enrollment.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {fees.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No fee records found.</p>
+                        ) : (
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead>School Year</TableHead>
+                                        <TableHead className="text-right">Total Fees</TableHead>
+                                        <TableHead className="text-right">Discount</TableHead>
+                                        <TableHead className="text-right">Paid</TableHead>
+                                        <TableHead className="text-right">Balance</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {fees.map((fee) => (
+                                        <TableRow key={fee.id}>
+                                            <TableCell>{fee.school_year}</TableCell>
+                                            <TableCell className="text-right">{formatCurrency(fee.total_amount)}</TableCell>
+                                            <TableCell className="text-right text-purple-700">{formatCurrency(fee.grant_discount)}</TableCell>
+                                            <TableCell className="text-right text-green-700">{formatCurrency(fee.total_paid)}</TableCell>
+                                            <TableCell className={`text-right font-semibold ${fee.balance > 0 ? 'text-red-700' : 'text-green-700'}`}>
+                                                {formatCurrency(fee.balance)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    <TableRow className="bg-muted/30 font-semibold">
+                                        <TableCell>Total ({currentSchoolYear})</TableCell>
+                                        <TableCell className="text-right">{formatCurrency(summary.total_fees)}</TableCell>
+                                        <TableCell className="text-right text-purple-700">{formatCurrency(summary.total_discount)}</TableCell>
+                                        <TableCell className="text-right text-green-700">{formatCurrency(summary.total_paid)}</TableCell>
+                                        <TableCell className="text-right text-red-700">{formatCurrency(summary.total_balance)}</TableCell>
+                                    </TableRow>
+                                </TableBody>
+                            </Table>
+                        )}
+
+                        <div className="rounded-md border p-4">
+                            <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                                <Receipt className="h-4 w-4" /> Fee Breakdown by Category
+                            </div>
+                            {!currentFee ? (
+                                <p className="text-sm text-muted-foreground">No category breakdown available.</p>
+                            ) : categoryRows.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Category</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {categoryRows.map((row) => (
+                                            <TableRow key={row.label}>
+                                                <TableCell>{row.label}</TableCell>
+                                                <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
