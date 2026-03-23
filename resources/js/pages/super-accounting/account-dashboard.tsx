@@ -155,14 +155,12 @@ export default function AccountDashboard({
         ...(hasK12 ? [{ value: 'K-12', label: 'K-12' }] : []),
         ...(hasCollege ? [{ value: 'College', label: 'College' }] : []),
     ];
-    const departmentDrivenClassifications = (departments || [])
-        .map((department) => department.label)
-        .filter((label): label is string => label === 'K-12' || label === 'College')
-        .filter((label, index, all) => all.indexOf(label) === index)
-        .map((label) => ({ value: label, label }));
     const classificationOptions = preferredClassificationOptions.length > 0
         ? preferredClassificationOptions
-        : departmentDrivenClassifications;
+        : [
+            { value: 'K-12', label: 'K-12' },
+            { value: 'College', label: 'College' },
+        ];
 
     const [classification, setClassification] = useState(filters.classification || '');
     const [departmentId, setDepartmentId]     = useState(filters.department_id || '');
