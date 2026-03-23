@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Department;
 use App\Models\DocumentRequest;
 use App\Models\DropRequest;
+use App\Models\AppSetting;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -776,7 +777,9 @@ class AccountingDashboardController extends Controller
         $years = StudentPayment::selectRaw('YEAR(payment_date) as year')->distinct()->orderBy('year', 'desc')->pluck('year')->toArray();
         if (empty($years)) $years = [(int) date('Y')];
 
-        return Inertia::render('accounting/account-dashboard', [
+        $appSettings = AppSetting::current();
+
+        return Inertia::render($this->viewPrefix() . '/account-dashboard', [
             'stats'            => $stats,
             'transactions'     => array_values($transactions),
             'dailyCollections' => $dailyCollections,
@@ -794,6 +797,10 @@ class AccountingDashboardController extends Controller
             'selectedYear'     => $selectedYear,
             'months'           => $months,
             'years'            => array_values($years),
+            'appSettings'      => [
+                'has_k12' => $appSettings->has_k12,
+                'has_college' => $appSettings->has_college,
+            ],
             'filters'          => [
                 'classification' => $classification,
                 'department_id'  => $departmentId,
