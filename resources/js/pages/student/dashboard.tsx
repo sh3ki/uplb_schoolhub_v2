@@ -40,6 +40,7 @@ interface PaymentInfo {
     is_overdue: boolean;
     due_date: string | null;
     has_promissory: boolean;
+    has_chargeable_fees?: boolean;
 }
 
 interface IncompleteRequirement {
@@ -195,6 +196,11 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                                                     <CheckCircle className="h-3 w-3 mr-1" />
                                                     Fully Paid
                                                 </Badge>
+                                            ) : !paymentInfo.has_chargeable_fees ? (
+                                                <Badge className="w-full justify-center bg-slate-100 text-slate-700">
+                                                    <Clock className="h-3 w-3 mr-1" />
+                                                    No Fees Posted Yet
+                                                </Badge>
                                             ) : (
                                                 <Badge className="w-full justify-center bg-red-100 text-red-800">
                                                     <XCircle className="h-3 w-3 mr-1" />
@@ -320,7 +326,7 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                 )}
 
                 {/* Fully Paid Badge */}
-                {paymentInfo?.is_fully_paid && totalPreviousBalance === 0 && (
+                {paymentInfo?.is_fully_paid && paymentInfo?.has_chargeable_fees && totalPreviousBalance === 0 && (
                     <Card className="border-2 border-green-200 bg-green-50">
                         <CardContent className="pt-6 pb-6">
                             <div className="flex items-center gap-4">
