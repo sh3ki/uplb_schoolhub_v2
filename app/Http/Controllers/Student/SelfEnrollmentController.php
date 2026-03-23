@@ -84,6 +84,11 @@ class SelfEnrollmentController extends Controller
                     'payment_status'    => $this->resolvePaymentStatus((float) $fee->total_amount, $freshPaid, $freshBalance),
                     'is_overdue'        => (bool) $fee->is_overdue,
                     'due_date'          => $fee->due_date?->format('M d, Y'),
+                    'registration_fee'  => (float) $fee->registration_fee,
+                    'tuition_fee'       => (float) $fee->tuition_fee,
+                    'misc_fee'          => (float) $fee->misc_fee,
+                    'books_fee'         => (float) $fee->books_fee,
+                    'other_fees'        => (float) $fee->other_fees,
                 ];
             });
 
