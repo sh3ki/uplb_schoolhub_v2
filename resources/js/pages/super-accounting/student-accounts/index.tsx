@@ -651,7 +651,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     <TableRow
                                         key={account.id}
                                         className={`cursor-pointer hover:bg-muted/50 ${account.is_overdue ? 'bg-red-50' : ''}`}
-                                        onClick={() => router.visit(`/super-accounting/payments/process/${account.student.id}`)}
+                                        onClick={() => router.visit(`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`)}
                                     >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -707,13 +707,13 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/super-accounting/payments/process/${account.student.id}`}>
+                                                        <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
                                                             <Eye className="h-4 w-4 mr-2" />
                                                             View Account
                                                         </Link>
                                                     </DropdownMenuItem>
                                                     <DropdownMenuItem asChild>
-                                                        <Link href={`/super-accounting/payments/process/${account.student.id}`}>
+                                                        <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
                                                             <PhilippinePeso className="h-4 w-4 mr-2" />
                                                             Process Payment
                                                         </Link>
