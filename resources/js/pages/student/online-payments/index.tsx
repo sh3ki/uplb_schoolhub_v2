@@ -1,4 +1,4 @@
-import { Head, useForm } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus, Eye } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
@@ -61,6 +61,16 @@ interface PaginatedRecentPayments {
 interface Props {
     feeItems: FeeItem[];
     summary: FeeSummary;
+    feeRecords: Array<{
+        id: number;
+        school_year: string;
+        total_amount: number;
+        total_paid: number;
+        grant_discount: number;
+        balance: number;
+    }>;
+    schoolYears: string[];
+    selectedSchoolYear: string;
     recentPayments: PaginatedRecentPayments;
     paymentMethods: { value: string; label: string }[];
     enrollmentStatus?: string;
@@ -117,7 +127,7 @@ function formatDate(dateString: string): string {
     });
 }
 
-export default function OnlinePayment({ feeItems, summary, recentPayments, paymentMethods, enrollmentStatus, isDropped = false }: Props) {
+export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, recentPayments, paymentMethods, enrollmentStatus, isDropped = false }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerTitle, setViewerTitle] = useState('Payment Proof');
@@ -125,6 +135,7 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const form = useForm({
+        school_year: selectedSchoolYear,
         amount: '',
         payment_method: 'gcash',
         reference_number: '',
@@ -132,6 +143,8 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
         receipt_image: null as File | null,
         notes: '',
     });
+
+    const selectedFeeRecord = feeRecords.find((fee) => fee.school_year === form.data.school_year);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -172,6 +185,15 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                 form.reset();
                 clearFile();
             },
+        });
+    };
+
+    const handleSchoolYearChange = (schoolYear: string) => {
+        form.setData('school_year', schoolYear);
+        router.get('/student/online-payments', { school_year: schoolYear }, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
         });
     };
 
@@ -314,13 +336,35 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="grid gap-2">
+                                            <Label htmlFor="school_year">Fee / School Year *</Label>
+                                            <select
+                                                id="school_year"
+                                                value={form.data.school_year}
+                                                onChange={(e) => handleSchoolYearChange(e.target.value)}
+                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                required
+                                            >
+                                                {schoolYears.map((year) => {
+                                                    const feeRow = feeRecords.find((fee) => fee.school_year === year);
+                                                    return (
+                                                        <option key={year} value={year}>
+                                                            {year} — Balance: {formatCurrency(feeRow?.balance ?? 0)}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            {form.errors.school_year && (
+                                                <p className="text-sm text-red-500">{form.errors.school_year}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
                                             <Label htmlFor="amount">Payment Amount *</Label>
                                             <Input
                                                 id="amount"
                                                 type="number"
                                                 step="0.01"
                                                 min="1"
-                                                max={summary.balance}
+                                                max={selectedFeeRecord?.balance ?? summary.balance}
                                                 value={form.data.amount}
                                                 onChange={(e) => form.setData('amount', e.target.value)}
                                                 placeholder="0.00"
@@ -464,6 +508,21 @@ export default function OnlinePayment({ feeItems, summary, recentPayments, payme
                                 <CardDescription>Your recent payment submissions</CardDescription>
                             </CardHeader>
                             <CardContent>
+                                {feeRecords.length > 0 && (
+                                    <div className="mb-4 rounded-md border p-3">
+                                        <p className="mb-2 text-sm font-semibold">Balances by School Year</p>
+                                        <div className="space-y-1 text-sm">
+                                            {feeRecords.map((fee) => (
+                                                <div key={fee.id} className="flex items-center justify-between">
+                                                    <span>{fee.school_year}</span>
+                                                    <span className={fee.balance > 0 ? 'font-semibold text-red-600' : 'text-green-600'}>
+                                                        {formatCurrency(fee.balance)}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 {recentPayments.data.length === 0 ? (
                                     <p className="text-center py-8 text-muted-foreground">
                                         No payment submissions yet.
