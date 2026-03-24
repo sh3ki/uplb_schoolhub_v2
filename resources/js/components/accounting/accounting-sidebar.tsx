@@ -38,7 +38,7 @@ interface AppSettings {
 }
 
 export function AccountingSidebar() {
-    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingOnlineTransactionCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingOnlineTransactionCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingTransferRequestCount, pendingOnlineTransactionCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingTransferRequestCount?: number; pendingOnlineTransactionCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -124,6 +124,12 @@ export function AccountingSidebar() {
             href: '/accounting/drop-requests',
             icon: UserX,
             badge: pendingDropRequestCount || undefined,
+        },
+        {
+            title: 'Transfer Requests',
+            href: '/accounting/transfer-requests',
+            icon: UserX,
+            badge: pendingTransferRequestCount || undefined,
         },
         {
             title: 'Calendar View',
