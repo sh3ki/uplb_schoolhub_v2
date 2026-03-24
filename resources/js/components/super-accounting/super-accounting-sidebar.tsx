@@ -39,7 +39,7 @@ interface AppSettings {
 }
 
 export function SuperAccountingSidebar() {
-    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingOnlineTransactionCount, pendingRefundCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingOnlineTransactionCount?: number; pendingRefundCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingTransferRequestCount, pendingOnlineTransactionCount, pendingRefundCount, pendingPromissoryCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingTransferRequestCount?: number; pendingOnlineTransactionCount?: number; pendingRefundCount?: number; pendingPromissoryCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -117,6 +117,12 @@ export function SuperAccountingSidebar() {
             href: '/super-accounting/drop-approvals',
             icon: UserX,
             badge: pendingDropRequestCount || undefined,
+        },
+        {
+            title: 'Transfer Requests',
+            href: '/super-accounting/transfer-requests',
+            icon: UserX,
+            badge: pendingTransferRequestCount || undefined,
         },
         {
             title: 'Exam Approval',
