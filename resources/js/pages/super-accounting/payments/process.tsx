@@ -205,6 +205,7 @@ interface Props {
     promissoryNotes: PromissoryNote[];
     grants: Grant[];
     summary: Summary;
+    currentSchoolYear?: string;
     cashiers?: Cashier[];
     balanceAdjustments: BalanceAdjustment[];
     paymentFeeOptions?: Array<{
@@ -282,7 +283,7 @@ function renderPesoAmount(amount: number | null, className = '') {
     );
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, paymentFeeOptions = [], feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, currentSchoolYear = '', cashiers = [], balanceAdjustments, paymentFeeOptions = [], feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
@@ -304,8 +305,19 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         .sort((a, b) => b.school_year.localeCompare(a.school_year));
 
     const feesWithBalance = normalizedPaymentOptions.filter(f => f.balance > 0);
+
+    const currentYearOption = normalizedPaymentOptions.find(
+        (fee) => fee.school_year.trim() === currentSchoolYear.trim()
+    );
+
+    const defaultSelectedFeeId = (
+        currentYearOption
+        ?? feesWithBalance[0]
+        ?? normalizedPaymentOptions[0]
+    )?.id?.toString() ?? '';
+
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
-        feesWithBalance.length > 0 ? feesWithBalance[0].id.toString() : ''
+        defaultSelectedFeeId
     );
     const selectedFee = useMemo(
         () => normalizedPaymentOptions.find((fee) => fee.id.toString() === selectedFeeId),
@@ -313,13 +325,18 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     );
 
     useEffect(() => {
-        if (!feesWithBalance.length) return;
-
-        const selectedExists = feesWithBalance.some((fee) => fee.id.toString() === selectedFeeId);
-        if (!selectedExists) {
-            setSelectedFeeId(feesWithBalance[0].id.toString());
+        if (!normalizedPaymentOptions.length) {
+            if (selectedFeeId !== '') {
+                setSelectedFeeId('');
+            }
+            return;
         }
-    }, [feesWithBalance, selectedFeeId]);
+
+        const selectedExists = normalizedPaymentOptions.some((fee) => fee.id.toString() === selectedFeeId);
+        if (!selectedExists) {
+            setSelectedFeeId(defaultSelectedFeeId);
+        }
+    }, [normalizedPaymentOptions, selectedFeeId, defaultSelectedFeeId]);
 
     // Payment allocation calculation
     const paymentAllocation = useMemo(() => {
