@@ -373,11 +373,32 @@ class StudentPaymentController extends Controller
         // Keep this student's active school-year status in sync with due date rules.
         StudentFee::syncOverdueByDueDate($activeSchoolYear);
 
-        // Simplified flow: process payments against the active school year only.
         $fees = collect();
-        $feeData = $this->calculateFeesForSchoolYear($student, $activeSchoolYear);
 
-        if (!$requestedSchoolYear && (!$feeData || (float) ($feeData['total_amount'] ?? 0) <= 0)) {
+        if ($requestedSchoolYear) {
+            $yearsToLoad = collect([$activeSchoolYear]);
+        } else {
+            $yearsToLoad = collect($this->getApplicableSchoolYears($student));
+
+            if ($yearsToLoad->isEmpty()) {
+                $yearsToLoad = collect([$activeSchoolYear]);
+            }
+        }
+
+        $yearsToLoad
+            ->filter()
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->each(function (string $year) use ($student, &$fees) {
+                StudentFee::syncOverdueByDueDate($year);
+                $feeData = $this->calculateFeesForSchoolYear($student, $year);
+                if ($feeData) {
+                    $fees->push($feeData);
+                }
+            });
+
+        if ($fees->isEmpty() && !$requestedSchoolYear) {
             $preferredFeeYear = StudentFee::where('student_id', $student->id)
                 ->where(function ($query) {
                     $query->where('total_amount', '>', 0)
@@ -391,11 +412,10 @@ class StudentPaymentController extends Controller
                 $activeSchoolYear = $preferredFeeYear;
                 StudentFee::syncOverdueByDueDate($activeSchoolYear);
                 $feeData = $this->calculateFeesForSchoolYear($student, $activeSchoolYear);
+                if ($feeData) {
+                    $fees->push($feeData);
+                }
             }
-        }
-
-        if ($feeData) {
-            $fees->push($feeData);
         }
 
         // Get payments for the active billing year only.
@@ -568,9 +588,9 @@ class StudentPaymentController extends Controller
             });
 
         // Calculate summary stats dynamically
-        $totalFees = $fees->sum('total_amount');
-        $totalDiscount = $fees->sum('grant_discount');
-        $totalPaid = (float) $activeYearPayments;
+        $totalFees = (float) $fees->sum('total_amount');
+        $totalDiscount = (float) $fees->sum('grant_discount');
+        $totalPaid = (float) $fees->sum('total_paid');
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
@@ -583,9 +603,9 @@ class StudentPaymentController extends Controller
             'total_fees' => $totalFees,
             'total_discount' => $totalDiscount,
             'total_paid' => $totalPaid,
-            'total_balance' => max(0, $totalFees - $totalDiscount - $totalPaid),
+            'total_balance' => (float) $fees->sum('balance'),
             'previous_balance' => $previousBalance,
-            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : max(0, $totalFees - $totalDiscount - $totalPaid),
+            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : (float) $fees->sum('balance'),
         ];
 
         // Get grants/scholarships for the active billing year.
@@ -700,7 +720,6 @@ class StudentPaymentController extends Controller
 
         $feeItemYears = \App\Models\FeeItem::where('is_active', true)
             ->whereNotNull('school_year')
-            ->when($enrolledYear, fn($q) => $q->where('school_year', $enrolledYear))
             ->where(function ($query) use ($student, $enrolledYear) {
                 // 'all' scope only if no explicit per-group assignments override it
                 $query->where(function ($inner) {
@@ -730,7 +749,6 @@ class StudentPaymentController extends Controller
         // Always include years that already have StudentFee records
         // (preserves existing payment history even if fee items no longer apply)
         $existingYears = StudentFee::where('student_id', $student->id)
-            ->when($enrolledYear, fn($q) => $q->where('school_year', '<=', $enrolledYear))
             ->pluck('school_year');
 
         return $feeItemYears->merge($existingYears)
@@ -748,11 +766,12 @@ class StudentPaymentController extends Controller
     {
         $existingStudentFee = StudentFee::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
+            ->orderByDesc('processed_at')
+            ->orderByDesc('id')
             ->first();
 
-        // Preserve posted ledgers: once payments exist, use stored fee totals/discounts
-        // and only refresh paid/balance from payment records.
-        if ($existingStudentFee && $existingStudentFee->payments()->exists()) {
+        // Preserve posted or manually edited ledgers.
+        if ($existingStudentFee && ($existingStudentFee->payments()->exists() || $existingStudentFee->processed_by !== null)) {
             return $this->buildFeeDataFromStudentFee($student, $existingStudentFee);
         }
 
@@ -859,6 +878,8 @@ class StudentPaymentController extends Controller
             }
         }
 
+        $categoryTotals = $this->deriveStoredCategoryTotals($feeItems, (float) $enrolledUnits);
+
         // Get or create the student_fees record for tracking payments
         $studentFee = StudentFee::where('student_id', $student->id)
             ->where('school_year', $schoolYear)
@@ -875,6 +896,11 @@ class StudentPaymentController extends Controller
             $studentFee = StudentFee::create([
                 'student_id'     => $student->id,
                 'school_year'    => $schoolYear,
+                'registration_fee' => $categoryTotals['registration_fee'],
+                'tuition_fee' => $categoryTotals['tuition_fee'],
+                'misc_fee' => $categoryTotals['misc_fee'],
+                'books_fee' => $categoryTotals['books_fee'],
+                'other_fees' => $categoryTotals['other_fees'],
                 'total_amount'   => $totalAmount,
                 'grant_discount' => $grantDiscount,
                 'total_paid'     => 0,
@@ -888,7 +914,17 @@ class StudentPaymentController extends Controller
             $freshBalance  = max(0, $freshTotal - $freshDiscount - $totalPaid);
             if ((float) $studentFee->total_amount   !== $freshTotal
                 || (float) $studentFee->grant_discount !== $freshDiscount
-                || (float) $studentFee->balance        !== $freshBalance) {
+                || (float) $studentFee->balance        !== $freshBalance
+                || (float) $studentFee->registration_fee !== (float) $categoryTotals['registration_fee']
+                || (float) $studentFee->tuition_fee !== (float) $categoryTotals['tuition_fee']
+                || (float) $studentFee->misc_fee !== (float) $categoryTotals['misc_fee']
+                || (float) $studentFee->books_fee !== (float) $categoryTotals['books_fee']
+                || (float) $studentFee->other_fees !== (float) $categoryTotals['other_fees']) {
+                $studentFee->registration_fee = $categoryTotals['registration_fee'];
+                $studentFee->tuition_fee = $categoryTotals['tuition_fee'];
+                $studentFee->misc_fee = $categoryTotals['misc_fee'];
+                $studentFee->books_fee = $categoryTotals['books_fee'];
+                $studentFee->other_fees = $categoryTotals['other_fees'];
                 $studentFee->total_amount    = $freshTotal;
                 $studentFee->total_paid      = $totalPaid;
                 $studentFee->grant_discount  = $freshDiscount;
@@ -1004,8 +1040,10 @@ class StudentPaymentController extends Controller
     private function buildFeeDataFromStudentFee(Student $student, StudentFee $studentFee): array
     {
         $totalAmount = (float) $studentFee->total_amount;
-        $totalPaid = (float) $studentFee->payments()->sum('amount');
-        $totalPaid += $this->getUnlinkedOnlineTransactionAmount($student, (string) $studentFee->school_year);
+        $hasPostedPayments = $studentFee->payments()->exists();
+        $totalPaid = $hasPostedPayments
+            ? (float) $studentFee->payments()->sum('amount') + $this->getUnlinkedOnlineTransactionAmount($student, (string) $studentFee->school_year)
+            : (float) $studentFee->total_paid;
 
         $grantDiscount = (float) $studentFee->grant_discount;
 
@@ -1281,6 +1319,47 @@ class StudentPaymentController extends Controller
             ->whereNull('student_payment_id')
             ->whereIn('status', ['completed', 'verified'])
             ->sum('amount');
+    }
+
+    /**
+     * Derive student_fees category columns from applicable fee items.
+     */
+    private function deriveStoredCategoryTotals($feeItems, float $enrolledUnits): array
+    {
+        $totals = [
+            'registration_fee' => 0.0,
+            'tuition_fee' => 0.0,
+            'misc_fee' => 0.0,
+            'books_fee' => 0.0,
+            'other_fees' => 0.0,
+        ];
+
+        foreach ($feeItems as $item) {
+            $amount = (float) $item->selling_price;
+            if ($item->is_per_unit) {
+                $amount = $enrolledUnits > 0
+                    ? (float) $item->unit_price * $enrolledUnits
+                    : (float) $item->selling_price;
+            }
+
+            $categoryName = strtolower((string) optional($item->category)->name);
+            $itemName = strtolower((string) $item->name);
+            $haystack = trim($categoryName . ' ' . $itemName);
+
+            if (str_contains($haystack, 'registr')) {
+                $totals['registration_fee'] += $amount;
+            } elseif (str_contains($haystack, 'tuition')) {
+                $totals['tuition_fee'] += $amount;
+            } elseif (str_contains($haystack, 'misc')) {
+                $totals['misc_fee'] += $amount;
+            } elseif (str_contains($haystack, 'book')) {
+                $totals['books_fee'] += $amount;
+            } else {
+                $totals['other_fees'] += $amount;
+            }
+        }
+
+        return $totals;
     }
 
     /**
@@ -1638,6 +1717,11 @@ class StudentPaymentController extends Controller
         $fee = StudentFee::create([
             'student_id'    => $student->id,
             'school_year'   => $validated['school_year'],
+            'registration_fee' => 0,
+            'tuition_fee' => 0,
+            'misc_fee' => 0,
+            'books_fee' => 0,
+            'other_fees' => (float) $validated['total_amount'],
             'total_amount'  => (float) $validated['total_amount'],
             'total_paid'    => 0,
             'balance'       => (float) $validated['total_amount'],
