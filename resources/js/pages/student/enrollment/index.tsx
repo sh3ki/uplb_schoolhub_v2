@@ -250,6 +250,11 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
         ].filter((row) => row.amount > 0)
         : [];
 
+    const categoryRowsWithFallback =
+        currentFee && categoryRows.length === 0 && currentFee.total_amount > 0
+            ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
+            : categoryRows;
+
     return (
         <StudentLayout>
             <Head title="My Enrollment" />
@@ -497,11 +502,11 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
 
                             <div className="mt-4 rounded-md border p-4">
                                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                                    <Receipt className="h-4 w-4" /> Fee Breakdown by Category
+                                    <PhilippinePeso className="h-4 w-4" /> Fee Breakdown by Category
                                 </div>
                                 {!currentFee ? (
                                     <p className="text-sm text-muted-foreground">No category breakdown available.</p>
-                                ) : categoryRows.length === 0 ? (
+                                ) : categoryRowsWithFallback.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
                                 ) : (
                                     <Table>
@@ -512,7 +517,7 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
-                                            {categoryRows.map((row) => (
+                                            {categoryRowsWithFallback.map((row) => (
                                                 <TableRow key={row.label}>
                                                     <TableCell>{row.label}</TableCell>
                                                     <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
@@ -841,11 +846,11 @@ function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingR
 
                         <div className="rounded-md border p-4">
                             <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                                <Receipt className="h-4 w-4" /> Fee Breakdown by Category
+                                <PhilippinePeso className="h-4 w-4" /> Fee Breakdown by Category
                             </div>
                             {!currentFee ? (
                                 <p className="text-sm text-muted-foreground">No category breakdown available.</p>
-                            ) : categoryRows.length === 0 ? (
+                            ) : categoryRowsWithFallback.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
                             ) : (
                                 <Table>
@@ -856,7 +861,7 @@ function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingR
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {categoryRows.map((row) => (
+                                        {categoryRowsWithFallback.map((row) => (
                                             <TableRow key={row.label}>
                                                 <TableCell>{row.label}</TableCell>
                                                 <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
