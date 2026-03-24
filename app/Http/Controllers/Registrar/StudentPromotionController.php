@@ -5,9 +5,12 @@ namespace App\Http\Controllers\Registrar;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Department;
+use App\Models\EnrollmentClearance;
 use App\Models\Program;
 use App\Models\Section;
 use App\Models\Student;
+use App\Models\StudentRequirement;
+use App\Models\User;
 use App\Models\YearLevel;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -231,7 +234,42 @@ class StudentPromotionController extends Controller
             }
         }
 
-        Student::whereIn('id', $studentIds)->update($updateData);
+        Student::whereIn('id', $studentIds)->update(array_merge($updateData, [
+            'enrollment_status' => 'not-enrolled',
+        ]));
+
+        // Reset student requirements back to initial state for the new promotion cycle.
+        StudentRequirement::whereIn('student_id', $studentIds)->update([
+            'status' => 'pending',
+            'submitted_at' => null,
+            'approved_at' => null,
+            'approved_by' => null,
+            'notes' => null,
+            'file_path' => null,
+        ]);
+
+        // Reset enrollment clearance checkpoints for promoted students.
+        $userIds = User::whereIn('student_id', $studentIds)->pluck('id');
+        if ($userIds->isNotEmpty()) {
+            EnrollmentClearance::whereIn('user_id', $userIds)->update([
+                'requirements_complete_percentage' => 0,
+                'requirements_complete' => false,
+                'requirements_completed_at' => null,
+                'requirements_completed_by' => null,
+                'registrar_clearance' => false,
+                'registrar_cleared_at' => null,
+                'registrar_cleared_by' => null,
+                'registrar_notes' => null,
+                'accounting_clearance' => false,
+                'accounting_cleared_at' => null,
+                'accounting_cleared_by' => null,
+                'accounting_notes' => null,
+                'official_enrollment' => false,
+                'officially_enrolled_at' => null,
+                'officially_enrolled_by' => null,
+                'enrollment_status' => 'pending',
+            ]);
+        }
 
         $count = count($studentIds);
         $destination = $targetSectionId === 'TBA'
