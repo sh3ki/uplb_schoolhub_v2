@@ -3,12 +3,8 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\FeeItem;
-use App\Models\FeeItemAssignment;
-use App\Models\GrantRecipient;
 use App\Models\Student;
 use App\Models\StudentFee;
-use App\Models\StudentPayment;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -83,63 +79,40 @@ class DashboardController extends Controller
      */
     private function getPaymentSummary(Student $student, string $targetSchoolYear): ?array
     {
-        $fees = StudentFee::with(['payments'])
+        $feeRecords = StudentFee::query()
             ->where('student_id', $student->id)
-            ->orderBy('school_year', 'desc')
+            ->orderByDesc('school_year')
+            ->orderByDesc('id')
             ->get();
 
-        $currentFees = $fees->filter(fn($fee) => trim((string) $fee->school_year) === trim((string) $targetSchoolYear));
-        $studentFee = $currentFees->first();
-        $isUsingAllYears = false;
+        $feesBySchoolYear = $feeRecords
+            ->map(function (StudentFee $fee) {
+                return [
+                    'school_year' => trim((string) $fee->school_year),
+                    'total_amount' => (float) $fee->total_amount,
+                    'grant_discount' => (float) $fee->grant_discount,
+                    'total_paid' => (float) $fee->total_paid,
+                    'balance' => (float) $fee->balance,
+                    'due_date' => $fee->due_date,
+                ];
+            })
+            ->filter(fn (array $fee) => $fee['school_year'] !== '')
+            ->groupBy('school_year')
+            ->map(fn ($rows) => $rows->first())
+            ->values();
 
-        $totalFees = (float) $currentFees->sum('total_amount');
-        $totalDiscount = (float) $currentFees->sum('grant_discount');
-        $totalPaid = (float) $currentFees->flatMap->payments->sum('amount');
+        $currentFee = $feesBySchoolYear->first(function (array $fee) use ($targetSchoolYear) {
+            return trim((string) $fee['school_year']) === trim((string) $targetSchoolYear);
+        });
 
-        if ($currentFees->isEmpty()) {
-            $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
-            $totalFees = (float) collect($feeItems)->sum('amount');
+        $totalFees = (float) ($currentFee['total_amount'] ?? 0);
+        $totalDiscount = (float) ($currentFee['grant_discount'] ?? 0);
+        $totalPaid = (float) ($currentFee['total_paid'] ?? 0);
+        $balance = (float) ($currentFee['balance'] ?? 0);
 
-            $totalDiscount = 0.0;
-            $grantRecipients = GrantRecipient::where('student_id', $student->id)
-                ->where('status', 'active')
-                ->where(function ($query) use ($targetSchoolYear, $student) {
-                    $query->where('school_year', $targetSchoolYear)
-                        ->orWhere('school_year', $student->school_year);
-                })
-                ->with('grant')
-                ->get()
-                ->unique('grant_id');
-
-            foreach ($grantRecipients as $recipient) {
-                if ($recipient->grant) {
-                    $totalDiscount += $recipient->grant->calculateDiscount($totalFees);
-                }
-            }
-
-            $totalPaid = (float) StudentPayment::query()
-                ->where('student_id', $student->id)
-                ->whereHas('studentFee', function ($query) use ($targetSchoolYear) {
-                    $query->where('school_year', $targetSchoolYear);
-                })
-                ->sum('amount');
-        }
-
-        if ($totalFees <= 0 && (float) $fees->sum('balance') > 0) {
-            $isUsingAllYears = true;
-            $studentFee = $fees->firstWhere('balance', '>', 0) ?: $fees->first();
-            $totalFees = (float) $fees->sum('total_amount');
-            $totalDiscount = (float) $fees->sum('grant_discount');
-            $totalPaid = (float) $fees->sum('total_paid');
-        }
-
-        $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
-
-        $previousBalance = $isUsingAllYears
-            ? 0.0
-            : (float) $fees
-                ->filter(fn($fee) => trim((string) $fee->school_year) !== trim((string) $targetSchoolYear))
-                ->sum('balance');
+        $previousBalance = (float) $feesBySchoolYear
+            ->filter(fn (array $fee) => trim((string) $fee['school_year']) !== trim((string) $targetSchoolYear))
+            ->sum('balance');
         $currentFeesBalance = $balance;
 
         // Get approved promissory notes
@@ -152,12 +125,12 @@ class DashboardController extends Controller
 
         // Check if overdue
         $isOverdue = $balance > 0 && !$approvedPromissoryNotes->count() &&
-                     $studentFee?->due_date && now()->gt($studentFee->due_date);
+                     !empty($currentFee['due_date']) && now()->gt($currentFee['due_date']);
 
         // Only fully paid when there are actual billed/payment amounts and balance is zero.
-        $hasChargeableFees = $totalFees > 0 || $totalPaid > 0 || $totalDiscount > 0;
+        $hasChargeableFees = $totalFees > 0 || $totalPaid > 0 || $totalDiscount > 0 || $balance > 0 || $previousBalance > 0;
         $isFullyPaid = $hasChargeableFees
-            && ($isUsingAllYears ? !$fees->isEmpty() : !$currentFees->isEmpty())
+            && !is_null($currentFee)
             && $balance <= 0;
 
         return [
@@ -171,7 +144,7 @@ class DashboardController extends Controller
             'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : $balance,
             'is_fully_paid' => $isFullyPaid,
             'is_overdue' => $isOverdue,
-            'due_date' => $studentFee?->due_date,
+            'due_date' => $currentFee['due_date'] ?? null,
             'has_promissory' => $approvedPromissoryNotes->count() > 0,
             'has_chargeable_fees' => $hasChargeableFees,
         ];
@@ -201,40 +174,5 @@ class DashboardController extends Controller
             ->toArray();
     }
 
-    private function getStudentFeeItems(Student $student, string $schoolYear): array
-    {
-        $assignedFeeItemIds = FeeItemAssignment::where('school_year', $schoolYear)
-            ->where('is_active', true)
-            ->where(function ($query) use ($student) {
-                if ($student->classification) {
-                    $query->where('classification', $student->classification);
-                }
-                if ($student->department_id) {
-                    $query->where('department_id', $student->department_id);
-                }
-                if ($student->year_level_id) {
-                    $query->where('year_level_id', $student->year_level_id);
-                }
-            })
-            ->pluck('fee_item_id')
-            ->toArray();
-
-        $allScopeFeeItems = FeeItem::where('school_year', $schoolYear)
-            ->where('is_active', true)
-            ->where('assignment_scope', 'all')
-            ->pluck('id')
-            ->toArray();
-
-        $feeItemIds = array_unique(array_merge($assignedFeeItemIds, $allScopeFeeItems));
-
-        return FeeItem::whereIn('id', $feeItemIds)
-            ->where('is_active', true)
-            ->get()
-            ->map(fn ($item) => [
-                'id' => $item->id,
-                'amount' => (float) $item->selling_price,
-            ])
-            ->toArray();
-    }
 }
 
