@@ -134,15 +134,17 @@ class OnlineTransactionController extends Controller
             ?: (\App\Models\AppSetting::current()->school_year
                 ?? now()->year . '-' . (now()->year + 1));
 
+        $currentSchoolYear = $this->resolveTransactionSchoolYear($transaction, $student, (string) $currentSchoolYear);
+
         $studentFee = StudentFee::where('student_id', $transaction->student_id)
-            ->where('school_year', $currentSchoolYear)
+            ->whereRaw('TRIM(school_year) = ?', [trim((string) $currentSchoolYear)])
             ->first();
 
         if (!$studentFee) {
             // Create a placeholder StudentFee in the billing year so payment linkage stays consistent.
             $studentFee = StudentFee::create([
                 'student_id'   => $transaction->student_id,
-                'school_year'  => $currentSchoolYear,
+                'school_year'  => trim((string) $currentSchoolYear),
                 'total_amount' => $transaction->amount,
                 'total_paid'   => 0,
                 'grant_discount' => 0,
@@ -177,7 +179,7 @@ class OnlineTransactionController extends Controller
             'payment_method' => $paymentMethod,
             'reference_number' => $transaction->reference_number,
             'bank_name' => $paymentMode === 'BANK' ? $transaction->bank_name : null,
-            'notes' => 'Online transaction: ' . $transaction->transaction_id,
+            'notes' => 'Online transaction: ' . $transaction->transaction_id . ' (' . trim((string) $currentSchoolYear) . ')',
             'recorded_by' => auth()->user()?->id,
         ]);
 
@@ -193,6 +195,24 @@ class OnlineTransactionController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Transaction verified and payment recorded.');
+    }
+
+    private function resolveTransactionSchoolYear(OnlineTransaction $transaction, ?Student $student, string $fallbackSchoolYear): string
+    {
+        $remarks = (string) ($transaction->remarks ?? '');
+        if (preg_match('/\[SchoolYear:\s*([^\]]+)\]/i', $remarks, $matches)) {
+            $candidate = trim((string) ($matches[1] ?? ''));
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        $studentYear = trim((string) ($student?->school_year ?? ''));
+        if ($studentYear !== '') {
+            return $studentYear;
+        }
+
+        return trim((string) $fallbackSchoolYear);
     }
 
     /**
