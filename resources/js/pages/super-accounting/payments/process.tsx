@@ -1602,13 +1602,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <p className="font-medium text-amber-800">
                                                     Outstanding Previous Balance: {formatCurrency(summary.previous_balance)}
                                                 </p>
-                                                <p className="text-sm text-amber-700">
-                                                    This student has an unpaid balance from a previous school year.
-                                                    Use "Carry Forward" to formally acknowledge it for the current school year.
-                                                </p>
+                                              
                                             </div>
                                         </div>
-                                        <Button
+                                        {/* <Button
                                             size="sm"
                                             variant="outline"
                                             className="flex-shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100"
@@ -1622,7 +1619,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         >
                                             <RefreshCw className="mr-1.5 h-4 w-4" />
                                             Carry Forward
-                                        </Button>
+                                        </Button> */}
                                     </div>
                                 </CardContent>
                             </Card>
