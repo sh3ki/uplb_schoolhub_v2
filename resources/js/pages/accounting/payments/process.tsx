@@ -277,17 +277,40 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         defaultSelectedFeeId
     );
 
+    const isAllSelection = selectedFeeId === 'all';
+
     const selectedFee = useMemo(
-        () => normalizedPaymentOptions.find((fee) => fee.id.toString() === selectedFeeId),
-        [normalizedPaymentOptions, selectedFeeId]
+        () => isAllSelection ? undefined : normalizedPaymentOptions.find((fee) => fee.id.toString() === selectedFeeId),
+        [normalizedPaymentOptions, selectedFeeId, isAllSelection]
     );
 
     const selectedDetailedFee = useMemo(
-        () => fees.find((fee) => fee.id.toString() === selectedFeeId),
-        [fees, selectedFeeId]
+        () => isAllSelection ? undefined : fees.find((fee) => fee.id.toString() === selectedFeeId),
+        [fees, selectedFeeId, isAllSelection]
+    );
+
+    const allOptionBalance = useMemo(
+        () => fees.reduce((total, fee) => total + fee.balance, 0),
+        [fees]
     );
 
     const activeSummary = useMemo(() => {
+        if (isAllSelection) {
+            const totalFees = fees.reduce((total, fee) => total + fee.total_amount, 0);
+            const totalDiscount = fees.reduce((total, fee) => total + fee.grant_discount, 0);
+            const totalPaid = fees.reduce((total, fee) => total + fee.total_paid, 0);
+            const totalBalance = fees.reduce((total, fee) => total + fee.balance, 0);
+
+            return {
+                total_fees: totalFees,
+                total_discount: totalDiscount,
+                total_paid: totalPaid,
+                total_balance: totalBalance,
+                previous_balance: summary.previous_balance || 0,
+                current_fees_balance: totalBalance,
+            };
+        }
+
         if (!selectedFee && !selectedDetailedFee) {
             return {
                 total_fees: summary.total_fees,
@@ -322,7 +345,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             previous_balance: previousBalance,
             current_fees_balance: totalBalance,
         };
-    }, [selectedFee, selectedDetailedFee, fees, summary]);
+    }, [isAllSelection, selectedFee, selectedDetailedFee, fees, summary]);
 
     useEffect(() => {
         if (!normalizedPaymentOptions.length) {
@@ -332,7 +355,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             return;
         }
 
-        const selectedExists = normalizedPaymentOptions.some((fee) => fee.id.toString() === selectedFeeId);
+        const selectedExists = selectedFeeId === 'all' || normalizedPaymentOptions.some((fee) => fee.id.toString() === selectedFeeId);
         if (!selectedExists) {
             setSelectedFeeId(defaultSelectedFeeId);
         }
@@ -406,6 +429,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         const amount = parseFloat(amountReceived) || 0;
         if (amount <= 0) return;
         if (!selectedFeeId) return;
+        if (selectedFeeId === 'all') {
+            toast.error('Select a specific school year before posting payment.');
+            return;
+        }
         
         router.post(`${basePath}/payments`, {
             student_id: student.id.toString(),
@@ -428,6 +455,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
 
     const handlePrintCurrentTransaction = () => {
         const amount = parseFloat(amountReceived) || 0;
+
+        if (selectedFeeId === 'all') {
+            toast.error('Select a specific school year before printing.');
+            return;
+        }
 
         if (amount <= 0 || !selectedFee) {
             toast.error('Enter a valid payment amount and select a fee before printing.');
@@ -928,6 +960,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <SelectValue placeholder="Select fee / school year" />
                                                         </SelectTrigger>
                                                         <SelectContent position="popper">
+                                                            <SelectItem value="all">
+                                                                All School Years — Balance: {formatCurrency(allOptionBalance)}
+                                                            </SelectItem>
                                                             {normalizedPaymentOptions.map((fee) => (
                                                                 <SelectItem key={fee.id} value={fee.id.toString()}>
                                                                     {fee.school_year} — Balance: {formatCurrency(fee.balance)}
@@ -1096,7 +1131,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 type="button"
                                                 variant="outline"
                                                 onClick={handlePrintCurrentTransaction}
-                                                disabled={!selectedFeeId || !amountReceived || parseFloat(amountReceived) <= 0}
+                                                disabled={!selectedFeeId || selectedFeeId === 'all' || !amountReceived || parseFloat(amountReceived) <= 0}
                                                 className="w-full"
                                             >
                                                     <Printer className="h-4 w-4" />
@@ -1119,7 +1154,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     <Button 
                                         type="submit" 
                                         className="w-full h-12 text-lg"
-                                        disabled={!amountReceived || parseFloat(amountReceived) <= 0 || !paymentForm.data.or_number || !selectedFeeId}
+                                        disabled={!amountReceived || parseFloat(amountReceived) <= 0 || !paymentForm.data.or_number || !selectedFeeId || selectedFeeId === 'all'}
                                     >
                                         <PhilippinePeso className="h-5 w-5 mr-2" />
                                         Record Payment
