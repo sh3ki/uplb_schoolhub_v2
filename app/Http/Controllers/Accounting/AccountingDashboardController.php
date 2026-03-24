@@ -277,6 +277,12 @@ class AccountingDashboardController extends Controller
         $program        = $request->get('program');
         $yearLevel      = $request->get('year_level');
         $section        = $request->get('section');
+        $currentSchoolYear = AppSetting::current()?->school_year
+            ?? (date('Y') . '-' . (date('Y') + 1));
+        $selectedSchoolYear = trim((string) $request->get('school_year', $currentSchoolYear));
+        if ($selectedSchoolYear === '') {
+            $selectedSchoolYear = $currentSchoolYear;
+        }
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
@@ -294,7 +300,7 @@ class AccountingDashboardController extends Controller
 
         $yearFeeRows = StudentFee::with('payments')
             ->whereIn('student_id', $filteredIds)
-            ->where('school_year', $currentSchoolYear)
+            ->where('school_year', $selectedSchoolYear)
             ->get()
             ->groupBy('student_id');
 
@@ -521,6 +527,12 @@ class AccountingDashboardController extends Controller
         $program        = $request->get('program');
         $yearLevel      = $request->get('year_level');
         $section        = $request->get('section');
+        $currentSchoolYear = AppSetting::current()?->school_year
+            ?? (date('Y') . '-' . (date('Y') + 1));
+        $selectedSchoolYear = trim((string) $request->get('school_year', $currentSchoolYear));
+        if ($selectedSchoolYear === '') {
+            $selectedSchoolYear = $currentSchoolYear;
+        }
 
         // Date range (fallback to current month)
         $dateFrom      = $request->get('date_from');
@@ -545,6 +557,9 @@ class AccountingDashboardController extends Controller
         if ($program)      $studentQ->where('program', $program);
         if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
         if ($section)      $studentQ->where('section', $section);
+        if ($selectedSchoolYear !== 'all') {
+            $studentQ->where('school_year', $selectedSchoolYear);
+        }
         $studentIds = $studentQ->pluck('id');
 
         $transactions = [];
@@ -804,6 +819,19 @@ class AccountingDashboardController extends Controller
         $years = StudentPayment::selectRaw('YEAR(payment_date) as year')->distinct()->orderBy('year', 'desc')->pluck('year')->toArray();
         if (empty($years)) $years = [(int) date('Y')];
 
+        $schoolYears = StudentFee::query()
+            ->select('school_year')
+            ->whereNotNull('school_year')
+            ->distinct()
+            ->orderByDesc('school_year')
+            ->pluck('school_year')
+            ->values()
+            ->toArray();
+
+        if (empty($schoolYears)) {
+            $schoolYears = [$currentSchoolYear];
+        }
+
         $appSettings = AppSetting::current();
 
         return Inertia::render($this->viewPrefix() . '/account-dashboard', [
@@ -824,6 +852,8 @@ class AccountingDashboardController extends Controller
             'selectedYear'     => $selectedYear,
             'months'           => $months,
             'years'            => array_values($years),
+            'schoolYears'      => $schoolYears,
+            'selectedSchoolYear' => $selectedSchoolYear,
             'appSettings'      => [
                 'has_k12' => $appSettings->has_k12,
                 'has_college' => $appSettings->has_college,
@@ -839,6 +869,7 @@ class AccountingDashboardController extends Controller
                 'date_to'        => $dateTo,
                 'month'          => $selectedMonth,
                 'year'           => $selectedYear,
+                'school_year'    => $selectedSchoolYear,
             ],
         ]);
     }
@@ -886,6 +917,12 @@ class AccountingDashboardController extends Controller
         $program        = $request->get('program');
         $yearLevel      = $request->get('year_level');
         $section        = $request->get('section');
+        $currentSchoolYear = AppSetting::current()?->school_year
+            ?? (date('Y') . '-' . (date('Y') + 1));
+        $selectedSchoolYear = trim((string) $request->get('school_year', $currentSchoolYear));
+        if ($selectedSchoolYear === '') {
+            $selectedSchoolYear = $currentSchoolYear;
+        }
         $selectedAccountId = (string) $request->get('account_id', 'all');
         $dateFrom       = $request->get('date_from');
         $dateTo         = $request->get('date_to');
@@ -908,6 +945,9 @@ class AccountingDashboardController extends Controller
         if ($program)      $studentQ->where('program', $program);
         if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
         if ($section)      $studentQ->where('section', $section);
+        if ($selectedSchoolYear !== 'all') {
+            $studentQ->where('school_year', $selectedSchoolYear);
+        }
         $studentIds = $studentQ->pluck('id');
 
         $payments = StudentPayment::with(['student', 'recordedBy'])
