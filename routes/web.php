@@ -281,6 +281,14 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::post('drop-requests/{dropRequest}/finalize', [App\Http\Controllers\Registrar\DropRequestController::class, 'finalize'])->name('drop-requests.finalize');
     Route::post('students/{student}/reactivate', [App\Http\Controllers\Registrar\DropRequestController::class, 'reactivate'])->name('students.reactivate');
 
+    // Transfer Out Request Management
+    Route::get('transfer-requests', [App\Http\Controllers\Registrar\TransferRequestController::class, 'index'])->name('transfer-requests.index');
+    Route::post('transfer-requests/set-deadline', [App\Http\Controllers\Registrar\TransferRequestController::class, 'setDeadline'])->name('transfer-requests.set-deadline');
+    Route::post('transfer-requests/{transferRequest}/approve', [App\Http\Controllers\Registrar\TransferRequestController::class, 'approve'])->name('transfer-requests.approve');
+    Route::post('transfer-requests/{transferRequest}/reject', [App\Http\Controllers\Registrar\TransferRequestController::class, 'reject'])->name('transfer-requests.reject');
+    Route::post('transfer-requests/{transferRequest}/finalize', [App\Http\Controllers\Registrar\TransferRequestController::class, 'finalize'])->name('transfer-requests.finalize');
+    Route::post('transfer-requests/students/{student}/reactivate', [App\Http\Controllers\Registrar\TransferRequestController::class, 'reactivate'])->name('transfer-requests.students.reactivate');
+
     // Dropped Students (view all officially dropped students)
     Route::get('dropped-students', [App\Http\Controllers\Registrar\DroppedStudentController::class, 'index'])->name('dropped-students.index');
 
@@ -355,6 +363,11 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::get('drop-requests', [App\Http\Controllers\Accounting\DropRequestController::class, 'index'])->name('drop-requests.index');
     Route::post('drop-requests/{dropRequest}/approve', [App\Http\Controllers\Accounting\DropRequestController::class, 'approve'])->name('drop-requests.approve');
     Route::post('drop-requests/{dropRequest}/reject', [App\Http\Controllers\Accounting\DropRequestController::class, 'reject'])->name('drop-requests.reject');
+
+    // Transfer Request Approvals (final stage after registrar)
+    Route::get('transfer-requests', [App\Http\Controllers\Accounting\TransferRequestController::class, 'index'])->name('transfer-requests.index');
+    Route::post('transfer-requests/{transferRequest}/approve', [App\Http\Controllers\Accounting\TransferRequestController::class, 'approve'])->name('transfer-requests.approve');
+    Route::post('transfer-requests/{transferRequest}/reject', [App\Http\Controllers\Accounting\TransferRequestController::class, 'reject'])->name('transfer-requests.reject');
 
     // Drop Approvals (accounting stage – extended workflow)
     Route::get('drop-approvals', [App\Http\Controllers\Accounting\DropApprovalController::class, 'index'])->name('drop-approvals.index');
@@ -461,6 +474,11 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'verified', 'rol
     Route::get('drop-request', [App\Http\Controllers\Student\DropRequestController::class, 'index'])->name('drop-request.index');
     Route::post('drop-request', [App\Http\Controllers\Student\DropRequestController::class, 'store'])->name('drop-request.store');
     Route::delete('drop-request/{dropRequest}', [App\Http\Controllers\Student\DropRequestController::class, 'cancel'])->name('drop-request.cancel');
+
+    // Transfer Out Requests
+    Route::get('transfer-request', [App\Http\Controllers\Student\TransferRequestController::class, 'index'])->name('transfer-request.index');
+    Route::post('transfer-request', [App\Http\Controllers\Student\TransferRequestController::class, 'store'])->name('transfer-request.store');
+    Route::delete('transfer-request/{transferRequest}', [App\Http\Controllers\Student\TransferRequestController::class, 'cancel'])->name('transfer-request.cancel');
 
     // Self-Enrollment (returning students re-enroll for new school year)
     Route::get('enrollment', [App\Http\Controllers\Student\SelfEnrollmentController::class, 'index'])->name('enrollment.index');
@@ -660,6 +678,11 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::post('drop-approvals/{dropRequest}/approve', [App\Http\Controllers\Accounting\DropApprovalController::class, 'approve'])->name('drop-approvals.approve');
     Route::post('drop-approvals/{dropRequest}/reject', [App\Http\Controllers\Accounting\DropApprovalController::class, 'reject'])->name('drop-approvals.reject');
     Route::post('drop-approvals/{dropRequest}/set-fees', [App\Http\Controllers\Accounting\DropApprovalController::class, 'setFees'])->name('drop-approvals.set-fees');
+
+    // Transfer Request Approvals
+    Route::get('transfer-requests', [App\Http\Controllers\Accounting\TransferRequestController::class, 'index'])->name('transfer-requests.index');
+    Route::post('transfer-requests/{transferRequest}/approve', [App\Http\Controllers\Accounting\TransferRequestController::class, 'approve'])->name('transfer-requests.approve');
+    Route::post('transfer-requests/{transferRequest}/reject', [App\Http\Controllers\Accounting\TransferRequestController::class, 'reject'])->name('transfer-requests.reject');
 
     // Document Approvals (super-accounting oversight)
     Route::get('document-approvals', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'index'])->name('document-approvals.index');
