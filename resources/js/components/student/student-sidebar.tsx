@@ -13,6 +13,7 @@ import {
     FileText,
     CreditCard,
     UserMinus,
+    UserRoundX,
     ClipboardList,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -42,9 +43,10 @@ interface AppSettings {
 }
 
 export function StudentSidebar() {
-    const { announcementCount, auth, appSettings, pendingDropRequestCount } = usePage<{ 
+    const { announcementCount, auth, appSettings, pendingDropRequestCount, pendingTransferRequestCount } = usePage<{ 
         announcementCount: number;
         pendingDropRequestCount?: number;
+        pendingTransferRequestCount?: number;
         auth: { user: { student?: { enrollment_status?: string; department_classification?: string | null } } };
         appSettings?: AppSettings;
     }>().props;
@@ -123,6 +125,12 @@ export function StudentSidebar() {
             href: '/student/drop-request',
             badge: pendingDropRequestCount || undefined,
             icon: UserMinus,
+        },
+        {
+            title: 'Transfer Request',
+            href: '/student/transfer-request',
+            badge: pendingTransferRequestCount || undefined,
+            icon: UserRoundX,
         },
         {
             title: 'Chat',
