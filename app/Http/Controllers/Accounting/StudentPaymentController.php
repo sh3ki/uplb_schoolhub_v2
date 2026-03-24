@@ -607,15 +607,21 @@ class StudentPaymentController extends Controller
                 ];
             });
 
-        // Calculate summary stats dynamically
-        $totalFees = (float) $fees->sum('total_amount');
-        $totalDiscount = (float) $fees->sum('grant_discount');
-        $totalPaid = (float) $fees->sum('total_paid');
+        // Calculate summary stats using active school year (current focus in process page).
+        $activeFeeRow = $fees->first(function ($fee) use ($activeSchoolYear) {
+            return trim((string) ($fee['school_year'] ?? '')) === trim((string) $activeSchoolYear);
+        });
+
+        if (!$activeFeeRow) {
+            $activeFeeRow = $fees->first();
+        }
+
+        $totalFees = (float) ($activeFeeRow['total_amount'] ?? 0);
+        $totalDiscount = (float) ($activeFeeRow['grant_discount'] ?? 0);
+        $totalPaid = (float) ($activeFeeRow['total_paid'] ?? 0);
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
-        $currentFeesBalance = (float) $fees
-            ->filter(fn($fee) => trim((string) ($fee['school_year'] ?? '')) === trim((string) $activeSchoolYear))
-            ->sum('balance');
+        $currentFeesBalance = (float) ($activeFeeRow['balance'] ?? 0);
 
         $previousBalance = (float) StudentFee::where('student_id', $student->id)
             ->whereRaw('TRIM(school_year) != ?', [trim((string) $activeSchoolYear)])
@@ -625,9 +631,9 @@ class StudentPaymentController extends Controller
             'total_fees' => $totalFees,
             'total_discount' => $totalDiscount,
             'total_paid' => $totalPaid,
-            'total_balance' => (float) $fees->sum('balance'),
+            'total_balance' => (float) ($activeFeeRow['balance'] ?? 0),
             'previous_balance' => $previousBalance,
-            'current_fees_balance' => $currentFeesBalance > 0 ? $currentFeesBalance : (float) $fees->sum('balance'),
+            'current_fees_balance' => $currentFeesBalance,
         ];
 
         // Get grants/scholarships for the active billing year.
