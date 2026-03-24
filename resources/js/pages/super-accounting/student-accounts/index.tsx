@@ -75,6 +75,7 @@ interface StudentAccount {
     grant_discount: string;
     total_paid: string;
     balance: string;
+    previous_balance: string;
     is_overdue: boolean;
     due_date?: string;
     payment_status: string;
@@ -635,6 +636,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 <TableHead className="text-right">Discount</TableHead>
                                 <TableHead className="text-right">Paid</TableHead>
                                 <TableHead className="text-right">Balance</TableHead>
+                                <TableHead className="text-right">Previous Balance</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -642,7 +644,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         <TableBody>
                             {accounts.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                         No student accounts found.
                                     </TableCell>
                                 </TableRow>
@@ -695,6 +697,13 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 <span className="text-red-600">{formatCurrency(account.balance)}</span>
                                             ) : (
                                                 <span className="text-green-600">{formatCurrency(0)}</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                            {parseFloat(account.previous_balance) > 0 ? (
+                                                <span className="text-orange-600">{formatCurrency(account.previous_balance)}</span>
+                                            ) : (
+                                                <span className="text-muted-foreground">{formatCurrency(0)}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>{getStatusBadge(account)}</TableCell>
