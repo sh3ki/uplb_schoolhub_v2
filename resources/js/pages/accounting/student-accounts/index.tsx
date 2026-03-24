@@ -678,8 +678,8 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 <TableHead className="text-right">Total Fees</TableHead>
                                 <TableHead className="text-right">Discount</TableHead>
                                 <TableHead className="text-right">Paid</TableHead>
-                                <TableHead className="text-right">Balance</TableHead>
                                 <TableHead className="text-right">Previous Balance</TableHead>
+                                <TableHead className="text-right">Current Balance</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -713,15 +713,6 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                         {account.student.program && ` • ${account.student.program}`}
                                                         {account.student.year_level && ` - ${account.student.year_level}`}
                                                     </div>
-                                                    {account.grants.length > 0 && (
-                                                        <div className="flex gap-1 mt-1">
-                                                            {account.grants.map((grant, idx) => (
-                                                                <Badge key={idx} variant="secondary" className="text-xs">
-                                                                    {grant.name}
-                                                                </Badge>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         </TableCell>
@@ -736,17 +727,17 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                         </TableCell>
                                         <TableCell className="text-right text-green-600">{formatCurrency(account.total_paid)}</TableCell>
                                         <TableCell className="text-right font-medium">
-                                            {parseFloat(account.balance) > 0 ? (
-                                                <span className="text-red-600">{formatCurrency(account.balance)}</span>
-                                            ) : (
-                                                <span className="text-green-600">{formatCurrency(0)}</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
                                             {parseFloat(account.previous_balance) > 0 ? (
                                                 <span className="text-orange-600">{formatCurrency(account.previous_balance)}</span>
                                             ) : (
                                                 <span className="text-muted-foreground">{formatCurrency(0)}</span>
+                                            )}
+                                        </TableCell>
+                                        <TableCell className="text-right font-medium">
+                                            {parseFloat(account.balance) > 0 ? (
+                                                <span className="text-red-600">{formatCurrency(account.balance)}</span>
+                                            ) : (
+                                                <span className="text-green-600">{formatCurrency(0)}</span>
                                             )}
                                         </TableCell>
                                         <TableCell>{getStatusBadge(account)}</TableCell>
