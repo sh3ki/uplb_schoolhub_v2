@@ -182,19 +182,12 @@ class DashboardController extends Controller
      */
     private function getPreviousSchoolYearBalances(Student $student, string $currentSchoolYear): array
     {
-        $currentStartYear = $this->extractSchoolYearStart($currentSchoolYear);
-
         return StudentFee::where('student_id', $student->id)
             ->where('balance', '>', 0)
             ->orderBy('school_year', 'desc')
             ->get()
-            ->filter(function (StudentFee $fee) use ($currentStartYear) {
-                if ($currentStartYear === null) {
-                    return trim((string) $fee->school_year) !== '';
-                }
-
-                $feeStartYear = $this->extractSchoolYearStart((string) $fee->school_year);
-                return $feeStartYear !== null && $feeStartYear < $currentStartYear;
+            ->filter(function (StudentFee $fee) use ($currentSchoolYear) {
+                return trim((string) $fee->school_year) !== trim((string) $currentSchoolYear);
             })
             ->map(function ($fee) {
                 return [
@@ -206,15 +199,6 @@ class DashboardController extends Controller
                 ];
             })
             ->toArray();
-    }
-
-    private function extractSchoolYearStart(string $schoolYear): ?int
-    {
-        if (preg_match('/^(\d{4})\s*-\s*\d{4}$/', trim($schoolYear), $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
     }
 
     private function getStudentFeeItems(Student $student, string $schoolYear): array
