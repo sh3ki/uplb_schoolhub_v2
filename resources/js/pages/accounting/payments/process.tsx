@@ -1200,29 +1200,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <p className="font-medium text-amber-800">
                                                     Outstanding Previous Balance: {formatCurrency(summary.previous_balance)}
                                                 </p>
-                                                <p className="text-sm text-amber-700">
-                                                    This student has an unpaid balance from a previous school year.
-                                                    Use "Carry Forward" to formally acknowledge it for the current school year.
-                                                </p>
+                                              
                                             </div>
                                         </div>
-                                        {!isOwnerView && (
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="flex-shrink-0 border-amber-400 text-amber-800 hover:bg-amber-100"
-                                                onClick={() => {
-                                                    if (confirm(`Carry forward ₱${summary.previous_balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })} from previous school year(s) to the current year record?`)) {
-                                                        router.post(`${basePath}/payments/process/${student.id}/carry-forward`, {}, {
-                                                            preserveScroll: true,
-                                                        });
-                                                    }
-                                                }}
-                                            >
-                                                <RefreshCw className="mr-1.5 h-4 w-4" />
-                                                Carry Forward
-                                            </Button>
-                                        )}
+                                      
                                     </div>
                                 </CardContent>
                             </Card>
