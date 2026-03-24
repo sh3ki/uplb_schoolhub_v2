@@ -21,7 +21,7 @@ import {
     ShieldX,
 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -553,7 +553,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <SelectValue placeholder="Select fee" />
                                             </SelectTrigger>
                                             <SelectContent position="popper">
-                                                {fees.filter(f => f.balance > 0).map((fee) => (
+                                                {normalizedPaymentOptions.map((fee) => (
                                                     <SelectItem key={fee.id} value={fee.id.toString()}>
                                                         {fee.school_year} - Balance: {formatCurrency(fee.balance)}
                                                     </SelectItem>
@@ -702,12 +702,22 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     )}
                                 </div>
                                 <p className="text-muted-foreground">Student No.: {student.lrn}</p>
-                                <div className="flex gap-4 mt-1 text-sm">
-                                    {student.classification && <span className="capitalize">{student.classification}</span>}
-                                    {student.department && <span>{student.classification ? '• ' : ''}{student.department}</span>}
-                                    {student.program && <span>• {student.program}</span>}
-                                    {student.year_level && <span>• {student.year_level}</span>}
-                                    {student.section && <span>• {student.section}</span>}
+                                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                                    {student.classification && (
+                                        <Badge variant="outline" className="capitalize bg-background">{student.classification}</Badge>
+                                    )}
+                                    {student.department && (
+                                        <Badge variant="outline" className="bg-background">{student.department}</Badge>
+                                    )}
+                                    {student.program && (
+                                        <Badge variant="outline" className="bg-background">{student.program}</Badge>
+                                    )}
+                                    {student.year_level && (
+                                        <Badge variant="outline" className="bg-background">{student.year_level}</Badge>
+                                    )}
+                                    {student.section && (
+                                        <Badge variant="outline" className="bg-background">{student.section}</Badge>
+                                    )}
                                 </div>
                                 {/* Grant Info */}
                                 {grants.length > 0 && (
@@ -744,7 +754,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-5 gap-4 text-center">
+                            <div className="grid grid-cols-6 gap-4 text-center">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Fees</p>
                                     <p className="text-lg font-semibold">{formatCurrency(summary.total_fees)}</p>
@@ -846,7 +856,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             {/* Fee / School Year Selector */}
                                             <div className="grid gap-2">
                                                 <Label>Fee / School Year *</Label>
-                                                {feesWithBalance.length > 0 ? (
+                                                {normalizedPaymentOptions.length > 0 ? (
                                                     <Select
                                                         value={selectedFeeId}
                                                         onValueChange={setSelectedFeeId}
@@ -855,7 +865,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <SelectValue placeholder="Select fee / school year" />
                                                         </SelectTrigger>
                                                         <SelectContent position="popper">
-                                                            {feesWithBalance.map((fee) => (
+                                                            {normalizedPaymentOptions.map((fee) => (
                                                                 <SelectItem key={fee.id} value={fee.id.toString()}>
                                                                     {fee.school_year} — Balance: {formatCurrency(fee.balance)}
                                                                 </SelectItem>
@@ -864,7 +874,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     </Select>
                                                 ) : (
                                                     <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                                                        No outstanding fees for this student
+                                                        No fee records found for this student
                                                     </div>
                                                 )}
                                             </div>
@@ -1339,7 +1349,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                     <SelectValue placeholder="Select fee" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {fees.filter(f => f.balance > 0).map((fee) => (
+                                                                    {normalizedPaymentOptions.map((fee) => (
                                                                         <SelectItem key={fee.id} value={fee.id.toString()}>
                                                                             {fee.school_year} - Balance: {formatCurrency(fee.balance)}
                                                                         </SelectItem>
