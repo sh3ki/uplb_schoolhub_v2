@@ -613,37 +613,12 @@ class StudentPaymentController extends Controller
         $totalPaid = (float) $fees->sum('total_paid');
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
-        $activeStart = $this->extractSchoolYearStart($activeSchoolYear);
-        $previousBalance = (float) $fees
-            ->filter(function ($fee) use ($activeSchoolYear, $activeStart) {
-                $year = trim((string) ($fee['school_year'] ?? ''));
-                if ($year === '') {
-                    return false;
-                }
-
-                if ($activeStart === null) {
-                    return $year !== $activeSchoolYear;
-                }
-
-                $yearStart = $this->extractSchoolYearStart($year);
-                return $yearStart !== null && $yearStart < $activeStart;
-            })
+        $currentFeesBalance = (float) $fees
+            ->filter(fn($fee) => trim((string) ($fee['school_year'] ?? '')) === trim((string) $activeSchoolYear))
             ->sum('balance');
 
-        $currentFeesBalance = (float) $fees
-            ->filter(function ($fee) use ($activeSchoolYear, $activeStart) {
-                $year = trim((string) ($fee['school_year'] ?? ''));
-                if ($year === '') {
-                    return false;
-                }
-
-                if ($activeStart === null) {
-                    return $year === $activeSchoolYear;
-                }
-
-                $yearStart = $this->extractSchoolYearStart($year);
-                return $yearStart !== null && $yearStart === $activeStart;
-            })
+        $previousBalance = (float) StudentFee::where('student_id', $student->id)
+            ->whereRaw('TRIM(school_year) != ?', [trim((string) $activeSchoolYear)])
             ->sum('balance');
         
         $summary = [
@@ -683,6 +658,24 @@ class StudentPaymentController extends Controller
                     'created_at' => $adj->created_at->format('M d, Y h:i A'),
                 ];
             });
+
+        $paymentFeeOptions = StudentFee::where('student_id', $student->id)
+            ->orderByDesc('school_year')
+            ->orderByDesc('processed_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($fee) {
+                return [
+                    'id' => $fee->id,
+                    'school_year' => trim((string) $fee->school_year),
+                    'total_amount' => (float) $fee->total_amount,
+                    'balance' => (float) $fee->balance,
+                ];
+            })
+            ->filter(fn ($fee) => $fee['school_year'] !== '')
+            ->groupBy('school_year')
+            ->map(fn ($rows) => $rows->first())
+            ->values();
 
         $feeEditRows = StudentActionLog::where('student_id', $student->id)
             ->where('action_type', 'fee_edit')
@@ -743,6 +736,7 @@ class StudentPaymentController extends Controller
             'summary' => $summary,
             'cashiers' => $cashiers,
             'balanceAdjustments' => $balanceAdjustments,
+            'paymentFeeOptions' => $paymentFeeOptions,
             'feeEditRows' => $feeEditRows,
             'enrollmentClearance' => $student->enrollmentClearance ? [
                 'id' => $student->enrollmentClearance->id,
@@ -1372,20 +1366,6 @@ class StudentPaymentController extends Controller
             ->whereNull('student_payment_id')
             ->whereIn('status', ['completed', 'verified'])
             ->sum('amount');
-    }
-
-    private function extractSchoolYearStart(?string $schoolYear): ?int
-    {
-        $value = trim((string) $schoolYear);
-        if ($value === '') {
-            return null;
-        }
-
-        if (preg_match('/^(\d{4})\s*-\s*\d{4}$/', $value, $matches)) {
-            return (int) $matches[1];
-        }
-
-        return null;
     }
 
     /**
