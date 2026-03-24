@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Department;
+use App\Models\FeeItem;
 use App\Models\GrantRecipient;
 use App\Models\Program;
 use App\Models\StudentActionLog;
@@ -69,7 +70,7 @@ class SelfEnrollmentController extends Controller
                     $feeToSync->save();
                 }
             }
-            $fees = $rawFees->map(function (StudentFee $fee) {
+            $fees = $rawFees->map(function (StudentFee $fee) use ($student) {
                 $freshPaid = (float) $fee->total_paid;
                 $freshBalance = (float) $fee->balance;
 
@@ -88,6 +89,7 @@ class SelfEnrollmentController extends Controller
                     'misc_fee'          => (float) $fee->misc_fee,
                     'books_fee'         => (float) $fee->books_fee,
                     'other_fees'        => (float) $fee->other_fees,
+                    'categories'        => $this->buildFeeCategoriesForStudentYear($student, (string) $fee->school_year),
                 ];
             });
 
@@ -255,7 +257,7 @@ class SelfEnrollmentController extends Controller
             ->orderBy('school_year', 'desc')
             ->get();
 
-        $notEnrolledFees = $rawNotEnrolledFees->map(function (StudentFee $fee) {
+        $notEnrolledFees = $rawNotEnrolledFees->map(function (StudentFee $fee) use ($student) {
             $freshPaid = (float) $fee->total_paid;
             $freshBalance = (float) $fee->balance;
 
@@ -274,6 +276,7 @@ class SelfEnrollmentController extends Controller
                 'misc_fee'          => (float) $fee->misc_fee,
                 'books_fee'         => (float) $fee->books_fee,
                 'other_fees'        => (float) $fee->other_fees,
+                'categories'        => $this->buildFeeCategoriesForStudentYear($student, (string) $fee->school_year),
             ];
         });
 
@@ -446,5 +449,126 @@ class SelfEnrollmentController extends Controller
         }
 
         return collect();
+    }
+
+    /**
+     * Build itemized fee categories for student enrollment pages.
+     */
+    private function buildFeeCategoriesForStudentYear($student, string $schoolYear): array
+    {
+        $normalizedSchoolYear = trim((string) $schoolYear);
+
+        $feeItems = FeeItem::with('category')
+            ->where('is_active', true)
+            ->whereDoesntHave('category', function ($q) {
+                $q->where('name', 'like', '%Drop%');
+            })
+            ->where(function ($query) use ($normalizedSchoolYear, $student) {
+                $query->where(function ($allScope) use ($normalizedSchoolYear) {
+                    $allScope->where('assignment_scope', 'all')
+                        ->where(function ($yearQuery) use ($normalizedSchoolYear) {
+                            $yearQuery->whereNull('school_year')
+                                ->orWhereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+                        })
+                        ->whereDoesntHave('assignments');
+                })->orWhere(function ($specificScope) use ($student, $normalizedSchoolYear) {
+                    $specificScope->where('assignment_scope', 'specific')
+                        ->where(function ($yearQuery) use ($normalizedSchoolYear) {
+                            $yearQuery->whereNull('school_year')
+                                ->orWhereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+                        });
+
+                    $this->applyStudentFeeItemFilters($specificScope, $student);
+                })->orWhereHas('assignments', function ($assignmentQuery) use ($student, $normalizedSchoolYear) {
+                    $this->applyAssignmentFeeItemFilters($assignmentQuery, $student, $normalizedSchoolYear);
+                });
+            })
+            ->get();
+
+        if ($feeItems->isEmpty()) {
+            return [];
+        }
+
+        $enrolledUnits = \App\Models\StudentSubject::where('student_id', $student->id)
+            ->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
+            ->whereIn('status', ['enrolled'])
+            ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
+            ->sum('subjects.units');
+
+        return $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) use ($enrolledUnits) {
+            $category = $items->first()->category;
+
+            return [
+                'category_id' => $categoryId,
+                'category_name' => $category->name ?? 'Other',
+                'items' => $items->map(function ($item) use ($enrolledUnits) {
+                    $amount = (float) $item->selling_price;
+                    if ($item->is_per_unit) {
+                        $amount = (float) $enrolledUnits > 0
+                            ? (float) $item->unit_price * (float) $enrolledUnits
+                            : (float) $item->selling_price;
+                    }
+
+                    return [
+                        'id' => $item->id,
+                        'name' => $item->name,
+                        'amount' => $amount,
+                    ];
+                })->values()->all(),
+            ];
+        })->values()->all();
+    }
+
+    private function applyStudentFeeItemFilters($query, $student): void
+    {
+        $classification = $student->resolveDepartmentClassification();
+        if ($classification) {
+            $query->where(function ($q) use ($classification) {
+                $q->whereNull('classification')
+                    ->orWhere('classification', $classification);
+            });
+        }
+
+        $query->where(function ($q) use ($student) {
+            $q->whereNull('department_id')
+                ->orWhere('department_id', $student->department_id);
+        });
+
+        $query->where(function ($q) use ($student) {
+            $q->whereNull('year_level_id')
+                ->orWhere('year_level_id', $student->year_level_id);
+        });
+
+        $query->where(function ($q) use ($student) {
+            $q->whereNull('section_id')
+                ->orWhere('section_id', $student->section_id);
+        });
+    }
+
+    private function applyAssignmentFeeItemFilters($query, $student, string $schoolYear): void
+    {
+        $classification = $student->resolveDepartmentClassification();
+
+        $query->where('is_active', true)
+            ->where(function ($yearQuery) use ($schoolYear) {
+                $yearQuery->whereNull('school_year')
+                    ->orWhereRaw('TRIM(school_year) = ?', [$schoolYear]);
+            })
+            ->where(function ($q) use ($classification) {
+                $q->whereNull('classification')
+                    ->orWhere('classification', $classification);
+            })
+            ->where(function ($q) use ($student) {
+                $q->whereNull('department_id')
+                    ->orWhere('department_id', $student->department_id);
+            })
+            ->where(function ($q) use ($student) {
+                $q->whereNull('year_level_id')
+                    ->orWhere('year_level_id', $student->year_level_id);
+            })
+            ->where(function ($q) use ($student) {
+                $q->whereNull('section_id')
+                    ->orWhere('section_id', $student->section_id);
+            });
     }
 }
