@@ -207,6 +207,12 @@ interface Props {
     summary: Summary;
     cashiers?: Cashier[];
     balanceAdjustments: BalanceAdjustment[];
+    paymentFeeOptions?: Array<{
+        id: number;
+        school_year: string;
+        total_amount: number;
+        balance: number;
+    }>;
     feeEditRows: FeeEditRow[];
     enrollmentClearance?: EnrollmentClearance | null;
     currentUser: {
@@ -276,7 +282,7 @@ function renderPesoAmount(amount: number | null, className = '') {
     );
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, paymentFeeOptions = [], feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
@@ -286,13 +292,24 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const [schoolYearPage, setSchoolYearPage] = useState(1);
 
     const [amountReceived, setAmountReceived] = useState<string>('');
-    const feesWithBalance = fees.filter(f => f.balance > 0);
+    const fallbackPaymentOptions = fees.map((fee) => ({
+        id: fee.id,
+        school_year: fee.school_year,
+        total_amount: fee.total_amount,
+        balance: fee.balance,
+    }));
+
+    const normalizedPaymentOptions = (paymentFeeOptions.length > 0 ? paymentFeeOptions : fallbackPaymentOptions)
+        .slice()
+        .sort((a, b) => b.school_year.localeCompare(a.school_year));
+
+    const feesWithBalance = normalizedPaymentOptions.filter(f => f.balance > 0);
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
         feesWithBalance.length > 0 ? feesWithBalance[0].id.toString() : ''
     );
     const selectedFee = useMemo(
-        () => fees.find((fee) => fee.id.toString() === selectedFeeId),
-        [fees, selectedFeeId]
+        () => normalizedPaymentOptions.find((fee) => fee.id.toString() === selectedFeeId),
+        [normalizedPaymentOptions, selectedFeeId]
     );
 
     useEffect(() => {
@@ -1059,12 +1076,22 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     )}
                                 </div>
                                 <p className="text-muted-foreground">Student No.: {student.lrn}</p>
-                                <div className="flex gap-4 mt-1 text-sm">
-                                    {student.classification && <span className="capitalize">{student.classification}</span>}
-                                    {student.department && <span>{student.classification ? '• ' : ''}{student.department}</span>}
-                                    {student.program && <span>• {student.program}</span>}
-                                    {student.year_level && <span>• {student.year_level}</span>}
-                                    {student.section && <span>• {student.section}</span>}
+                                <div className="mt-2 flex flex-wrap gap-2 text-sm">
+                                    {student.classification && (
+                                        <Badge variant="outline" className="capitalize bg-background">{student.classification}</Badge>
+                                    )}
+                                    {student.department && (
+                                        <Badge variant="outline" className="bg-background">{student.department}</Badge>
+                                    )}
+                                    {student.program && (
+                                        <Badge variant="outline" className="bg-background">{student.program}</Badge>
+                                    )}
+                                    {student.year_level && (
+                                        <Badge variant="outline" className="bg-background">{student.year_level}</Badge>
+                                    )}
+                                    {student.section && (
+                                        <Badge variant="outline" className="bg-background">{student.section}</Badge>
+                                    )}
                                 </div>
                                 {/* Grant Info */}
                                 {grants.length > 0 && (
@@ -1203,7 +1230,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             {/* Fee / School Year Selector */}
                                             <div className="grid gap-2">
                                                 <Label>Fee / School Year *</Label>
-                                                {feesWithBalance.length > 0 ? (
+                                                {normalizedPaymentOptions.length > 0 ? (
                                                     <Select
                                                         value={selectedFeeId}
                                                         onValueChange={setSelectedFeeId}
@@ -1212,7 +1239,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <SelectValue placeholder="Select fee / school year" />
                                                         </SelectTrigger>
                                                         <SelectContent position="popper">
-                                                            {feesWithBalance.map((fee) => (
+                                                            {normalizedPaymentOptions.map((fee) => (
                                                                 <SelectItem key={fee.id} value={fee.id.toString()}>
                                                                     {fee.school_year} — Balance: {formatCurrency(fee.balance)}
                                                                 </SelectItem>
@@ -1221,7 +1248,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     </Select>
                                                 ) : (
                                                     <div className="rounded-md border bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-                                                        No outstanding fees for this student
+                                                        No fee records found for this student
                                                     </div>
                                                 )}
                                             </div>
