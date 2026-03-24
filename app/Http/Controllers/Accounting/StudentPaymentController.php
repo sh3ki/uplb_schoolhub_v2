@@ -368,7 +368,7 @@ class StudentPaymentController extends Controller
             ?: (\App\Models\AppSetting::current()?->school_year
                 ?: date('Y') . '-' . (date('Y') + 1));
 
-        $activeSchoolYear = $requestedSchoolYear ?: $defaultSchoolYear;
+        $activeSchoolYear = trim((string) ($requestedSchoolYear ?: $defaultSchoolYear));
 
         // Keep this student's active school-year status in sync with due date rules.
         StudentFee::syncOverdueByDueDate($activeSchoolYear);
@@ -417,6 +417,26 @@ class StudentPaymentController extends Controller
                 }
             }
         }
+
+        // Normalize and keep only one canonical row per school year.
+        $fees = $fees
+            ->map(function ($fee) {
+                $fee['school_year'] = trim((string) ($fee['school_year'] ?? ''));
+                return $fee;
+            })
+            ->filter(fn ($fee) => $fee['school_year'] !== '')
+            ->groupBy('school_year')
+            ->map(function ($rows) {
+                return $rows
+                    ->sortByDesc(function ($row) {
+                        $processedAt = (string) ($row['processed_at'] ?? '');
+                        return strtotime($processedAt) ?: 0;
+                    })
+                    ->values()
+                    ->first();
+            })
+            ->sortByDesc('school_year', SORT_NATURAL)
+            ->values();
 
         // Get payments for the active billing year only.
             // Active-year fee payments for summary computation.
@@ -593,11 +613,38 @@ class StudentPaymentController extends Controller
         $totalPaid = (float) $fees->sum('total_paid');
         
         // Calculate previous balance (from school years before the student's latest enrolled year)
-        $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
-        // Use the highest school year in fees as the "current" year — avoids treating future-year fees as previous
-        $latestYear = $fees->isEmpty() ? $currentSchoolYear : $fees->sortByDesc('school_year')->first()['school_year'];
-        $previousBalance = $fees->filter(fn($f) => $f['school_year'] < $latestYear)->sum('balance');
-        $currentFeesBalance = $fees->where('school_year', $latestYear)->sum('balance');
+        $activeStart = $this->extractSchoolYearStart($activeSchoolYear);
+        $previousBalance = (float) $fees
+            ->filter(function ($fee) use ($activeSchoolYear, $activeStart) {
+                $year = trim((string) ($fee['school_year'] ?? ''));
+                if ($year === '') {
+                    return false;
+                }
+
+                if ($activeStart === null) {
+                    return $year !== $activeSchoolYear;
+                }
+
+                $yearStart = $this->extractSchoolYearStart($year);
+                return $yearStart !== null && $yearStart < $activeStart;
+            })
+            ->sum('balance');
+
+        $currentFeesBalance = (float) $fees
+            ->filter(function ($fee) use ($activeSchoolYear, $activeStart) {
+                $year = trim((string) ($fee['school_year'] ?? ''));
+                if ($year === '') {
+                    return false;
+                }
+
+                if ($activeStart === null) {
+                    return $year === $activeSchoolYear;
+                }
+
+                $yearStart = $this->extractSchoolYearStart($year);
+                return $yearStart !== null && $yearStart === $activeStart;
+            })
+            ->sum('balance');
         
         $summary = [
             'total_fees' => $totalFees,
@@ -744,12 +791,16 @@ class StudentPaymentController extends Controller
                     });
             })
             ->distinct()
-            ->pluck('school_year');
+            ->pluck('school_year')
+            ->map(fn ($year) => trim((string) $year))
+            ->filter();
 
         // Always include years that already have StudentFee records
         // (preserves existing payment history even if fee items no longer apply)
         $existingYears = StudentFee::where('student_id', $student->id)
-            ->pluck('school_year');
+            ->pluck('school_year')
+            ->map(fn ($year) => trim((string) $year))
+            ->filter();
 
         return $feeItemYears->merge($existingYears)
             ->when($enrolledYear, fn($years) => $years->push($enrolledYear))
@@ -764,8 +815,10 @@ class StudentPaymentController extends Controller
      */
     private function calculateFeesForSchoolYear(Student $student, string $schoolYear): ?array
     {
+        $normalizedSchoolYear = trim((string) $schoolYear);
+
         $existingStudentFee = StudentFee::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
             ->orderByDesc('processed_at')
             ->orderByDesc('id')
             ->first();
@@ -775,7 +828,7 @@ class StudentPaymentController extends Controller
             return $this->buildFeeDataFromStudentFee($student, $existingStudentFee);
         }
 
-        $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
+        $templateYear = $this->resolveFeeTemplateYear($student, $normalizedSchoolYear);
         if (!$templateYear) {
             if ($existingStudentFee) {
                 return $this->buildFeeDataFromStudentFee($student, $existingStudentFee);
@@ -882,7 +935,7 @@ class StudentPaymentController extends Controller
 
         // Get or create the student_fees record for tracking payments
         $studentFee = StudentFee::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
             ->first();
 
         $isOverdue = $studentFee ? $studentFee->is_overdue : false;
@@ -895,7 +948,7 @@ class StudentPaymentController extends Controller
         if (!$studentFee) {
             $studentFee = StudentFee::create([
                 'student_id'     => $student->id,
-                'school_year'    => $schoolYear,
+                'school_year'    => $normalizedSchoolYear,
                 'registration_fee' => $categoryTotals['registration_fee'],
                 'tuition_fee' => $categoryTotals['tuition_fee'],
                 'misc_fee' => $categoryTotals['misc_fee'],
@@ -963,7 +1016,7 @@ class StudentPaymentController extends Controller
 
         return [
             'id' => $studentFeeId,
-            'school_year' => $schoolYear,
+            'school_year' => $normalizedSchoolYear,
             'total_amount' => (float) $totalAmount,
             'grant_discount' => (float) $grantDiscount,
             'total_paid' => (float) $totalPaid,
@@ -973,7 +1026,7 @@ class StudentPaymentController extends Controller
             'due_date' => $dueDate,
             'categories' => $itemsByCategory,
             'processed_by' => $studentFee?->processedBy?->name,
-            'processed_at' => $studentFee?->processed_at?->format('Y-m-d H:i:s'),
+            'processed_at' => ($studentFee?->processed_at ?: $studentFee?->updated_at)?->format('Y-m-d H:i:s'),
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -1090,7 +1143,7 @@ class StudentPaymentController extends Controller
             'due_date' => $studentFee->due_date,
             'categories' => $this->buildFeeCategoriesForStudentYear($student, (string) $studentFee->school_year),
             'processed_by' => $studentFee->processedBy?->name,
-            'processed_at' => $studentFee->processed_at?->format('Y-m-d H:i:s'),
+            'processed_at' => ($studentFee->processed_at ?: $studentFee->updated_at)?->format('Y-m-d H:i:s'),
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -1319,6 +1372,20 @@ class StudentPaymentController extends Controller
             ->whereNull('student_payment_id')
             ->whereIn('status', ['completed', 'verified'])
             ->sum('amount');
+    }
+
+    private function extractSchoolYearStart(?string $schoolYear): ?int
+    {
+        $value = trim((string) $schoolYear);
+        if ($value === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})\s*-\s*\d{4}$/', $value, $matches)) {
+            return (int) $matches[1];
+        }
+
+        return null;
     }
 
     /**
@@ -1705,6 +1772,8 @@ class StudentPaymentController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
+        $validated['school_year'] = trim((string) $validated['school_year']);
+
         // Prevent duplicate school year records for this student
         $existing = StudentFee::where('student_id', $student->id)
             ->where('school_year', $validated['school_year'])
@@ -1835,6 +1904,8 @@ class StudentPaymentController extends Controller
                 'status' => 'required|in:unpaid,partial,paid,overdue',
                 'reason' => 'required|string|max:500',
             ]);
+
+            $validated['school_year'] = trim((string) $validated['school_year']);
 
             $oldData = [
                 'school_year' => $fee->school_year,
