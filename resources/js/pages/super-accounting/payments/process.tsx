@@ -25,7 +25,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -233,6 +233,22 @@ function formatDate(dateString: string): string {
     });
 }
 
+function formatDateTime(dateString: string): string {
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) {
+        return dateString;
+    }
+
+    return date.toLocaleString('en-PH', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+}
+
 function formatTime(timeString: string): string {
     const parsed = new Date(`1970-01-01T${timeString}`);
     if (!Number.isNaN(parsed.getTime())) {
@@ -278,6 +294,15 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         () => fees.find((fee) => fee.id.toString() === selectedFeeId),
         [fees, selectedFeeId]
     );
+
+    useEffect(() => {
+        if (!feesWithBalance.length) return;
+
+        const selectedExists = feesWithBalance.some((fee) => fee.id.toString() === selectedFeeId);
+        if (!selectedExists) {
+            setSelectedFeeId(feesWithBalance[0].id.toString());
+        }
+    }, [feesWithBalance, selectedFeeId]);
 
     // Payment allocation calculation
     const paymentAllocation = useMemo(() => {
@@ -606,6 +631,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             .map((row) => ({ ...row, is_history: true }));
 
         return [...feeRows, ...historyRows].sort((a, b) => {
+            if (a.school_year === b.school_year && a.is_history !== b.is_history) {
+                return a.is_history ? 1 : -1;
+            }
             const aTime = new Date(a.processed_at || 0).getTime();
             const bTime = new Date(b.processed_at || 0).getTime();
             return bTime - aTime;
@@ -1073,7 +1101,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-5 gap-4 text-center">
+                            <div className="grid grid-cols-6 gap-4 text-center">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Fees</p>
                                     <p className="text-lg font-semibold">{formatCurrency(summary.total_fees)}</p>
@@ -1089,6 +1117,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 <div>
                                     <p className="text-sm text-muted-foreground">Balance</p>
                                     <p className="text-lg font-semibold text-red-600">{formatCurrency(summary.total_balance)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Previous Balance</p>
+                                    <p className="text-lg font-semibold text-orange-600">{formatCurrency(summary.previous_balance || 0)}</p>
                                 </div>
                                 <div className="flex flex-col items-center gap-1">
                                     <p className="text-sm text-muted-foreground">Clearance</p>
@@ -1638,7 +1670,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <TableBody>
                                                 {pagedSchoolYearRows.map((row) => {
                                                     const linkedFee = !row.is_history
-                                                        ? filteredFees.find((fee) => `fee-${fee.id}` === row.id)
+                                                        ? (filteredFees.find((fee) => `fee-${fee.id}` === row.id)
+                                                            ?? filteredFees.find((fee) => fee.school_year === row.school_year))
                                                         : null;
 
                                                     return (
@@ -1659,7 +1692,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <TableCell>
                                                                 <div className="text-sm">
                                                                     <p className="font-medium">{row.processed_by || '-'}</p>
-                                                                    {row.processed_at && <p className="text-xs text-muted-foreground">{formatDate(row.processed_at)}</p>}
+                                                                    {row.processed_at && <p className="text-xs text-muted-foreground">{formatDateTime(row.processed_at)}</p>}
                                                                 </div>
                                                             </TableCell>
                                                             <TableCell>
