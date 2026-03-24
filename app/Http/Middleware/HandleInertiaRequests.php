@@ -9,6 +9,7 @@ use App\Models\DropRequest;
 use App\Models\OnlineTransaction;
 use App\Models\PromissoryNote;
 use App\Models\RefundRequest;
+use App\Models\TransferRequest;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -87,6 +88,7 @@ class HandleInertiaRequests extends Middleware
             'announcementCount' => $this->getAnnouncementCount($user),
             'pendingDocumentCount' => $this->getPendingDocumentCount($user),
             'pendingDropRequestCount' => $this->getPendingDropRequestCount($user),
+            'pendingTransferRequestCount' => $this->getPendingTransferRequestCount($user),
             'pendingOnlineTransactionCount' => $this->getPendingOnlineTransactionCount($user),
             'pendingRefundCount' => $this->getPendingRefundCount($user),
             'pendingPromissoryCount' => $this->getPendingPromissoryCount($user),
@@ -181,6 +183,36 @@ class HandleInertiaRequests extends Middleware
                     return 0;
                 }
                 return DropRequest::where('student_id', $student->id)
+                    ->where('status', 'pending')
+                    ->count();
+            }
+            return 0;
+        } catch (\Exception $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Get the count of pending transfer requests for the relevant role.
+     */
+    protected function getPendingTransferRequestCount($user): int
+    {
+        if (!$user) {
+            return 0;
+        }
+        try {
+            if (in_array($user->role, ['accounting', 'super-accounting'])) {
+                return TransferRequest::where('registrar_status', 'approved')
+                    ->where('accounting_status', 'pending')
+                    ->count();
+            } elseif ($user->role === 'registrar') {
+                return TransferRequest::where('registrar_status', 'pending')->count();
+            } elseif ($user->role === 'student') {
+                $student = $user->student;
+                if (!$student) {
+                    return 0;
+                }
+                return TransferRequest::where('student_id', $student->id)
                     ->where('status', 'pending')
                     ->count();
             }
