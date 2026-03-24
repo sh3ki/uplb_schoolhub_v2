@@ -740,6 +740,7 @@ class StudentPaymentController extends Controller
             'promissoryNotes' => $promissoryNotes,
             'grants' => $grants,
             'summary' => $summary,
+            'currentSchoolYear' => trim((string) $activeSchoolYear),
             'cashiers' => $cashiers,
             'balanceAdjustments' => $balanceAdjustments,
             'paymentFeeOptions' => $paymentFeeOptions,
