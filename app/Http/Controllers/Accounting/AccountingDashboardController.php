@@ -27,6 +27,11 @@ class AccountingDashboardController extends Controller
         $selectedYear = $request->get('year', date('Y'));
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
+        $selectedSchoolYear = trim((string) $request->input('school_year', $currentSchoolYear));
+
+        if ($selectedSchoolYear === '') {
+            $selectedSchoolYear = $currentSchoolYear;
+        }
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
@@ -40,7 +45,7 @@ class AccountingDashboardController extends Controller
             ->get(['id', 'school_year', 'department_id']);
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
-        $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, null, $currentSchoolYear);
+        $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, $selectedSchoolYear, $currentSchoolYear);
 
         $fullyPaid = 0;
         $partialPayment = 0;
@@ -92,18 +97,23 @@ class AccountingDashboardController extends Controller
             $monthStart = Carbon::create($selectedYear, $month, 1)->startOfMonth();
             $monthEnd = Carbon::create($selectedYear, $month, 1)->endOfMonth();
 
-            $amount = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])->sum('amount')
+            $amount = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])
+                ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
+                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
                     ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
                     ->sum('fee')
                 + (float) DropRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
+                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
                     ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
                     ->sum('fee_amount');
             
             // Get average time of payment
             $avgTime = StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])
+                ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->whereNotNull('created_at')
                 ->avg(DB::raw('HOUR(created_at)'));
             
@@ -143,6 +153,7 @@ class AccountingDashboardController extends Controller
 
         // Recent payment activities
         $recentPayments = StudentPayment::with(['student'])
+            ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
             ->latest('payment_date')
             ->latest('created_at')
             ->take(10)
@@ -162,6 +173,7 @@ class AccountingDashboardController extends Controller
 
         // Calculate average collection time
         $avgHour = StudentPayment::whereYear('payment_date', $selectedYear)
+            ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
             ->whereNotNull('created_at')
             ->avg(DB::raw('HOUR(created_at)'));
         
@@ -182,6 +194,19 @@ class AccountingDashboardController extends Controller
             $years = [(int) date('Y')];
         }
 
+        $schoolYears = StudentFee::query()
+            ->select('school_year')
+            ->whereNotNull('school_year')
+            ->distinct()
+            ->orderByDesc('school_year')
+            ->pluck('school_year')
+            ->values()
+            ->toArray();
+
+        if (empty($schoolYears)) {
+            $schoolYears = [$currentSchoolYear];
+        }
+
         return Inertia::render('accounting/main-dashboard', [
             'stats' => $stats,
             'monthlyCollections' => $monthlyCollections,
@@ -191,6 +216,8 @@ class AccountingDashboardController extends Controller
             'averageCollectionTime' => $averageCollectionTime,
             'years' => $years,
             'selectedYear' => (int) $selectedYear,
+            'schoolYears' => $schoolYears,
+            'selectedSchoolYear' => $selectedSchoolYear,
             'projectedRevenue' => (float) $projectedRevenue,
             'totalCollected' => (float) $allAccountsProcessedTotal,
         ]);
