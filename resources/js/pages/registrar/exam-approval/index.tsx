@@ -49,6 +49,7 @@ interface FullyPaidStudent {
     total_amount: number;
     total_paid: number;
     balance: number;
+    total_balance: number;
     payment_status: string;
     school_year: string;
 }
@@ -235,8 +236,7 @@ export default function ExamApprovalIndex({
                                                     <TableHead>Department</TableHead>
                                                     <TableHead>Program</TableHead>
                                                     <TableHead>Year / Section</TableHead>
-                                                    <TableHead className="text-right">Total Paid</TableHead>
-                                                    <TableHead className="text-right">Balance</TableHead>
+                                                    <TableHead className="text-right">Total Balance</TableHead>
                                                     <TableHead>Status</TableHead>
                                                     <TableHead>School Year</TableHead>
                                                 </TableRow>
@@ -268,13 +268,14 @@ export default function ExamApprovalIndex({
                                                             <TableCell className="text-sm">{student.department || '—'}</TableCell>
                                                             <TableCell className="text-sm">{student.program || '—'}</TableCell>
                                                             <TableCell className="text-sm">{[student.year_level, student.section].filter(Boolean).join(' – ') || '—'}</TableCell>
-                                                            <TableCell className="text-right text-green-600 font-medium text-sm">{formatCurrency(student.total_paid)}</TableCell>
-                                                            <TableCell className={`text-right font-medium text-sm ${student.balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>{student.balance > 0 ? formatCurrency(student.balance) : 'Paid'}</TableCell>
+                                                            <TableCell className={`text-right font-medium text-sm ${student.total_balance > 0 ? 'text-orange-600' : 'text-green-600'}`}>{student.total_balance > 0 ? formatCurrency(student.total_balance) : 'Paid'}</TableCell>
                                                             <TableCell>
                                                                 {student.payment_status === 'paid' ? (
                                                                     <Badge className="bg-green-500 text-xs">Fully Paid</Badge>
                                                                 ) : student.payment_status === 'partial' ? (
                                                                     <Badge className="bg-yellow-500 text-xs">Partial</Badge>
+                                                                ) : student.payment_status === 'overdue' ? (
+                                                                    <Badge className="bg-red-500 text-xs">Overdue</Badge>
                                                                 ) : (
                                                                     <Badge variant="outline" className="text-xs">Unpaid</Badge>
                                                                 )}
