@@ -2438,6 +2438,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     <p className="text-sm text-red-500">{editFeeForm.errors.total_amount}</p>
                                 )}
                             </div>
+                            {/*
                             <div className="grid gap-2">
                                 <Label>Discount (₱)</Label>
                                 <Input
@@ -2477,6 +2478,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     <p className="text-sm text-red-500">{editFeeForm.errors.balance}</p>
                                 )}
                             </div>
+                            */}
                             <div className="grid gap-2">
                                 <Label>Status</Label>
                                 <Select value={editFeeForm.data.status} onValueChange={(value) => editFeeForm.setData('status', value as 'unpaid' | 'partial' | 'paid' | 'overdue')}>
