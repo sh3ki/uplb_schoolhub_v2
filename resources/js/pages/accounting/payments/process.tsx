@@ -282,6 +282,48 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         [normalizedPaymentOptions, selectedFeeId]
     );
 
+    const selectedDetailedFee = useMemo(
+        () => fees.find((fee) => fee.id.toString() === selectedFeeId),
+        [fees, selectedFeeId]
+    );
+
+    const activeSummary = useMemo(() => {
+        if (!selectedFee && !selectedDetailedFee) {
+            return {
+                total_fees: summary.total_fees,
+                total_discount: summary.total_discount,
+                total_paid: summary.total_paid,
+                total_balance: summary.total_balance,
+                previous_balance: summary.previous_balance || 0,
+                current_fees_balance: summary.current_fees_balance || summary.total_balance,
+            };
+        }
+
+        const selectedSchoolYear = (
+            selectedDetailedFee?.school_year
+            ?? selectedFee?.school_year
+            ?? ''
+        ).trim();
+
+        const previousBalance = fees
+            .filter((fee) => fee.school_year.trim() < selectedSchoolYear)
+            .reduce((total, fee) => total + fee.balance, 0);
+
+        const totalFees = selectedDetailedFee?.total_amount ?? selectedFee?.total_amount ?? 0;
+        const totalDiscount = selectedDetailedFee?.grant_discount ?? 0;
+        const totalPaid = selectedDetailedFee?.total_paid ?? 0;
+        const totalBalance = selectedDetailedFee?.balance ?? selectedFee?.balance ?? 0;
+
+        return {
+            total_fees: totalFees,
+            total_discount: totalDiscount,
+            total_paid: totalPaid,
+            total_balance: totalBalance,
+            previous_balance: previousBalance,
+            current_fees_balance: totalBalance,
+        };
+    }, [selectedFee, selectedDetailedFee, fees, summary]);
+
     useEffect(() => {
         if (!normalizedPaymentOptions.length) {
             if (selectedFeeId !== '') {
@@ -299,8 +341,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     // Payment allocation calculation
     const paymentAllocation = useMemo(() => {
         const amount = parseFloat(amountReceived) || 0;
-        const previousBalance = summary.previous_balance || 0;
-        const currentFeesBalance = summary.current_fees_balance || summary.total_balance;
+        const previousBalance = activeSummary.previous_balance || 0;
+        const currentFeesBalance = activeSummary.current_fees_balance || activeSummary.total_balance;
         
         let previousBalancePaid = 0;
         let currentFeesPaid = 0;
@@ -325,7 +367,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             remainingCurrentFeesBalance: Math.max(0, currentFeesBalance - currentFeesPaid),
             change: Math.max(0, remainingAmount),
         };
-    }, [amountReceived, summary]);
+    }, [amountReceived, activeSummary]);
 
     const paymentForm = useForm({
         student_id: student.id.toString(),
@@ -707,8 +749,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     {grants.length > 0 && (
                                         <Badge className="bg-green-100 text-green-700 border-green-200">
                                             {(() => {
-                                                const totalDiscount = summary.total_discount;
-                                                const totalFees = summary.total_fees;
+                                                const totalDiscount = activeSummary.total_discount;
+                                                const totalFees = activeSummary.total_fees;
                                                 if (totalFees > 0 && totalDiscount > 0) {
                                                     const discountPercent = Math.round((totalDiscount / totalFees) * 100);
                                                     return `${discountPercent}% Discount`;
@@ -751,20 +793,20 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         <span className="text-xs font-medium">
                                             {(() => {
                                                 // Simple calculation: what percentage of net amount has been paid
-                                                const netAmount = summary.total_fees - summary.total_discount;
-                                                if (netAmount <= 0 || summary.total_paid >= netAmount) return '100% Paid';
-                                                if (summary.total_paid <= 0) return '0% Paid';
-                                                const percent = Math.floor((summary.total_paid / netAmount) * 100);
+                                                const netAmount = activeSummary.total_fees - activeSummary.total_discount;
+                                                if (netAmount <= 0 || activeSummary.total_paid >= netAmount) return '100% Paid';
+                                                if (activeSummary.total_paid <= 0) return '0% Paid';
+                                                const percent = Math.floor((activeSummary.total_paid / netAmount) * 100);
                                                 return `${percent}% Paid`;
                                             })()}
                                         </span>
                                     </div>
                                     <Progress 
                                         value={(() => {
-                                            const netAmount = summary.total_fees - summary.total_discount;
+                                            const netAmount = activeSummary.total_fees - activeSummary.total_discount;
                                             if (netAmount <= 0) return 100;
-                                            if (summary.total_paid <= 0) return 0;
-                                            const percent = (summary.total_paid / netAmount) * 100;
+                                            if (activeSummary.total_paid <= 0) return 0;
+                                            const percent = (activeSummary.total_paid / netAmount) * 100;
                                             return Math.min(Math.max(percent, 0), 100);
                                         })()}
                                         className="h-2"
@@ -774,19 +816,23 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             <div className="grid grid-cols-6 gap-4 text-center">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Fees</p>
-                                    <p className="text-lg font-semibold">{formatCurrency(summary.total_fees)}</p>
+                                    <p className="text-lg font-semibold">{formatCurrency(activeSummary.total_fees)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Discounts</p>
-                                    <p className="text-lg font-semibold text-green-600">-{formatCurrency(summary.total_discount)}</p>
+                                    <p className="text-lg font-semibold text-green-600">-{formatCurrency(activeSummary.total_discount)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Paid</p>
-                                    <p className="text-lg font-semibold text-blue-600">{formatCurrency(summary.total_paid)}</p>
+                                    <p className="text-lg font-semibold text-blue-600">{formatCurrency(activeSummary.total_paid)}</p>
                                 </div>
                                 <div>
                                     <p className="text-sm text-muted-foreground">Balance</p>
-                                    <p className="text-lg font-semibold text-red-600">{formatCurrency(summary.total_balance)}</p>
+                                    <p className="text-lg font-semibold text-red-600">{formatCurrency(activeSummary.total_balance)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-muted-foreground">Previous Balance</p>
+                                    <p className="text-lg font-semibold text-orange-600">{formatCurrency(activeSummary.previous_balance || 0)}</p>
                                 </div>
                                 <div className="flex flex-col items-center gap-1">
                                     <p className="text-sm text-muted-foreground">Clearance</p>
@@ -952,11 +998,11 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <div className="space-y-3">
                                                 <div className="flex justify-between py-2 border-b">
                                                     <span className="text-muted-foreground">Previous Balance</span>
-                                                    <span className="font-medium">{formatCurrency(summary.previous_balance || 0)}</span>
+                                                    <span className="font-medium">{formatCurrency(activeSummary.previous_balance || 0)}</span>
                                                 </div>
                                                 <div className="flex justify-between py-2 border-b">
                                                     <span className="text-muted-foreground">Current Fees Balance</span>
-                                                    <span className="font-medium">{formatCurrency(summary.current_fees_balance || summary.total_balance)}</span>
+                                                    <span className="font-medium">{formatCurrency(activeSummary.current_fees_balance || activeSummary.total_balance)}</span>
                                                 </div>
                                                 <div className="flex justify-between py-2 bg-blue-50 px-3 rounded-md">
                                                     <span className="font-medium text-blue-700">Amount Received</span>
@@ -1012,21 +1058,21 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <div className="space-y-3">
                                                 <div className="flex justify-between py-2 border-b">
                                                     <span className="text-muted-foreground">Total Fees</span>
-                                                    <span className="font-medium">{formatCurrency(summary.total_fees)}</span>
+                                                    <span className="font-medium">{formatCurrency(activeSummary.total_fees)}</span>
                                                 </div>
-                                                {summary.total_discount > 0 && (
+                                                {activeSummary.total_discount > 0 && (
                                                     <div className="flex justify-between py-2 border-b">
                                                         <span className="text-muted-foreground">Discount</span>
-                                                        <span className="font-medium text-green-600">-{formatCurrency(summary.total_discount)}</span>
+                                                        <span className="font-medium text-green-600">-{formatCurrency(activeSummary.total_discount)}</span>
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between py-2 border-b">
                                                     <span className="text-muted-foreground">Total Paid</span>
-                                                    <span className="font-medium text-blue-600">{formatCurrency(summary.total_paid)}</span>
+                                                    <span className="font-medium text-blue-600">{formatCurrency(activeSummary.total_paid)}</span>
                                                 </div>
                                                 <div className="flex justify-between py-3 bg-red-50 px-3 rounded-md">
                                                     <span className="font-semibold text-red-700">Balance Due</span>
-                                                    <span className="font-bold text-red-700">{formatCurrency(summary.total_balance)}</span>
+                                                    <span className="font-bold text-red-700">{formatCurrency(activeSummary.total_balance)}</span>
                                                 </div>
                                             </div>
                                         </CardContent>
