@@ -91,6 +91,15 @@ interface Fee {
     misc_fee?: number;
     books_fee?: number;
     other_fees?: number;
+    categories?: Array<{
+        category_id: number | string;
+        category_name: string;
+        items: Array<{
+            id: number | string;
+            name: string;
+            amount: number;
+        }>;
+    }>;
 }
 
 interface Payment {
@@ -254,6 +263,20 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
         currentFee && categoryRows.length === 0 && currentFee.total_amount > 0
             ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
             : categoryRows;
+
+    const categoryGroups = currentFee?.categories && currentFee.categories.length > 0
+        ? currentFee.categories
+        : categoryRowsWithFallback.length > 0
+            ? [{
+                category_id: 'stored-ledger',
+                category_name: 'Stored Fee Ledger',
+                items: categoryRowsWithFallback.map((row) => ({
+                    id: row.label,
+                    name: row.label,
+                    amount: row.amount,
+                })),
+            }]
+            : [];
 
     return (
         <StudentLayout>
@@ -506,25 +529,32 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
                                 </div>
                                 {!currentFee ? (
                                     <p className="text-sm text-muted-foreground">No category breakdown available.</p>
-                                ) : categoryRowsWithFallback.length === 0 ? (
+                                ) : categoryGroups.length === 0 ? (
                                     <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
                                 ) : (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Category</TableHead>
-                                                <TableHead className="text-right">Amount</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {categoryRowsWithFallback.map((row) => (
-                                                <TableRow key={row.label}>
-                                                    <TableCell>{row.label}</TableCell>
-                                                    <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
+                                    <div className="space-y-4">
+                                        {categoryGroups.map((group) => (
+                                            <div key={String(group.category_id)} className="rounded-md border p-3">
+                                                <p className="mb-2 font-semibold">{group.category_name}</p>
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Fee Item</TableHead>
+                                                            <TableHead className="text-right">Amount</TableHead>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {group.items.map((item) => (
+                                                            <TableRow key={String(item.id)}>
+                                                                <TableCell>{item.name}</TableCell>
+                                                                <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
 
@@ -755,6 +785,20 @@ function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingR
             ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
             : categoryRows;
 
+    const categoryGroups = currentFee?.categories && currentFee.categories.length > 0
+        ? currentFee.categories
+        : categoryRowsWithFallback.length > 0
+            ? [{
+                category_id: 'stored-ledger',
+                category_name: 'Stored Fee Ledger',
+                items: categoryRowsWithFallback.map((row) => ({
+                    id: row.label,
+                    name: row.label,
+                    amount: row.amount,
+                })),
+            }]
+            : [];
+
     return (
         <StudentLayout>
             <Head title="Re-Enrollment" />
@@ -855,25 +899,32 @@ function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingR
                             </div>
                             {!currentFee ? (
                                 <p className="text-sm text-muted-foreground">No category breakdown available.</p>
-                            ) : categoryRowsWithFallback.length === 0 ? (
+                            ) : categoryGroups.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No category values recorded for {currentFee.school_year}.</p>
                             ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Category</TableHead>
-                                            <TableHead className="text-right">Amount</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {categoryRowsWithFallback.map((row) => (
-                                            <TableRow key={row.label}>
-                                                <TableCell>{row.label}</TableCell>
-                                                <TableCell className="text-right">{formatCurrency(row.amount)}</TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
+                                <div className="space-y-4">
+                                    {categoryGroups.map((group) => (
+                                        <div key={String(group.category_id)} className="rounded-md border p-3">
+                                            <p className="mb-2 font-semibold">{group.category_name}</p>
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Fee Item</TableHead>
+                                                        <TableHead className="text-right">Amount</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {group.items.map((item) => (
+                                                        <TableRow key={String(item.id)}>
+                                                            <TableCell>{item.name}</TableCell>
+                                                            <TableCell className="text-right">{formatCurrency(item.amount)}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     </CardContent>
