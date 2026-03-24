@@ -18,6 +18,7 @@ class AppSetting extends Model
         'school_year',
         'active_semester',
         'drop_request_deadline',
+        'transfer_request_deadline',
         'has_k12',
         'has_college',
         // Enrollment period settings
@@ -69,6 +70,7 @@ class AppSetting extends Model
         'nav_links'                => 'array',
         'active_semester'           => 'integer',
         'drop_request_deadline'    => 'date',
+        'transfer_request_deadline' => 'date',
     ];
 
     public static function current(): self
