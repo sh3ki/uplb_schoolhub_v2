@@ -88,6 +88,8 @@ interface Props {
     sections: FilterOption[];
     selectedMonth: number;
     selectedYear: number;
+    schoolYears: string[];
+    selectedSchoolYear: string;
     months: { value: number; label: string }[];
     years: number[];
     filters: {
@@ -101,6 +103,7 @@ interface Props {
         date_to?: string;
         month?: number;
         year?: number;
+        school_year?: string;
     };
 }
 
@@ -121,6 +124,8 @@ export default function AccountDashboard({
     sections = [],
     selectedMonth,
     selectedYear,
+    schoolYears = [],
+    selectedSchoolYear,
     months,
     filters,
 }: Props) {
@@ -167,6 +172,7 @@ export default function AccountDashboard({
     const [program, setProgram]               = useState(filters.program || '');
     const [yearLevel, setYearLevel]           = useState(filters.year_level || '');
     const [section, setSection]               = useState(filters.section || '');
+    const [schoolYear, setSchoolYear]         = useState(filters.school_year || selectedSchoolYear || '');
     const [accountId, setAccountId]           = useState(filters.account_id || 'all');
     const [dateRange, setDateRange]           = useState<DateRange | undefined>(
         filters.date_from && filters.date_to
@@ -200,6 +206,7 @@ export default function AccountDashboard({
             program:        program || undefined,
             year_level:     yearLevel || undefined,
             section:        section || undefined,
+            school_year:    schoolYear && schoolYear !== 'all' ? schoolYear : undefined,
             account_id:     accountId === 'all' ? undefined : accountId,
             date_from: dateRange?.from ? dateRange.from.toISOString().split('T')[0] : undefined,
             date_to:   dateRange?.to   ? dateRange.to.toISOString().split('T')[0]   : undefined,
@@ -212,6 +219,7 @@ export default function AccountDashboard({
         setProgram('');
         setYearLevel('');
         setSection('');
+        setSchoolYear(selectedSchoolYear || '');
         setAccountId('all');
         setDateRange(undefined);
         router.get('/super-accounting/account-dashboard');
@@ -233,7 +241,7 @@ export default function AccountDashboard({
                     <div className="flex gap-2">
                         <ExportButton
                             exportUrl="/super-accounting/account-dashboard/export"
-                            filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section, account_id: accountId === 'all' ? undefined : accountId }}
+                            filters={{ classification, department_id: departmentId, program, year_level: yearLevel, section, school_year: schoolYear && schoolYear !== 'all' ? schoolYear : undefined, account_id: accountId === 'all' ? undefined : accountId }}
                             buttonText="Export Data"
                         />
                         <Button variant="outline" onClick={() => window.location.reload()}>
@@ -286,6 +294,13 @@ export default function AccountDashboard({
                         options={sections}
                         onChange={v => setSection(v === 'all' ? '' : v)}
                         placeholder="All Sections"
+                    />
+                    <FilterDropdown
+                        label="School Year"
+                        value={schoolYear || 'all'}
+                        options={schoolYears.map((sy) => ({ value: sy, label: sy }))}
+                        onChange={v => setSchoolYear(v === 'all' ? '' : v)}
+                        placeholder="All School Years"
                     />
                     <DateRangePicker
                         label="Date Range"
