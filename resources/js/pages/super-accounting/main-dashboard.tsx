@@ -51,6 +51,8 @@ interface Props {
     averageCollectionTime: string;
     years: number[];
     selectedYear: number;
+    schoolYears: string[];
+    selectedSchoolYear: string;
     projectedRevenue?: number;
     totalCollected?: number;
 }
@@ -64,10 +66,13 @@ export default function MainDashboard({
     averageCollectionTime,
     years,
     selectedYear,
+    schoolYears,
+    selectedSchoolYear,
     projectedRevenue = 0,
     totalCollected = 0,
 }: Props) {
     const [year, setYear] = useState(selectedYear.toString());
+    const [schoolYear, setSchoolYear] = useState(selectedSchoolYear || '');
 
     const formatCurrency = (amount: number) => {
         return `₱ ${amount.toLocaleString('en-PH', {
@@ -78,7 +83,12 @@ export default function MainDashboard({
 
     const handleYearChange = (value: string) => {
         setYear(value);
-        router.get('/super-accounting/dashboard', { year: value }, { preserveState: true, preserveScroll: true });
+        router.get('/super-accounting/dashboard', { year: value, school_year: schoolYear || undefined }, { preserveState: true, preserveScroll: true });
+    };
+
+    const handleSchoolYearChange = (value: string) => {
+        setSchoolYear(value);
+        router.get('/super-accounting/dashboard', { year, school_year: value || undefined }, { preserveState: true, preserveScroll: true });
     };
 
     const handleExport = () => {
@@ -239,18 +249,32 @@ export default function MainDashboard({
                                 {averageCollectionTime && `⏱ Average collection time: ${averageCollectionTime}`}
                             </CardDescription>
                         </div>
-                        <Select value={year} onValueChange={handleYearChange}>
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue placeholder="Year" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {(years || [new Date().getFullYear()]).map((y) => (
-                                    <SelectItem key={y} value={y.toString()}>
-                                        {y}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2">
+                            <Select value={schoolYear} onValueChange={handleSchoolYearChange}>
+                                <SelectTrigger className="w-[170px]">
+                                    <SelectValue placeholder="School Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(schoolYears || []).map((sy) => (
+                                        <SelectItem key={sy} value={sy}>
+                                            {sy}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <Select value={year} onValueChange={handleYearChange}>
+                                <SelectTrigger className="w-[120px]">
+                                    <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {(years || [new Date().getFullYear()]).map((y) => (
+                                        <SelectItem key={y} value={y.toString()}>
+                                            {y}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="flex items-end justify-between gap-2 h-64 pt-8">
