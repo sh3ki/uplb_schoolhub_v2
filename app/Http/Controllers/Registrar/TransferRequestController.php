@@ -9,6 +9,7 @@ use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -89,12 +90,14 @@ class TransferRequestController extends Controller
 
         $settings = AppSetting::current();
 
+        $deadline = $settings->transfer_request_deadline ? Carbon::parse($settings->transfer_request_deadline) : null;
+
         return Inertia::render('registrar/transfer-requests/index', [
             'requests' => $requests,
             'stats' => $stats,
             'tab' => $tab,
             'filters' => $request->only(['search']),
-            'transferRequestDeadline' => $settings->transfer_request_deadline?->format('Y-m-d'),
+            'transferRequestDeadline' => $deadline?->format('Y-m-d'),
         ]);
     }
 
