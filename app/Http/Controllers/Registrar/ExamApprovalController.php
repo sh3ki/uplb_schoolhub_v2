@@ -63,13 +63,18 @@ class ExamApprovalController extends Controller
                     ?: $student->fees->sortByDesc('school_year', SORT_NATURAL)->first();
 
                 $totalAmount = (float) ($fee?->total_amount ?? 0);
-                $totalPaid = (float) ($fee ? $fee->payments->sum('amount') : 0);
-                $balance = max(0, $totalAmount - (float) ($fee?->grant_discount ?? 0) - $totalPaid);
+                $totalPaid = (float) ($fee?->total_paid ?? 0);
+                $currentBalance = (float) ($fee?->balance ?? 0);
+                $previousBalance = (float) $student->fees
+                    ->filter(fn ($row) => trim((string) $row->school_year) !== trim((string) ($fee?->school_year ?? $targetSchoolYear)))
+                    ->sum('balance');
+                $totalBalance = $currentBalance + $previousBalance;
+                $isOverdue = (bool) ($fee?->is_overdue ?? false) && $currentBalance > 0;
 
                 $paymentStatus = 'unpaid';
-                if ((bool) ($fee?->is_overdue ?? false) && $balance > 0) {
+                if ($isOverdue) {
                     $paymentStatus = 'overdue';
-                } elseif ($totalAmount > 0 && $balance <= 0) {
+                } elseif ($totalAmount > 0 && $currentBalance <= 0) {
                     $paymentStatus = 'paid';
                 } elseif ($totalPaid > 0) {
                     $paymentStatus = 'partial';
@@ -90,7 +95,8 @@ class ExamApprovalController extends Controller
                     'student_photo_url' => $student->student_photo_url,
                     'total_amount'      => $totalAmount,
                     'total_paid'        => $totalPaid,
-                    'balance'           => $balance,
+                    'balance'           => $currentBalance,
+                    'total_balance'     => $totalBalance,
                     'payment_status'    => $paymentStatus,
                     'school_year'       => $fee?->school_year ?? $targetSchoolYear,
                 ];
