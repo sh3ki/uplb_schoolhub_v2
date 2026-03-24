@@ -255,11 +255,6 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
             ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
             : categoryRows;
 
-    const categoryRowsWithFallback =
-        currentFee && categoryRows.length === 0 && currentFee.total_amount > 0
-            ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
-            : categoryRows;
-
     return (
         <StudentLayout>
             <Head title="My Enrollment" />
@@ -754,6 +749,11 @@ function EnrollmentForm({ student, currentSchoolYear, fees, summary, hasPendingR
             { label: 'Other Fees', amount: currentFee.other_fees ?? 0 },
         ].filter((row) => row.amount > 0)
         : [];
+
+    const categoryRowsWithFallback =
+        currentFee && categoryRows.length === 0 && currentFee.total_amount > 0
+            ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
+            : categoryRows;
 
     return (
         <StudentLayout>
