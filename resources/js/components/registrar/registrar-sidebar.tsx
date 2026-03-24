@@ -15,6 +15,7 @@ import {
     Settings,
     UserCog,
     UserMinus,
+    UserRoundX,
     Users,
 } from 'lucide-react';
 import { NavFooter } from '@/components/nav-footer';
@@ -53,7 +54,7 @@ interface AppSettings {
 }
 
 export function RegistrarSidebar() {
-    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; appSettings?: AppSettings }>().props;
+    const { announcementCount, pendingDocumentCount, pendingDropRequestCount, pendingTransferRequestCount, appSettings } = usePage<{ announcementCount: number; pendingDocumentCount?: number; pendingDropRequestCount?: number; pendingTransferRequestCount?: number; appSettings?: AppSettings }>().props;
     const appName = appSettings?.app_name || 'SchoolHub';
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
@@ -127,6 +128,12 @@ export function RegistrarSidebar() {
             href: '/registrar/drop-requests',
             badge: pendingDropRequestCount || undefined,
             icon: UserMinus,
+        },
+        {
+            title: 'Transfer Requests',
+            href: '/registrar/transfer-requests',
+            badge: pendingTransferRequestCount || undefined,
+            icon: UserRoundX,
         },
         {
             title: 'Exam Approval',
