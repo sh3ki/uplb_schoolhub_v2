@@ -384,6 +384,14 @@ class Student extends Model
     }
 
     /**
+     * Get all transfer-out requests for this student.
+     */
+    public function transferRequests()
+    {
+        return $this->hasMany(TransferRequest::class);
+    }
+
+    /**
      * Get all refund requests for this student.
      */
     public function refundRequests()
