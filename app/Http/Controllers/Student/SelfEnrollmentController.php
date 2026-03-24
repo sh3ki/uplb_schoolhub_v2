@@ -41,9 +41,8 @@ class SelfEnrollmentController extends Controller
         if ($student->enrollment_status === 'enrolled') {
             $student->load(['requirements.requirement.category', 'enrollmentClearance', 'departmentModel']);
 
-            // Fees for the student's billing school year only.
+            // Fees across all school years so newly added fee records are visible.
             $rawFees = StudentFee::where('student_id', $student->id)
-                ->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)])
                 ->orderBy('school_year', 'desc')
                 ->get();
             foreach ($rawFees as $feeToSync) {
@@ -71,8 +70,8 @@ class SelfEnrollmentController extends Controller
                 }
             }
             $fees = $rawFees->map(function (StudentFee $fee) {
-                $freshPaid = (float) $fee->payments()->sum('amount');
-                $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshPaid);
+                $freshPaid = (float) $fee->total_paid;
+                $freshBalance = (float) $fee->balance;
 
                 return [
                     'id'                => $fee->id,
@@ -257,8 +256,8 @@ class SelfEnrollmentController extends Controller
             ->get();
 
         $notEnrolledFees = $rawNotEnrolledFees->map(function (StudentFee $fee) {
-            $freshPaid = (float) $fee->payments()->sum('amount');
-            $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshPaid);
+            $freshPaid = (float) $fee->total_paid;
+            $freshBalance = (float) $fee->balance;
 
             return [
                 'id'                => $fee->id,
