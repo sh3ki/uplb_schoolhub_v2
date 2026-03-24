@@ -11,7 +11,7 @@ class EnsureStudentActive
 {
     /**
      * Handle an incoming request.
-     * Block students who have been dropped and deactivated.
+     * Block students whose accounts have been deactivated by registrar workflows.
      */
     public function handle(Request $request, Closure $next): Response
     {
@@ -36,7 +36,7 @@ class EnsureStudentActive
                 $request->session()->regenerateToken();
 
                 return redirect()->route('login')->with('error', 
-                    'Your account has been deactivated due to enrollment drop. Please visit the registrar\'s office to reactivate your account.'
+                    'Your account has been deactivated. Please visit the registrar\'s office for assistance.'
                 );
             }
         }
