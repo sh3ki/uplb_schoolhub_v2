@@ -21,7 +21,7 @@ class OnlinePaymentController extends Controller
     /**
      * Display the online payment page.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $user = Auth::user();
         $student = $user->student;
@@ -32,11 +32,47 @@ class OnlinePaymentController extends Controller
 
         // Get fee items based on student's classification/department/year_level
         $activeSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
-        $targetSchoolYear = $student->school_year ?: $activeSchoolYear;
-        $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
+        $targetSchoolYear = trim((string) ($student->school_year ?: $activeSchoolYear));
+
+        $feeRecords = StudentFee::where('student_id', $student->id)
+            ->orderByDesc('school_year')
+            ->orderByDesc('id')
+            ->get()
+            ->map(function ($fee) {
+                return [
+                    'id' => $fee->id,
+                    'school_year' => trim((string) $fee->school_year),
+                    'total_amount' => (float) $fee->total_amount,
+                    'total_paid' => (float) $fee->total_paid,
+                    'grant_discount' => (float) $fee->grant_discount,
+                    'balance' => (float) $fee->balance,
+                ];
+            })
+            ->filter(fn ($fee) => $fee['school_year'] !== '')
+            ->groupBy('school_year')
+            ->map(fn ($rows) => $rows->first())
+            ->values();
+
+        $schoolYears = $feeRecords
+            ->pluck('school_year')
+            ->filter()
+            ->unique()
+            ->sortDesc()
+            ->values();
+
+        if ($schoolYears->isEmpty()) {
+            $schoolYears = collect([$targetSchoolYear]);
+        }
+
+        $requestedSchoolYear = trim((string) $request->input('school_year', ''));
+        $selectedSchoolYear = $requestedSchoolYear !== '' && $schoolYears->contains($requestedSchoolYear)
+            ? $requestedSchoolYear
+            : (string) $schoolYears->first();
+
+        $feeItems = $this->getStudentFeeItems($student, $selectedSchoolYear);
 
         // Get student's fee summary
-        $summary = $this->getFeeSummary($student, $targetSchoolYear);
+        $summary = $this->getFeeSummary($student, $selectedSchoolYear);
 
         // Get recent online payments (paginated, latest first)
         $recentPayments = OnlineTransaction::where('student_id', $student->id)
@@ -68,6 +104,9 @@ class OnlinePaymentController extends Controller
         return Inertia::render('student/online-payments/index', [
             'feeItems' => $feeItems,
             'summary' => $summary,
+            'feeRecords' => $feeRecords->values(),
+            'schoolYears' => $schoolYears->values(),
+            'selectedSchoolYear' => $selectedSchoolYear,
             'recentPayments' => $recentPayments,
             'paymentMethods' => $paymentMethods,
         ]);
@@ -87,6 +126,7 @@ class OnlinePaymentController extends Controller
 
         $validated = $request->validate([
             'amount' => 'required|numeric|min:1',
+            'school_year' => 'required|string|max:20',
             'payment_method' => 'required|string|in:gcash,bank_transfer',
             'reference_number' => 'required|string|max:255',
             'receipt_image' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
@@ -103,6 +143,22 @@ class OnlinePaymentController extends Controller
         // Generate unique transaction ID
         $transactionId = 'OT-' . now()->format('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
+        $selectedSchoolYear = trim((string) $validated['school_year']);
+        $hasFeeYear = StudentFee::where('student_id', $student->id)
+            ->whereRaw('TRIM(school_year) = ?', [$selectedSchoolYear])
+            ->exists();
+
+        if (!$hasFeeYear) {
+            return back()->withErrors([
+                'school_year' => 'Selected school year is not available for this student.',
+            ]);
+        }
+
+        $remarksPayload = '[SchoolYear: ' . $selectedSchoolYear . ']';
+        if (!empty($validated['notes'])) {
+            $remarksPayload .= ' ' . trim((string) $validated['notes']);
+        }
+
         // Create online transaction
         OnlineTransaction::create([
             'student_id' => $student->id,
@@ -114,7 +170,7 @@ class OnlinePaymentController extends Controller
             'payment_proof' => $receiptPath,
             'transaction_date' => now(),
             'status' => 'pending',
-            'remarks' => $validated['notes'] ?? null,
+            'remarks' => $remarksPayload,
         ]);
 
         return redirect()->back()->with('success', 'Payment submitted successfully. Please wait for verification.');
