@@ -3,11 +3,8 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\AppSetting;
 use App\Models\DocumentFeeItem;
 use App\Models\DocumentRequest;
-use App\Models\StudentFee;
-use App\Models\StudentPayment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -169,40 +166,6 @@ class DocumentApprovalController extends Controller
         }
 
         $documentRequest->approveByAccounting(auth()->id(), $validated['remarks'] ?? null);
-
-        // Record a student payment when approving a document request with a fee
-        if ($documentRequest->fee > 0) {
-            $student = $documentRequest->student;
-            $schoolYear = $student?->school_year
-                ?: (AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1)));
-
-            $studentFee = StudentFee::firstOrCreate(
-                [
-                    'student_id' => $documentRequest->student_id,
-                    'school_year' => $schoolYear,
-                ],
-                [
-                    'total_amount' => 0,
-                    'grant_discount' => 0,
-                    'total_paid' => 0,
-                    'balance' => 0,
-                ]
-            );
-
-            $label = DocumentRequest::DOCUMENT_TYPES[$documentRequest->document_type] ?? $documentRequest->document_type;
-            StudentPayment::create([
-                'student_id'   => $documentRequest->student_id,
-                'student_fee_id' => $studentFee->id,
-                'payment_date' => now()->toDateString(),
-                'amount'       => $documentRequest->fee,
-                'payment_for'  => 'other',
-                'payment_mode' => 'CASH',
-                'or_number'    => $validated['or_number'] ?? null,
-                'notes'        => 'Document payment: ' . $label,
-                'recorded_by'  => auth()->id(),
-            ]);
-        }
-
 
         // Sync students_availed on the DocumentFeeItem from real approved count
         if ($documentRequest->document_fee_item_id) {
