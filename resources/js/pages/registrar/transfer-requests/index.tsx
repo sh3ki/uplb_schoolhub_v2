@@ -227,9 +227,19 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                             <Button variant="outline" onClick={() => setDeadlineOpen(false)}>Cancel</Button>
                             <Button variant="outline" onClick={() => {
                                 deadlineForm.setData('transfer_request_deadline', '');
-                                deadlineForm.post('/registrar/transfer-requests/set-deadline', { onSuccess: () => setDeadlineOpen(false) });
+                                router.post('/registrar/transfer-requests/set-deadline', {
+                                    transfer_request_deadline: '',
+                                }, {
+                                    onSuccess: () => setDeadlineOpen(false),
+                                });
                             }}>Clear</Button>
-                            <Button onClick={() => deadlineForm.post('/registrar/transfer-requests/set-deadline', { onSuccess: () => setDeadlineOpen(false) })}>Save</Button>
+                            <Button onClick={() => {
+                                router.post('/registrar/transfer-requests/set-deadline', {
+                                    transfer_request_deadline: deadlineForm.data.transfer_request_deadline || null,
+                                }, {
+                                    onSuccess: () => setDeadlineOpen(false),
+                                });
+                            }}>Save</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
