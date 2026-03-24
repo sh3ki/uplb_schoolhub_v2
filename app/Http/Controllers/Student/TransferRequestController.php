@@ -8,6 +8,7 @@ use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +52,7 @@ class TransferRequestController extends Controller
             ->where('status', 'approved')
             ->exists();
 
-        $deadline = $settings?->transfer_request_deadline;
+        $deadline = $settings?->transfer_request_deadline ? Carbon::parse($settings->transfer_request_deadline) : null;
         $deadlinePassed = $deadline && now()->startOfDay()->gt($deadline);
 
         return Inertia::render('student/transfer-request/index', [
@@ -76,7 +77,7 @@ class TransferRequestController extends Controller
         }
 
         $settings = AppSetting::current();
-        $deadline = $settings?->transfer_request_deadline;
+        $deadline = $settings?->transfer_request_deadline ? Carbon::parse($settings->transfer_request_deadline) : null;
         if ($deadline && now()->startOfDay()->gt($deadline)) {
             return back()->with('error', 'The transfer request submission deadline has passed.');
         }
