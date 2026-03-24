@@ -98,6 +98,10 @@ class StudentAccountController extends Controller
             // Per-year data for metadata (is_overdue, due_date, student_fee_id, payments_count)
             $feeData = $this->calculateStudentFees($student, $targetSchoolYear);
 
+            $previousBalance = (float) StudentFee::where('student_id', $student->id)
+                ->whereRaw('TRIM(school_year) != ?', [trim((string) $targetSchoolYear)])
+                ->sum('balance');
+
             // Get grants — no school_year filter so mislabelled grants still show
             $grants = GrantRecipient::where('student_id', $student->id)
                 ->where('status', 'active')
@@ -124,6 +128,7 @@ class StudentAccountController extends Controller
                 'grant_discount' => (float) $feeData['grant_discount'],
                 'total_paid' => (float) $feeData['total_paid'],
                 'balance' => (float) $feeData['balance'],
+                'previous_balance' => $previousBalance,
                 'is_overdue' => $feeData['is_overdue'],
                 'due_date' => $feeData['due_date'],
                 'payment_status' => $feeData['payment_status'],
