@@ -104,6 +104,23 @@ interface DepartmentRow {
     collection_rate: number;
 }
 
+interface FeeManipulationLog {
+    id: number;
+    student: {
+        id: number | null;
+        full_name: string | null;
+        lrn: string | null;
+        student_photo_url?: string | null;
+    };
+    action_type: string;
+    action: string;
+    details?: string | null;
+    notes?: string | null;
+    school_year?: string | null;
+    performed_by?: string | null;
+    created_at?: string | null;
+}
+
 interface Props {
     paymentSummary: PaymentSummary[];
     balanceReport: BalanceReport[];
@@ -124,6 +141,7 @@ interface Props {
         students: number;
         total_discount: number;
     };
+    feeManipulations: FeeManipulationLog[];
     filters: {
         from?: string;
         to?: string;
@@ -152,6 +170,7 @@ export default function AccountingReports({
     departmentAnalysis = [],
     grantTotals = [],
     grantSummary = { students: 0, total_discount: 0 },
+    feeManipulations = [],
     filters = {},
     schoolYears = [],
     departments = [],
@@ -429,6 +448,7 @@ export default function AccountingReports({
                         <TabsTrigger value="fee-income">Fee Income</TabsTrigger>
                         <TabsTrigger value="department">Department Analysis</TabsTrigger>
                         <TabsTrigger value="grants">Total Grants</TabsTrigger>
+                        <TabsTrigger value="fee-manipulation">Fee Manipulation</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="balance" className="space-y-4">
@@ -862,6 +882,70 @@ export default function AccountingReports({
                                                     <TableCell className="text-right">{grantSummary.students.toLocaleString()}</TableCell>
                                                     <TableCell className="text-right text-green-600">{formatCurrency(grantSummary.total_discount)}</TableCell>
                                                 </TableRow>
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="fee-manipulation" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Fee Manipulation</CardTitle>
+                                <CardDescription>
+                                    Logs for fee creation, updates, balance adjustments, and deletions
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="rounded-lg border">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Timestamp</TableHead>
+                                                <TableHead>Student</TableHead>
+                                                <TableHead>School Year</TableHead>
+                                                <TableHead>Action Type</TableHead>
+                                                <TableHead>Action</TableHead>
+                                                <TableHead>Performed By</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {feeManipulations.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                                                        No fee manipulation logs for selected filters.
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                feeManipulations.map((log) => (
+                                                    <TableRow key={log.id}>
+                                                        <TableCell className="text-xs text-muted-foreground">{log.created_at || '-'}</TableCell>
+                                                        <TableCell>
+                                                            <div className="flex items-center gap-3">
+                                                                <StudentPhoto
+                                                                    src={log.student?.student_photo_url}
+                                                                    firstName={log.student?.full_name?.split(' ')[0]}
+                                                                    lastName={log.student?.full_name?.split(' ').slice(1).join(' ') || ''}
+                                                                    size="sm"
+                                                                />
+                                                                <div>
+                                                                    <div className="font-medium">{log.student?.full_name || 'Unknown Student'}</div>
+                                                                    <div className="text-xs text-muted-foreground">{log.student?.lrn || '-'}</div>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>{log.school_year || '-'}</TableCell>
+                                                        <TableCell className="capitalize">{log.action_type.replace('_', ' ')}</TableCell>
+                                                        <TableCell className="max-w-[420px]">
+                                                            <div className="line-clamp-2" title={log.details || log.action}>
+                                                                {log.details || log.action}
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>{log.performed_by || '-'}</TableCell>
+                                                    </TableRow>
+                                                ))
                                             )}
                                         </TableBody>
                                     </Table>
