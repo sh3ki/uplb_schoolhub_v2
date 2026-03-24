@@ -255,6 +255,11 @@ function EnrollmentDetails({ student, fees, payments, promissoryNotes, staffNote
             ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
             : categoryRows;
 
+    const categoryRowsWithFallback =
+        currentFee && categoryRows.length === 0 && currentFee.total_amount > 0
+            ? [{ label: 'Total Assessed Fees', amount: currentFee.total_amount }]
+            : categoryRows;
+
     return (
         <StudentLayout>
             <Head title="My Enrollment" />
