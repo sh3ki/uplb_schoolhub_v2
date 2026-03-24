@@ -11,6 +11,7 @@ use App\Models\FeeCategory;
 use App\Models\FeeItem;
 use App\Models\GrantRecipient;
 use App\Models\Student;
+use App\Models\StudentActionLog;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use Illuminate\Http\Request;
@@ -451,6 +452,51 @@ class ReportsController extends Controller
             'total_discount' => (float) $grantTotals->sum('total_discount'),
         ];
 
+        $feeManipulations = StudentActionLog::query()
+            ->with(['student:id,first_name,last_name,lrn,student_photo_url,department_id', 'performer:id,name'])
+            ->whereIn('action_type', ['fee_edit', 'fee_delete', 'balance_adjustment'])
+            ->when($departmentId || $classification, function ($query) use ($scopedStudentIds) {
+                $query->whereIn('student_id', $scopedStudentIds);
+            })
+            ->latest()
+            ->take(300)
+            ->get()
+            ->map(function (StudentActionLog $log) {
+                $changes = is_array($log->changes) ? $log->changes : [];
+
+                $schoolYear = (string) (
+                    $changes['school_year']
+                    ?? ($changes['new']['school_year'] ?? null)
+                    ?? ($changes['old']['school_year'] ?? null)
+                    ?? ''
+                );
+
+                return [
+                    'id' => $log->id,
+                    'student' => [
+                        'id' => $log->student?->id,
+                        'full_name' => $log->student?->full_name,
+                        'lrn' => $log->student?->lrn,
+                        'student_photo_url' => $log->student?->student_photo_url,
+                    ],
+                    'action_type' => $log->action_type,
+                    'action' => $log->action,
+                    'details' => $log->details,
+                    'notes' => $log->notes,
+                    'school_year' => $schoolYear,
+                    'performed_by' => $log->performer?->name,
+                    'created_at' => $log->created_at?->format('Y-m-d H:i:s'),
+                ];
+            })
+            ->filter(function (array $row) use ($schoolYear) {
+                if (!$schoolYear) {
+                    return true;
+                }
+
+                return trim((string) $row['school_year']) === trim((string) $schoolYear);
+            })
+            ->values();
+
         return Inertia::render($this->reportsView(), [
             'paymentSummary' => $paymentSummary,
             'balanceReport' => $balanceReport,
@@ -464,6 +510,7 @@ class ReportsController extends Controller
             'departmentAnalysis' => $departmentAnalysis,
             'grantTotals' => $grantTotals,
             'grantSummary' => $grantSummary,
+            'feeManipulations' => $feeManipulations,
         ]);
     }
 
