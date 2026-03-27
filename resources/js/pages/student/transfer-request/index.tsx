@@ -254,7 +254,7 @@ export default function TransferRequestIndex({
                                         </div>
 
                                         <div className="space-y-2">
-                                            <Label htmlFor="reason">Reason</Label>
+                                            <Label htmlFor="reason">Reason (Minimum 20 characters)</Label>
                                             <Textarea
                                                 id="reason"
                                                 rows={5}
