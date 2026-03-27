@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { AlertTriangle, Search, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Search, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/page-header';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -19,7 +19,11 @@ type RequestItem = {
     id: number;
     reason: string;
     accounting_status: 'pending' | 'approved' | 'rejected';
-    current_outstanding_balance: number;
+    transfer_fee_amount: number;
+    transfer_fee_paid: boolean;
+    transfer_fee_or_number: string | null;
+    student_notes: string | null;
+    registrar_remarks: string | null;
     student: {
         full_name: string;
         lrn: string;
@@ -48,9 +52,11 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     const [selected, setSelected] = useState<RequestItem | null>(null);
     const [approveOpen, setApproveOpen] = useState(false);
     const [rejectOpen, setRejectOpen] = useState(false);
+    const [markPaidOpen, setMarkPaidOpen] = useState(false);
 
-    const approveForm = useForm({ accounting_remarks: '', override_with_balance: false, override_reason: '' });
+    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: false, or_number: '' });
     const rejectForm = useForm({ accounting_remarks: '' });
+    const markPaidForm = useForm({ or_number: '', transfer_fee_amount: '' });
 
     const onTab = (value: string) => {
         setActiveTab(value);
@@ -95,7 +101,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                         <TableRow>
                                             <TableHead>Student</TableHead>
                                             <TableHead>Reason</TableHead>
-                                            <TableHead>Outstanding Balance</TableHead>
+                                            <TableHead>Transfer Out Fee</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
@@ -118,7 +124,19 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="max-w-[280px] truncate" title={item.reason}>{item.reason}</TableCell>
-                                                <TableCell>{currency(item.current_outstanding_balance)}</TableCell>
+                                                <TableCell>
+                                                    {item.transfer_fee_amount > 0 ? (
+                                                        <div className="space-y-1 text-xs">
+                                                            <div className="font-semibold">{currency(item.transfer_fee_amount)}</div>
+                                                            <Badge className={item.transfer_fee_paid ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}>
+                                                                {item.transfer_fee_paid ? 'Paid' : 'Unpaid'}
+                                                            </Badge>
+                                                            {item.transfer_fee_or_number && <div>OR: {item.transfer_fee_or_number}</div>}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">Not set</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell>{statusBadge(item.accounting_status)}</TableCell>
                                                 <TableCell className="text-right">
                                                     {item.accounting_status === 'pending' ? (
@@ -126,6 +144,10 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); approveForm.reset(); setApproveOpen(true); }}><ThumbsUp className="h-4 w-4 text-green-600" /></Button>
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); rejectForm.reset(); setRejectOpen(true); }}><ThumbsDown className="h-4 w-4 text-red-600" /></Button>
                                                         </div>
+                                                    ) : item.accounting_status === 'approved' && !item.transfer_fee_paid && item.transfer_fee_amount > 0 ? (
+                                                        <Button size="sm" variant="outline" onClick={() => { setSelected(item); markPaidForm.reset(); setMarkPaidOpen(true); }}>
+                                                            Mark Paid
+                                                        </Button>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">Processed</span>
                                                     )}
@@ -142,26 +164,39 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                 <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Approve Transfer Request</DialogTitle>
-                            <DialogDescription>Accounting approval forwards this to registrar finalization.</DialogDescription>
+                            <DialogTitle>Process Transfer Request</DialogTitle>
+                            <DialogDescription>Set transfer out fee for student payment, then forward to registrar finalization.</DialogDescription>
                         </DialogHeader>
-                        {selected && selected.current_outstanding_balance > 0 && (
-                            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 flex gap-2">
-                                <AlertTriangle className="h-4 w-4 mt-0.5" />
-                                Student has outstanding balance: <strong>{currency(selected.current_outstanding_balance)}</strong>
+                        {selected && (
+                            <div className="space-y-2 text-sm">
+                                <div><strong>Student note:</strong> {selected.student_notes || '—'}</div>
+                                <div><strong>Registrar remark:</strong> {selected.registrar_remarks || '—'}</div>
                             </div>
                         )}
                         <div className="space-y-2">
-                            <Label>Remarks (Optional)</Label>
+                            <Label>Transfer Out Fee Amount</Label>
+                            <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={approveForm.data.transfer_fee_amount}
+                                onChange={(e) => approveForm.setData('transfer_fee_amount', e.target.value)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Super-Accounting Remarks (Optional)</Label>
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                                <Checkbox id="override_balance" checked={approveForm.data.override_with_balance} onCheckedChange={(checked) => approveForm.setData('override_with_balance', checked === true)} />
-                                <Label htmlFor="override_balance">Allow transfer despite outstanding balance</Label>
+                                <Checkbox id="mark_paid" checked={approveForm.data.mark_as_paid} onCheckedChange={(checked) => approveForm.setData('mark_as_paid', checked === true)} />
+                                <Label htmlFor="mark_paid">Mark transfer fee as paid now</Label>
                             </div>
-                            {approveForm.data.override_with_balance && (
-                                <Textarea value={approveForm.data.override_reason} onChange={(e) => approveForm.setData('override_reason', e.target.value)} rows={3} placeholder="Reason for override" />
+                            {approveForm.data.mark_as_paid && (
+                                <div className="space-y-2">
+                                    <Label>OR Number</Label>
+                                    <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
+                                </div>
                             )}
                         </div>
                         <DialogFooter>
@@ -183,6 +218,26 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setRejectOpen(false)}>Cancel</Button>
                             <Button variant="destructive" onClick={() => selected && rejectForm.post(`/super-accounting/transfer-requests/${selected.id}/reject`, { onSuccess: () => setRejectOpen(false) })}>Reject</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={markPaidOpen} onOpenChange={setMarkPaidOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Mark Transfer Fee as Paid</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-2">
+                            <Label>OR Number</Label>
+                            <Input value={markPaidForm.data.or_number} onChange={(e) => markPaidForm.setData('or_number', e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Transfer Fee Amount (Optional Override)</Label>
+                            <Input type="number" min="0" step="0.01" value={markPaidForm.data.transfer_fee_amount} onChange={(e) => markPaidForm.setData('transfer_fee_amount', e.target.value)} />
+                        </div>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setMarkPaidOpen(false)}>Cancel</Button>
+                            <Button onClick={() => selected && markPaidForm.post(`/super-accounting/transfer-requests/${selected.id}/mark-paid`, { onSuccess: () => setMarkPaidOpen(false) })}>Save</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
