@@ -16,6 +16,7 @@ import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 type RequestItem = {
     id: number;
     reason: string;
+    student_notes: string | null;
     status: 'pending' | 'approved' | 'rejected';
     registrar_status: 'pending' | 'approved' | 'rejected';
     accounting_status: 'pending' | 'approved' | 'rejected';
@@ -23,6 +24,9 @@ type RequestItem = {
     semester: string | null;
     registrar_remarks: string | null;
     accounting_remarks: string | null;
+    transfer_fee_amount: number;
+    transfer_fee_paid: boolean;
+    transfer_fee_or_number: string | null;
     created_at: string;
     student: {
         id: number;
@@ -129,13 +133,14 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                             <TableHead>Program / Year</TableHead>
                                             <TableHead>Reason</TableHead>
                                             <TableHead>Status</TableHead>
-                                            <TableHead>Accounting</TableHead>
+                                            <TableHead>Super-Accounting</TableHead>
+                                            <TableHead>Transfer Fee</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {requests.data.length === 0 ? (
-                                            <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
                                         ) : requests.data.map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
@@ -157,6 +162,19 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                 <TableCell className="max-w-[280px] truncate" title={item.reason}>{item.reason}</TableCell>
                                                 <TableCell>{statusBadge(item.registrar_status)}</TableCell>
                                                 <TableCell>{statusBadge(item.accounting_status)}</TableCell>
+                                                <TableCell>
+                                                    {item.transfer_fee_amount > 0 ? (
+                                                        <div className="text-xs space-y-1">
+                                                            <div className="font-semibold">P{item.transfer_fee_amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                                                            <Badge className={item.transfer_fee_paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>
+                                                                {item.transfer_fee_paid ? 'Paid' : 'Unpaid'}
+                                                            </Badge>
+                                                            {item.transfer_fee_or_number && <div>OR: {item.transfer_fee_or_number}</div>}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">Not set</span>
+                                                    )}
+                                                </TableCell>
                                                 <TableCell className="text-right">
                                                     {item.registrar_status === 'pending' ? (
                                                         <div className="flex justify-end gap-2">
@@ -184,11 +202,14 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Approve Transfer Request</DialogTitle>
-                            <DialogDescription>This sends the request to accounting for final approval.</DialogDescription>
+                            <DialogDescription>This sends the request to super-accounting for transfer fee processing.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-2">
                             <Label>Remarks (Optional)</Label>
                             <Textarea value={approveForm.data.registrar_remarks} onChange={(e) => approveForm.setData('registrar_remarks', e.target.value)} rows={4} />
+                            {selected?.student_notes && (
+                                <p className="text-xs text-muted-foreground">Student note: {selected.student_notes}</p>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setApproveOpen(false)}>Cancel</Button>
