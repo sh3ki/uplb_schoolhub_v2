@@ -56,6 +56,7 @@ class StudentAccountController extends Controller
 
         // Get students with enrollment clearance (registrar-cleared, in accounting queue or beyond)
         $studentsQuery = Student::with(['department'])
+            ->withoutTransferredOut()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
@@ -163,6 +164,7 @@ class StudentAccountController extends Controller
                     ->orWhere('enrollment_status', 'completed');
             });
         })
+        ->withoutTransferredOut()
         ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
         ->when($request->input('classification'), function ($q, $classification) {
             $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
@@ -199,6 +201,7 @@ class StudentAccountController extends Controller
             });
 
         $classListBase = Student::whereNull('deleted_at')
+            ->withoutTransferredOut()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
@@ -785,6 +788,7 @@ class StudentAccountController extends Controller
 
         // Build the same eligible-students base query as the index
         $studentsQuery = Student::with(['department'])
+            ->withoutTransferredOut()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
