@@ -272,10 +272,10 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2">
+                            {/* <div className="flex items-center gap-2">
                                 <Checkbox id="mark_paid" checked={approveForm.data.mark_as_paid} onCheckedChange={(checked) => approveForm.setData('mark_as_paid', checked === true)} />
                                 <Label htmlFor="mark_paid">Mark transfer fee as paid now</Label>
-                            </div>
+                            </div> */}
                             {approveForm.data.mark_as_paid && (
                                 <div className="space-y-2">
                                     <Label>OR Number</Label>
