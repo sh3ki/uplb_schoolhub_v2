@@ -51,7 +51,7 @@ type Props = {
     requests: {
         data: RequestItem[];
     };
-    stats: { pending: number; approved: number; rejected: number };
+    stats: { pending: number; approved: number; rejected: number; finalized: number };
     tab: string;
     filters: { search?: string };
     transferRequestDeadline: string | null;
@@ -148,6 +148,7 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                     <Card className="cursor-pointer" onClick={() => onTab('pending')}><CardHeader><CardTitle className="text-sm">Pending</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.pending}</div></CardContent></Card>
                     <Card className="cursor-pointer" onClick={() => onTab('approved')}><CardHeader><CardTitle className="text-sm">Approved</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.approved}</div></CardContent></Card>
                     <Card className="cursor-pointer" onClick={() => onTab('rejected')}><CardHeader><CardTitle className="text-sm">Rejected</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.rejected}</div></CardContent></Card>
+                    <Card className="cursor-pointer" onClick={() => onTab('finalized')}><CardHeader><CardTitle className="text-sm">Finalized</CardTitle></CardHeader><CardContent><div className="text-2xl font-bold">{stats.finalized}</div></CardContent></Card>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -163,6 +164,7 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                         <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
                         <TabsTrigger value="approved">Approved ({stats.approved})</TabsTrigger>
                         <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
+                        <TabsTrigger value="finalized">Finalized ({stats.finalized})</TabsTrigger>
                     </TabsList>
                     <TabsContent value={activeTab} className="mt-4">
                         <Card>
