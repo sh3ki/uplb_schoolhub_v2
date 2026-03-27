@@ -364,11 +364,6 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::post('drop-requests/{dropRequest}/approve', [App\Http\Controllers\Accounting\DropRequestController::class, 'approve'])->name('drop-requests.approve');
     Route::post('drop-requests/{dropRequest}/reject', [App\Http\Controllers\Accounting\DropRequestController::class, 'reject'])->name('drop-requests.reject');
 
-    // Transfer Request Approvals (final stage after registrar)
-    Route::get('transfer-requests', [App\Http\Controllers\Accounting\TransferRequestController::class, 'index'])->name('transfer-requests.index');
-    Route::post('transfer-requests/{transferRequest}/approve', [App\Http\Controllers\Accounting\TransferRequestController::class, 'approve'])->name('transfer-requests.approve');
-    Route::post('transfer-requests/{transferRequest}/reject', [App\Http\Controllers\Accounting\TransferRequestController::class, 'reject'])->name('transfer-requests.reject');
-
     // Drop Approvals (accounting stage – extended workflow)
     Route::get('drop-approvals', [App\Http\Controllers\Accounting\DropApprovalController::class, 'index'])->name('drop-approvals.index');
     Route::post('drop-approvals/{dropRequest}/approve', [App\Http\Controllers\Accounting\DropApprovalController::class, 'approve'])->name('drop-approvals.approve');
@@ -683,6 +678,7 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
     Route::get('transfer-requests', [App\Http\Controllers\Accounting\TransferRequestController::class, 'index'])->name('transfer-requests.index');
     Route::post('transfer-requests/{transferRequest}/approve', [App\Http\Controllers\Accounting\TransferRequestController::class, 'approve'])->name('transfer-requests.approve');
     Route::post('transfer-requests/{transferRequest}/reject', [App\Http\Controllers\Accounting\TransferRequestController::class, 'reject'])->name('transfer-requests.reject');
+    Route::post('transfer-requests/{transferRequest}/mark-paid', [App\Http\Controllers\Accounting\TransferRequestController::class, 'markPaid'])->name('transfer-requests.mark-paid');
 
     // Document Approvals (super-accounting oversight)
     Route::get('document-approvals', [App\Http\Controllers\Accounting\DocumentApprovalController::class, 'index'])->name('document-approvals.index');
