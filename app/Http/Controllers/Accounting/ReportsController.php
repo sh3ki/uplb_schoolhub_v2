@@ -37,6 +37,7 @@ class ReportsController extends Controller
         $status = $request->input('status');
         $departmentId = $request->input('department_id');
         $classification = $request->input('classification');
+        $excludeTransferredOut = str_starts_with((string) ($request->route()?->getName() ?? ''), 'super-accounting.');
         
         // "All" means cross-year. Only restrict when user explicitly picks a school year.
         if ($schoolYear === 'all' || $schoolYear === '') {
@@ -48,6 +49,7 @@ class ReportsController extends Controller
 
         // Build scoped student IDs for demographic filters
         $scopedStudentIds = Student::query()
+            ->when($excludeTransferredOut, fn($q) => $q->withoutTransferredOut())
             ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
             ->when($classification, fn($q) => $q->whereHas('department', fn($dq) => $dq->where('classification', $classification)))
             ->pluck('id');
@@ -64,7 +66,7 @@ class ReportsController extends Controller
         if ($schoolYear) {
             $paymentQuery->whereHas('studentFee', fn($q) => $q->where('school_year', $schoolYear));
         }
-        if ($departmentId || $classification) {
+        if ($excludeTransferredOut || $departmentId || $classification) {
             $paymentQuery->whereIn('student_id', $scopedStudentIds);
         }
 
@@ -81,7 +83,7 @@ class ReportsController extends Controller
         if ($schoolYear) {
             $documentQuery->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
         }
-        if ($departmentId || $classification) {
+        if ($excludeTransferredOut || $departmentId || $classification) {
             $documentQuery->whereIn('student_id', $scopedStudentIds);
         }
 
@@ -98,7 +100,7 @@ class ReportsController extends Controller
         if ($schoolYear) {
             $dropQuery->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
         }
-        if ($departmentId || $classification) {
+        if ($excludeTransferredOut || $departmentId || $classification) {
             $dropQuery->whereIn('student_id', $scopedStudentIds);
         }
 
@@ -169,6 +171,11 @@ class ReportsController extends Controller
 
         // Student Balance Report
         $balanceQuery = StudentFee::with('student.department')
+            ->when($excludeTransferredOut, function ($q) {
+                $q->whereHas('student', function ($sq) {
+                    $sq->withoutTransferredOut();
+                });
+            })
             ->whereHas('student.enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
@@ -253,6 +260,7 @@ class ReportsController extends Controller
             $schoolYear,
             $request->input('department_id') ? (int) $request->input('department_id') : null,
             $request->input('classification') ?: null,
+            $excludeTransferredOut,
         );
 
         // Summary Statistics
@@ -398,7 +406,7 @@ class ReportsController extends Controller
             ->with(['student.department:id,name,classification'])
             ->where('status', 'active')
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear))
-            ->when($departmentId || $classification, fn($q) => $q->whereIn('student_id', $scopedStudentIds))
+            ->when($excludeTransferredOut || $departmentId || $classification, fn($q) => $q->whereIn('student_id', $scopedStudentIds))
             ->get();
 
         $recipientCountsByDepartment = $grantRows
@@ -455,7 +463,7 @@ class ReportsController extends Controller
         $feeManipulations = StudentActionLog::query()
             ->with(['student:id,first_name,last_name,lrn,student_photo_url,department_id', 'performer:id,name'])
             ->whereIn('action_type', ['fee_edit', 'fee_delete', 'balance_adjustment'])
-            ->when($departmentId || $classification, function ($query) use ($scopedStudentIds) {
+            ->when($excludeTransferredOut || $departmentId || $classification, function ($query) use ($scopedStudentIds) {
                 $query->whereIn('student_id', $scopedStudentIds);
             })
             ->latest()
@@ -519,12 +527,13 @@ class ReportsController extends Controller
         return $this->viewPrefix() . '/reports';
     }
 
-    private function buildDepartmentAnalysis(?string $forcedSchoolYear = null, ?int $departmentId = null, ?string $classification = null): array
+    private function buildDepartmentAnalysis(?string $forcedSchoolYear = null, ?int $departmentId = null, ?string $classification = null, bool $excludeTransferredOut = false): array
     {
         $activeSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         $students = Student::query()
             ->with('department:id,name,classification')
+            ->when($excludeTransferredOut, fn($q) => $q->withoutTransferredOut())
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
