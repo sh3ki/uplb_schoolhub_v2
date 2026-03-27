@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,6 +19,7 @@ class TransferRequestController extends Controller
     public function index(Request $request): Response
     {
         $tab = $request->input('tab', 'pending');
+        $hasFinalizedColumn = Schema::hasColumn('transfer_requests', 'finalized_at');
 
         $query = TransferRequest::with([
             'student:id,first_name,last_name,middle_name,suffix,lrn,email,program,year_level,section,student_photo_url,enrollment_status,department_id,is_active',
@@ -28,7 +30,19 @@ class TransferRequestController extends Controller
         ]);
 
         if ($tab && $tab !== 'all') {
-            $query->where('registrar_status', $tab);
+            if ($tab === 'finalized') {
+                if ($hasFinalizedColumn) {
+                    $query->whereNotNull('finalized_at');
+                } else {
+                    $query->whereRaw('1 = 0');
+                }
+            } else {
+                $query->where('registrar_status', $tab);
+
+                if ($tab === 'approved' && $hasFinalizedColumn) {
+                    $query->whereNull('finalized_at');
+                }
+            }
         }
 
         if ($search = $request->input('search')) {
@@ -109,8 +123,11 @@ class TransferRequestController extends Controller
 
         $stats = [
             'pending' => TransferRequest::where('registrar_status', 'pending')->count(),
-            'approved' => TransferRequest::where('registrar_status', 'approved')->count(),
+            'approved' => $hasFinalizedColumn
+                ? TransferRequest::where('registrar_status', 'approved')->whereNull('finalized_at')->count()
+                : TransferRequest::where('registrar_status', 'approved')->count(),
             'rejected' => TransferRequest::where('registrar_status', 'rejected')->count(),
+            'finalized' => $hasFinalizedColumn ? TransferRequest::whereNotNull('finalized_at')->count() : 0,
         ];
 
         $settings = AppSetting::current();
@@ -173,6 +190,10 @@ class TransferRequestController extends Controller
 
     public function finalize(TransferRequest $transferRequest): RedirectResponse
     {
+        if (Schema::hasColumn('transfer_requests', 'finalized_at') && $transferRequest->finalized_at) {
+            return back()->with('error', 'Transfer request is already finalized.');
+        }
+
         if ($transferRequest->accounting_status !== 'approved') {
             return back()->with('error', 'Transfer request must be approved by super-accounting first.');
         }
