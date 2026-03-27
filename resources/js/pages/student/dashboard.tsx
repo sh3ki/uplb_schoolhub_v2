@@ -66,6 +66,7 @@ interface TransferFee {
     or_number: string | null;
     registrar_remarks: string | null;
     accounting_remarks: string | null;
+    finalized_at?: string | null;
 }
 
 interface Student {
@@ -559,7 +560,7 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                 )}
 
                 {/* Payment Summary Card - Always visible for all students */}
-                {paymentInfo && (
+                {(paymentInfo || showTransferFeeOnly) && (
                     <Card>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -569,34 +570,71 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                             <CardDescription>Your current payment status</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Fees</p>
-                                    <p className="text-2xl font-bold">{formatCurrency(paymentInfo.total_fees)}</p>
+                            {showTransferFeeOnly ? (
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Transfer Out Fee</p>
+                                        <p className="text-2xl font-bold">{formatCurrency(transferFeeBalance)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Status</p>
+                                        <p className={`text-2xl font-bold ${transferFee?.paid ? 'text-green-600' : 'text-amber-600'}`}>
+                                            {transferFee?.paid ? 'Paid' : 'Unpaid'}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">OR Number</p>
+                                        <p className="text-2xl font-bold text-blue-600">{transferFee?.or_number || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Finalize</p>
+                                        <p className={`text-2xl font-bold ${transferFee?.finalized_at ? 'text-green-600' : 'text-amber-600'}`}>
+                                            {transferFee?.finalized_at ? 'Finalized' : 'Pending'}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Total Paid</p>
-                                    <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentInfo.total_paid)}</p>
+                            ) : (
+                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Total Fees</p>
+                                        <p className="text-2xl font-bold">{formatCurrency(paymentInfo!.total_fees)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Total Paid</p>
+                                        <p className="text-2xl font-bold text-green-600">{formatCurrency(paymentInfo!.total_paid)}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {paymentInfo!.discount_amount > 0 ? 'Discount Applied' : 'Discount'}
+                                        </p>
+                                        <p className="text-2xl font-bold text-blue-600">
+                                            {paymentInfo!.discount_amount > 0 ? `-${formatCurrency(paymentInfo!.discount_amount)}` : formatCurrency(0)}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">Balance</p>
+                                        <p className={`text-2xl font-bold ${paymentInfo!.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            {formatCurrency(paymentInfo!.balance)}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">
-                                        {paymentInfo.discount_amount > 0 ? 'Discount Applied' : 'Discount'}
-                                    </p>
-                                    <p className="text-2xl font-bold text-blue-600">
-                                        {paymentInfo.discount_amount > 0 ? `-${formatCurrency(paymentInfo.discount_amount)}` : formatCurrency(0)}
-                                    </p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Balance</p>
-                                    <p className={`text-2xl font-bold ${paymentInfo.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                        {formatCurrency(paymentInfo.balance)}
-                                    </p>
-                                </div>
-                            </div>
+                            )}
 
                             {/* Status badges */}
                             <div className="flex flex-wrap gap-2 pt-4 border-t">
-                                {paymentInfo.is_fully_paid ? (
+                                {showTransferFeeOnly ? (
+                                    transferFee?.paid ? (
+                                        <Badge className="bg-green-100 text-green-800">
+                                            <CheckCircle className="h-3 w-3 mr-1" />
+                                            Transfer Fee Paid
+                                        </Badge>
+                                    ) : (
+                                        <Badge className="bg-yellow-100 text-yellow-800">
+                                            <Clock className="h-3 w-3 mr-1" />
+                                            Transfer Fee Balance Due
+                                        </Badge>
+                                    )
+                                ) : paymentInfo!.is_fully_paid ? (
                                     <Badge className="bg-green-100 text-green-800">
                                         <CheckCircle className="h-3 w-3 mr-1" />
                                         Fully Paid
@@ -608,23 +646,23 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                                     </Badge>
                                 )}
 
-                                {paymentInfo.is_overdue && (
+                                {!showTransferFeeOnly && paymentInfo!.is_overdue && (
                                     <Badge className="bg-red-100 text-red-800">
                                         <AlertTriangle className="h-3 w-3 mr-1" />
                                         Overdue
                                     </Badge>
                                 )}
 
-                                {paymentInfo.has_promissory && (
+                                {!showTransferFeeOnly && paymentInfo!.has_promissory && (
                                     <Badge className="bg-blue-100 text-blue-800">
                                         <FileText className="h-3 w-3 mr-1" />
-                                        Promissory Note Active ({formatCurrency(paymentInfo.promissory_amount)})
+                                        Promissory Note Active ({formatCurrency(paymentInfo!.promissory_amount)})
                                     </Badge>
                                 )}
 
-                                {paymentInfo.due_date && (
+                                {!showTransferFeeOnly && paymentInfo!.due_date && (
                                     <Badge variant="outline">
-                                        Due: {new Date(paymentInfo.due_date).toLocaleDateString()}
+                                        Due: {new Date(paymentInfo!.due_date).toLocaleDateString()}
                                     </Badge>
                                 )}
                             </div>
