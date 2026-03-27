@@ -201,7 +201,7 @@ class HandleInertiaRequests extends Middleware
             return 0;
         }
         try {
-            if (in_array($user->role, ['accounting', 'super-accounting'])) {
+            if ($user->role === 'super-accounting') {
                 return TransferRequest::where('registrar_status', 'approved')
                     ->where('accounting_status', 'pending')
                     ->count();
