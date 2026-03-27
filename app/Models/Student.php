@@ -160,6 +160,16 @@ class Student extends Model
     }
 
     /**
+     * Exclude students who were already finalized as transferred out.
+     */
+    public function scopeWithoutTransferredOut($query)
+    {
+        return $query->whereDoesntHave('transferRequests', function ($q) {
+            $q->whereNotNull('finalized_at');
+        });
+    }
+
+    /**
      * Get the section this student is assigned to
      */
     public function sectionModel()
