@@ -45,6 +45,19 @@ class TransferRequestController extends Controller
             return [
                 'id' => $r->id,
                 'reason' => $r->reason,
+                'new_school_name' => $r->new_school_name,
+                'new_school_address' => $r->new_school_address,
+                'receiving_contact_person' => $r->receiving_contact_person,
+                'receiving_contact_number' => $r->receiving_contact_number,
+                'months_stayed_enrolled' => $r->months_stayed_enrolled,
+                'subjects_completed' => $r->subjects_completed,
+                'incomplete_subjects' => $r->incomplete_subjects,
+                'has_pending_requirements' => $r->has_pending_requirements,
+                'pending_requirements_details' => $r->pending_requirements_details,
+                'requesting_documents' => $r->requesting_documents,
+                'requested_documents' => $r->requested_documents,
+                'issued_items' => $r->issued_items,
+                'student_notes' => $r->student_notes,
                 'status' => $r->status,
                 'registrar_status' => $r->registrar_status,
                 'accounting_status' => $r->accounting_status,
@@ -53,6 +66,9 @@ class TransferRequestController extends Controller
                 'registrar_remarks' => $r->registrar_remarks,
                 'accounting_remarks' => $r->accounting_remarks,
                 'outstanding_balance' => (float) $r->outstanding_balance,
+                'transfer_fee_amount' => (float) $r->transfer_fee_amount,
+                'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
+                'transfer_fee_or_number' => $r->transfer_fee_or_number,
                 'balance_override' => (bool) $r->balance_override,
                 'balance_override_reason' => $r->balance_override_reason,
                 'registrar_approved_by' => $r->registrarApprovedBy ? [
@@ -128,7 +144,7 @@ class TransferRequestController extends Controller
 
         $transferRequest->approveByRegistrar(Auth::id(), $validated['registrar_remarks'] ?? null);
 
-        return back()->with('success', 'Transfer request approved and forwarded to accounting.');
+        return back()->with('success', 'Transfer request approved and forwarded to super-accounting.');
     }
 
     public function reject(Request $request, TransferRequest $transferRequest): RedirectResponse
@@ -149,7 +165,11 @@ class TransferRequestController extends Controller
     public function finalize(TransferRequest $transferRequest): RedirectResponse
     {
         if ($transferRequest->accounting_status !== 'approved') {
-            return back()->with('error', 'Transfer request must be approved by accounting first.');
+            return back()->with('error', 'Transfer request must be approved by super-accounting first.');
+        }
+
+        if ((float) $transferRequest->transfer_fee_amount > 0 && ! $transferRequest->transfer_fee_paid) {
+            return back()->with('error', 'Transfer out fee must be marked as paid before registrar finalization.');
         }
 
         if ($transferRequest->student && !$transferRequest->student->is_active) {
@@ -171,6 +191,24 @@ class TransferRequestController extends Controller
             'enrollment_status' => 'not-enrolled',
             'is_active' => true,
         ]);
+
+        if ($student->user) {
+            $clearance = \App\Models\EnrollmentClearance::where('user_id', $student->user->id)->first();
+            if ($clearance) {
+                $clearance->update([
+                    'registrar_clearance' => false,
+                    'registrar_cleared_at' => null,
+                    'registrar_cleared_by' => null,
+                    'accounting_clearance' => false,
+                    'accounting_cleared_at' => null,
+                    'accounting_cleared_by' => null,
+                    'official_enrollment' => false,
+                    'officially_enrolled_at' => null,
+                    'officially_enrolled_by' => null,
+                    'enrollment_status' => 'not_started',
+                ]);
+            }
+        }
 
         return back()->with('success', 'Student has been reactivated and can log in again.');
     }
