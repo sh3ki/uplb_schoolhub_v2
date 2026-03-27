@@ -39,6 +39,7 @@ class StudentPaymentController extends Controller
 
         // Get students from student-accounts (registrar-cleared, in accounting queue or beyond)
         $query = Student::with(['department', 'enrollmentClearance'])
+            ->withoutTransferredOut()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
@@ -112,7 +113,9 @@ class StudentPaymentController extends Controller
 
         // If a student is selected, load their full payment details
         if ($selectedStudentId) {
-            $selectedStudent = Student::with(['department', 'enrollmentClearance'])->find($selectedStudentId);
+            $selectedStudent = Student::with(['department', 'enrollmentClearance'])
+                ->withoutTransferredOut()
+                ->find($selectedStudentId);
             
             if ($selectedStudent) {
                 // Get all student fees (current and previous years)
@@ -340,7 +343,9 @@ class StudentPaymentController extends Controller
         $fees = collect();
 
         if ($studentId) {
-            $student = \App\Models\Student::with('fees')->findOrFail($studentId);
+            $student = \App\Models\Student::with('fees')
+                ->withoutTransferredOut()
+                ->findOrFail($studentId);
             $fees = $student->fees;
         }
 
@@ -356,6 +361,14 @@ class StudentPaymentController extends Controller
      */
     public function process(Request $request, Student $student): Response
     {
+        $isTransferredOut = $student->transferRequests()
+            ->whereNotNull('finalized_at')
+            ->exists();
+
+        if ($isTransferredOut) {
+            abort(404);
+        }
+
         // Load student with department for classification matching
         $student->load(['department', 'enrollmentClearance']);
 
