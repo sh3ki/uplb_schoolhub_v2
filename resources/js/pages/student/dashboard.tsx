@@ -57,6 +57,17 @@ interface PreviousBalance {
     balance: number;
 }
 
+interface TransferFee {
+    status: string;
+    registrar_status: string;
+    accounting_status: string;
+    amount: number;
+    paid: boolean;
+    or_number: string | null;
+    registrar_remarks: string | null;
+    accounting_remarks: string | null;
+}
+
 interface Student {
     id: number;
     first_name: string;
@@ -79,11 +90,12 @@ interface Props {
     };
     enrollmentClearance: EnrollmentClearance | null;
     paymentInfo: PaymentInfo | null;
+    transferFee: TransferFee | null;
     previousBalances: PreviousBalance[];
     incompleteRequirements: IncompleteRequirement[];
 }
 
-export default function Dashboard({ student, currentSchoolYear, stats, enrollmentClearance, paymentInfo, previousBalances, incompleteRequirements }: Props) {
+export default function Dashboard({ student, currentSchoolYear, stats, enrollmentClearance, paymentInfo, transferFee, previousBalances, incompleteRequirements }: Props) {
     const formatCurrency = (amount: number) => {
         return `₱${amount.toLocaleString('en-PH', {
             minimumFractionDigits: 2,
@@ -109,6 +121,9 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
     const totalPreviousBalance = safePreviousBalances.reduce((sum, b) => sum + b.balance, 0);
     const currentBalance = paymentInfo?.balance || 0;
     const totalAllBalance = currentBalance + totalPreviousBalance;
+    const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected';
+    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.amount || 0) : 0;
+    const showTransferFeeOnly = hasTransferFeeFlow && transferFeeBalance > 0;
 
     return (
         <StudentLayout>
@@ -162,7 +177,35 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                             
                             <div className="grid gap-4 md:grid-cols-2">
                                 {/* Payment Status */}
-                                {paymentInfo && (
+                                {showTransferFeeOnly ? (
+                                    <Card className="bg-white">
+                                        <CardHeader className="pb-2">
+                                            <CardTitle className="text-sm flex items-center gap-2">
+                                                <CreditCard className="h-4 w-4" />
+                                                Transfer Out Fee
+                                            </CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-2">
+                                            <div className="flex justify-between font-bold pt-1">
+                                                <span>Payable:</span>
+                                                <span className={transferFee?.paid ? 'text-green-600' : 'text-red-600'}>
+                                                    {formatCurrency(transferFeeBalance)}
+                                                </span>
+                                            </div>
+                                            {transferFee?.paid ? (
+                                                <Badge className="w-full justify-center bg-green-100 text-green-800">
+                                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                                    Paid{transferFee.or_number ? ` (OR: ${transferFee.or_number})` : ''}
+                                                </Badge>
+                                            ) : (
+                                                <Badge className="w-full justify-center bg-amber-100 text-amber-800">
+                                                    <Clock className="h-3 w-3 mr-1" />
+                                                    Pending Payment Confirmation
+                                                </Badge>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                ) : paymentInfo && (
                                     <Card className="bg-white">
                                         <CardHeader className="pb-2">
                                             <CardTitle className="text-sm flex items-center gap-2">
@@ -287,7 +330,32 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
                 </div>
 
                 {/* Prominent Balance Display */}
-                {(currentBalance > 0 || totalPreviousBalance > 0) && (
+                {showTransferFeeOnly ? (
+                    <Card className="border-2 border-amber-200 bg-amber-50">
+                        <CardContent className="pt-6">
+                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="h-14 w-14 rounded-full bg-amber-100 flex items-center justify-center">
+                                        <AlertTriangle className="h-7 w-7 text-amber-600" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm text-amber-700 font-medium">Transfer Out Payable Balance</p>
+                                        <p className="text-3xl font-bold text-amber-800">{formatCurrency(transferFeeBalance)}</p>
+                                        {transferFee?.paid && (
+                                            <p className="text-sm text-green-700 mt-1">Paid{transferFee.or_number ? ` (OR: ${transferFee.or_number})` : ''}</p>
+                                        )}
+                                    </div>
+                                </div>
+                                <Link href="/student/transfer-request">
+                                    <Button className="bg-amber-600 hover:bg-amber-700 text-white">
+                                        <FileText className="h-4 w-4 mr-2" />
+                                        View Transfer Request
+                                    </Button>
+                                </Link>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ) : (currentBalance > 0 || totalPreviousBalance > 0) && (
                     <Card className="border-2 border-red-200 bg-red-50">
                         <CardContent className="pt-6">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
