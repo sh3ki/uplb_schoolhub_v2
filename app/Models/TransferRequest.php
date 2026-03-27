@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Schema;
 
 class TransferRequest extends Model
 {
@@ -160,10 +161,19 @@ class TransferRequest extends Model
 
     public function finalizeByRegistrar(int $userId): void
     {
-        $this->update([
-            'finalized_by' => $userId,
-            'finalized_at' => now(),
-        ]);
+        $finalizeUpdate = [];
+
+        if (Schema::hasColumn($this->getTable(), 'finalized_by')) {
+            $finalizeUpdate['finalized_by'] = $userId;
+        }
+
+        if (Schema::hasColumn($this->getTable(), 'finalized_at')) {
+            $finalizeUpdate['finalized_at'] = now();
+        }
+
+        if (!empty($finalizeUpdate)) {
+            $this->update($finalizeUpdate);
+        }
 
         $student = $this->student;
         $student->update([
