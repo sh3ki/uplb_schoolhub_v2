@@ -40,6 +40,12 @@ type TransferRequest = {
     transfer_fee_amount: number;
     transfer_fee_paid: boolean;
     transfer_fee_or_number: string | null;
+    registrar_approved_by: { id: number; name: string; username: string | null } | null;
+    accounting_approved_by: { id: number; name: string; username: string | null } | null;
+    finalized_by: { id: number; name: string; username: string | null } | null;
+    registrar_approved_at: string | null;
+    accounting_approved_at: string | null;
+    finalized_at: string | null;
     balance_override: boolean;
     balance_override_reason: string | null;
     processed_by: string | null;
@@ -66,6 +72,13 @@ const StatusBadge = ({ status }: { status: string }) => {
         return <Badge className="bg-red-100 text-red-800 border border-red-200"><XCircle className="h-3 w-3 mr-1" /> Rejected</Badge>;
     }
     return <Badge className="bg-amber-100 text-amber-800 border border-amber-200"><Clock className="h-3 w-3 mr-1" /> Pending</Badge>;
+};
+
+const stepLabel = (step: number) => {
+    if (step === 1) return 'Submitted';
+    if (step === 2) return 'Registrar';
+    if (step === 3) return 'Super-Accounting';
+    return 'Finalize';
 };
 
 export default function TransferRequestIndex({
@@ -132,7 +145,7 @@ export default function TransferRequestIndex({
             if (request.accounting_status === 'rejected') return 'rejected';
             return 'active';
         }
-        if (request.status === 'approved') return 'done';
+        if (request.finalized_at) return 'done';
         if (request.status === 'rejected') return 'rejected';
         return 'pending';
     };
@@ -320,6 +333,7 @@ export default function TransferRequestIndex({
                                         <TableHead>Reason</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Flow</TableHead>
+                                        <TableHead>Approvals</TableHead>
                                         <TableHead>Transfer Out Fee</TableHead>
                                         <TableHead>Remarks</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
@@ -333,6 +347,7 @@ export default function TransferRequestIndex({
                                             <TableCell className="max-w-[280px] truncate" title={request.reason}>{request.reason}</TableCell>
                                             <TableCell><StatusBadge status={request.status} /></TableCell>
                                             <TableCell>
+                                                <div className="space-y-2">
                                                 <div className="flex items-center gap-1 text-xs">
                                                     {[1, 2, 3, 4].map((step) => {
                                                         const state = getStepState(request, step);
@@ -345,6 +360,29 @@ export default function TransferRequestIndex({
                                                             </div>
                                                         );
                                                     })}
+                                                </div>
+                                                    <div className="text-[11px] text-muted-foreground">
+                                                        1 {stepLabel(1)} · 2 {stepLabel(2)} · 3 {stepLabel(3)} · 4 {stepLabel(4)}
+                                                    </div>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="space-y-1 text-xs">
+                                                    <div>
+                                                        <span className="font-medium">Registrar:</span>{' '}
+                                                        {request.registrar_approved_by?.username || request.registrar_approved_by?.name || '—'}
+                                                        {request.registrar_approved_at ? ` (${request.registrar_approved_at})` : ''}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Super-Accounting:</span>{' '}
+                                                        {request.accounting_approved_by?.username || request.accounting_approved_by?.name || '—'}
+                                                        {request.accounting_approved_at ? ` (${request.accounting_approved_at})` : ''}
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-medium">Finalized:</span>{' '}
+                                                        {request.finalized_by?.username || request.finalized_by?.name || '—'}
+                                                        {request.finalized_at ? ` (${request.finalized_at})` : ''}
+                                                    </div>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
