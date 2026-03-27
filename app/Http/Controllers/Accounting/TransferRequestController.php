@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
-use App\Models\StudentFee;
 use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,11 +43,22 @@ class TransferRequestController extends Controller
         $requests = $query->latest()->paginate(20)->withQueryString();
 
         $requests->getCollection()->transform(function ($r) {
-            $currentOutstanding = (float) StudentFee::where('student_id', $r->student_id)->sum('balance');
-
             return [
                 'id' => $r->id,
                 'reason' => $r->reason,
+                'new_school_name' => $r->new_school_name,
+                'new_school_address' => $r->new_school_address,
+                'receiving_contact_person' => $r->receiving_contact_person,
+                'receiving_contact_number' => $r->receiving_contact_number,
+                'months_stayed_enrolled' => $r->months_stayed_enrolled,
+                'subjects_completed' => $r->subjects_completed,
+                'incomplete_subjects' => $r->incomplete_subjects,
+                'has_pending_requirements' => $r->has_pending_requirements,
+                'pending_requirements_details' => $r->pending_requirements_details,
+                'requesting_documents' => $r->requesting_documents,
+                'requested_documents' => $r->requested_documents,
+                'issued_items' => $r->issued_items,
+                'student_notes' => $r->student_notes,
                 'status' => $r->status,
                 'registrar_status' => $r->registrar_status,
                 'accounting_status' => $r->accounting_status,
@@ -57,7 +67,9 @@ class TransferRequestController extends Controller
                 'registrar_remarks' => $r->registrar_remarks,
                 'accounting_remarks' => $r->accounting_remarks,
                 'outstanding_balance' => (float) $r->outstanding_balance,
-                'current_outstanding_balance' => max(0, $currentOutstanding),
+                'transfer_fee_amount' => (float) $r->transfer_fee_amount,
+                'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
+                'transfer_fee_or_number' => $r->transfer_fee_or_number,
                 'balance_override' => (bool) $r->balance_override,
                 'balance_override_reason' => $r->balance_override_reason,
                 'registrar_approved_by' => $r->registrarApprovedBy ? [
@@ -113,30 +125,27 @@ class TransferRequestController extends Controller
 
         $validated = $request->validate([
             'accounting_remarks' => 'nullable|string|max:1000',
-            'override_with_balance' => 'nullable|boolean',
-            'override_reason' => 'nullable|string|max:1000',
+            'transfer_fee_amount' => 'required|numeric|min:0|max:99999999.99',
+            'mark_as_paid' => 'nullable|boolean',
+            'or_number' => 'nullable|string|max:100',
         ]);
 
-        $outstandingBalance = max(0, (float) StudentFee::where('student_id', $transferRequest->student_id)->sum('balance'));
-        $override = (bool) ($validated['override_with_balance'] ?? false);
+        $transferFeeAmount = (float) $validated['transfer_fee_amount'];
+        $markAsPaid = (bool) ($validated['mark_as_paid'] ?? false);
 
-        if ($outstandingBalance > 0 && !$override) {
-            return back()->with('error', 'Student has an outstanding balance. Enable override to proceed.');
-        }
-
-        if ($outstandingBalance > 0 && $override && empty($validated['override_reason'])) {
-            return back()->with('error', 'Please provide an override reason.');
+        if ($markAsPaid && $transferFeeAmount > 0 && empty($validated['or_number'])) {
+            return back()->with('error', 'OR number is required when marking transfer fee as paid.');
         }
 
         $transferRequest->approveByAccounting(
             Auth::id(),
             $validated['accounting_remarks'] ?? null,
-            $override,
-            $validated['override_reason'] ?? null,
-            $outstandingBalance
+            $transferFeeAmount,
+            $markAsPaid,
+            $validated['or_number'] ?? null
         );
 
-        return back()->with('success', 'Transfer request approved. Awaiting registrar finalization.');
+        return back()->with('success', 'Transfer request processed by super-accounting. Awaiting registrar finalization.');
     }
 
     public function reject(Request $request, TransferRequest $transferRequest): RedirectResponse
@@ -156,5 +165,25 @@ class TransferRequestController extends Controller
         $transferRequest->rejectByAccounting(Auth::id(), $validated['accounting_remarks']);
 
         return back()->with('success', 'Transfer request rejected.');
+    }
+
+    public function markPaid(Request $request, TransferRequest $transferRequest): RedirectResponse
+    {
+        if ($transferRequest->accounting_status !== 'approved') {
+            return back()->with('error', 'Only approved transfer requests can be marked as paid.');
+        }
+
+        $validated = $request->validate([
+            'or_number' => 'required|string|max:100',
+            'transfer_fee_amount' => 'nullable|numeric|min:0|max:99999999.99',
+        ]);
+
+        $transferRequest->markTransferFeePaid(
+            Auth::id(),
+            $validated['or_number'],
+            array_key_exists('transfer_fee_amount', $validated) ? (float) $validated['transfer_fee_amount'] : null
+        );
+
+        return back()->with('success', 'Transfer out fee marked as paid.');
     }
 }
