@@ -9,6 +9,7 @@ use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
+use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -101,6 +102,21 @@ class OnlinePaymentController extends Controller
             ['value' => 'bank_transfer', 'label' => 'Bank Transfer'],
         ];
 
+        $latestTransferRequest = TransferRequest::where('student_id', $student->id)
+            ->whereNull('deleted_at')
+            ->latest('id')
+            ->first();
+
+        $transferFee = $latestTransferRequest ? [
+            'status' => $latestTransferRequest->status,
+            'registrar_status' => $latestTransferRequest->registrar_status,
+            'accounting_status' => $latestTransferRequest->accounting_status,
+            'amount' => (float) $latestTransferRequest->transfer_fee_amount,
+            'paid' => (bool) $latestTransferRequest->transfer_fee_paid,
+            'or_number' => $latestTransferRequest->transfer_fee_or_number,
+            'finalized_at' => $latestTransferRequest->finalized_at?->format('Y-m-d H:i:s'),
+        ] : null;
+
         return Inertia::render('student/online-payments/index', [
             'feeItems' => $feeItems,
             'summary' => $summary,
@@ -109,6 +125,9 @@ class OnlinePaymentController extends Controller
             'selectedSchoolYear' => $selectedSchoolYear,
             'recentPayments' => $recentPayments,
             'paymentMethods' => $paymentMethods,
+            'enrollmentStatus' => $student->enrollment_status,
+            'isDropped' => (bool) ($student->enrollment_status === 'dropped' && !$student->is_active),
+            'transferFee' => $transferFee,
         ]);
     }
 
