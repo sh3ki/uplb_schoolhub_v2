@@ -97,7 +97,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     const [rejectOpen, setRejectOpen] = useState(false);
     const [markPaidOpen, setMarkPaidOpen] = useState(false);
 
-    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: false, or_number: '' });
+    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: true, or_number: '' });
     const rejectForm = useForm({ accounting_remarks: '' });
     const markPaidForm = useForm({ or_number: '', transfer_fee_amount: '' });
 
@@ -272,10 +272,15 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
-                            {/* <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 <Checkbox id="mark_paid" checked={approveForm.data.mark_as_paid} onCheckedChange={(checked) => approveForm.setData('mark_as_paid', checked === true)} />
                                 <Label htmlFor="mark_paid">Mark transfer fee as paid now</Label>
-                            </div> */}
+                            </div>
+                            {!approveForm.data.mark_as_paid && (
+                                <p className="text-xs text-muted-foreground">
+                                    Registrar cannot finalize while transfer fee remains unpaid.
+                                </p>
+                            )}
                             {approveForm.data.mark_as_paid && (
                                 <div className="space-y-2">
                                     <Label>OR Number</Label>
@@ -285,7 +290,19 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setApproveOpen(false)}>Cancel</Button>
-                            <Button onClick={() => selected && approveForm.post(`/super-accounting/transfer-requests/${selected.id}/approve`, { onSuccess: () => setApproveOpen(false) })}>Approve</Button>
+                            <Button onClick={() => {
+                                if (!selected) return;
+
+                                const fee = Number(approveForm.data.transfer_fee_amount || 0);
+                                if (approveForm.data.mark_as_paid && fee > 0 && !approveForm.data.or_number.trim()) {
+                                    alert('OR Number is required when marking transfer fee as paid.');
+                                    return;
+                                }
+
+                                approveForm.post(`/super-accounting/transfer-requests/${selected.id}/approve`, {
+                                    onSuccess: () => setApproveOpen(false),
+                                });
+                            }}>Approve</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
