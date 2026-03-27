@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use App\Models\User;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -248,18 +249,35 @@ class TransferRequestController extends Controller
             return back()->with('error', 'Transfer out fee must be marked as paid before registrar finalization.');
         }
 
-        if ($transferRequest->student && !$transferRequest->student->is_active) {
-            return back()->with('error', 'Student account is already deactivated.');
-        }
+        DB::transaction(function () use ($transferRequest) {
+            $transferRequest->finalizeByRegistrar(Auth::id());
 
-        $transferRequest->finalizeByRegistrar(Auth::id());
+            $student = $transferRequest->student;
+            if (!$student) {
+                return;
+            }
 
-        $studentUserId = $transferRequest->student?->user?->id;
-        if ($studentUserId) {
-            DB::table(config('session.table', 'sessions'))
-                ->where('user_id', $studentUserId)
-                ->delete();
-        }
+            $studentUserIds = User::query()
+                ->where('role', 'student')
+                ->where(function ($q) use ($student) {
+                    $q->where('student_id', $student->id);
+
+                    if (!empty($student->email)) {
+                        $q->orWhere('email', $student->email);
+                    }
+                })
+                ->pluck('id');
+
+            if ($studentUserIds->isNotEmpty()) {
+                DB::table(config('session.table', 'sessions'))
+                    ->whereIn('user_id', $studentUserIds->all())
+                    ->delete();
+
+                User::whereIn('id', $studentUserIds->all())->update([
+                    'remember_token' => null,
+                ]);
+            }
+        });
 
         return back()->with('success', 'Student has been officially transferred out and account access is disabled.');
     }
