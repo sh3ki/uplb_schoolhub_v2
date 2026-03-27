@@ -19,6 +19,32 @@ use Inertia\Response;
 
 class AccountingDashboardController extends Controller
 {
+    private function getAvailableSchoolYears(): array
+    {
+        return StudentFee::query()
+            ->select('school_year')
+            ->whereNotNull('school_year')
+            ->distinct()
+            ->orderByDesc('school_year')
+            ->pluck('school_year')
+            ->values()
+            ->toArray();
+    }
+
+    private function resolveSelectedSchoolYear(?string $requestedSchoolYear, string $currentSchoolYear, array $availableSchoolYears): string
+    {
+        $selectedSchoolYear = trim((string) $requestedSchoolYear);
+        if ($selectedSchoolYear === '') {
+            $selectedSchoolYear = $currentSchoolYear;
+        }
+
+        if (!empty($availableSchoolYears) && !in_array($selectedSchoolYear, $availableSchoolYears, true)) {
+            $selectedSchoolYear = (string) $availableSchoolYears[0];
+        }
+
+        return $selectedSchoolYear;
+    }
+
     /**
      * Display the main accounting dashboard (overview).
      */
@@ -27,11 +53,12 @@ class AccountingDashboardController extends Controller
         $selectedYear = $request->get('year', date('Y'));
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
-        $selectedSchoolYear = trim((string) $request->input('school_year', $currentSchoolYear));
-
-        if ($selectedSchoolYear === '') {
-            $selectedSchoolYear = $currentSchoolYear;
-        }
+        $availableSchoolYears = $this->getAvailableSchoolYears();
+        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+            $request->input('school_year', $currentSchoolYear),
+            $currentSchoolYear,
+            $availableSchoolYears
+        );
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
@@ -194,14 +221,7 @@ class AccountingDashboardController extends Controller
             $years = [(int) date('Y')];
         }
 
-        $schoolYears = StudentFee::query()
-            ->select('school_year')
-            ->whereNotNull('school_year')
-            ->distinct()
-            ->orderByDesc('school_year')
-            ->pluck('school_year')
-            ->values()
-            ->toArray();
+        $schoolYears = $availableSchoolYears;
 
         if (empty($schoolYears)) {
             $schoolYears = [$currentSchoolYear];
@@ -279,10 +299,12 @@ class AccountingDashboardController extends Controller
         $section        = $request->get('section');
         $currentSchoolYear = AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
-        $selectedSchoolYear = trim((string) $request->get('school_year', $currentSchoolYear));
-        if ($selectedSchoolYear === '') {
-            $selectedSchoolYear = $currentSchoolYear;
-        }
+        $availableSchoolYears = $this->getAvailableSchoolYears();
+        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+            $request->get('school_year', $currentSchoolYear),
+            $currentSchoolYear,
+            $availableSchoolYears
+        );
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
@@ -529,10 +551,12 @@ class AccountingDashboardController extends Controller
         $section        = $request->get('section');
         $currentSchoolYear = AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
-        $selectedSchoolYear = trim((string) $request->get('school_year', $currentSchoolYear));
-        if ($selectedSchoolYear === '') {
-            $selectedSchoolYear = $currentSchoolYear;
-        }
+        $availableSchoolYears = $this->getAvailableSchoolYears();
+        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+            $request->get('school_year', $currentSchoolYear),
+            $currentSchoolYear,
+            $availableSchoolYears
+        );
 
         // Date range (fallback to current month)
         $dateFrom      = $request->get('date_from');
@@ -819,14 +843,7 @@ class AccountingDashboardController extends Controller
         $years = StudentPayment::selectRaw('YEAR(payment_date) as year')->distinct()->orderBy('year', 'desc')->pluck('year')->toArray();
         if (empty($years)) $years = [(int) date('Y')];
 
-        $schoolYears = StudentFee::query()
-            ->select('school_year')
-            ->whereNotNull('school_year')
-            ->distinct()
-            ->orderByDesc('school_year')
-            ->pluck('school_year')
-            ->values()
-            ->toArray();
+        $schoolYears = $availableSchoolYears;
 
         if (empty($schoolYears)) {
             $schoolYears = [$currentSchoolYear];
