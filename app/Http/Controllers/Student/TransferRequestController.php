@@ -21,7 +21,12 @@ class TransferRequestController extends Controller
         $settings = AppSetting::current();
 
         $requests = TransferRequest::where('student_id', $student->id)
-            ->with(['processedBy:id,name'])
+            ->with([
+                'processedBy:id,name,username',
+                'registrarApprovedBy:id,name,username',
+                'accountingApprovedBy:id,name,username',
+                'finalizedBy:id,name,username',
+            ])
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($r) {
@@ -54,6 +59,24 @@ class TransferRequestController extends Controller
                     'transfer_fee_amount' => (float) $r->transfer_fee_amount,
                     'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
                     'transfer_fee_or_number' => $r->transfer_fee_or_number,
+                    'registrar_approved_by' => $r->registrarApprovedBy ? [
+                        'id' => $r->registrarApprovedBy->id,
+                        'name' => $r->registrarApprovedBy->name,
+                        'username' => $r->registrarApprovedBy->username,
+                    ] : null,
+                    'accounting_approved_by' => $r->accountingApprovedBy ? [
+                        'id' => $r->accountingApprovedBy->id,
+                        'name' => $r->accountingApprovedBy->name,
+                        'username' => $r->accountingApprovedBy->username,
+                    ] : null,
+                    'finalized_by' => $r->finalizedBy ? [
+                        'id' => $r->finalizedBy->id,
+                        'name' => $r->finalizedBy->name,
+                        'username' => $r->finalizedBy->username,
+                    ] : null,
+                    'registrar_approved_at' => $r->registrar_approved_at?->format('M d, Y h:i A'),
+                    'accounting_approved_at' => $r->accounting_approved_at?->format('M d, Y h:i A'),
+                    'finalized_at' => $r->finalized_at?->format('M d, Y h:i A'),
                     'processed_by' => $r->processedBy?->name,
                     'processed_at' => $r->processed_at?->format('M d, Y h:i A'),
                     'created_at' => $r->created_at->format('M d, Y h:i A'),
