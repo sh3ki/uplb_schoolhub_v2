@@ -1,4 +1,4 @@
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, Link, useForm, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
@@ -151,6 +151,11 @@ export default function DropRequestIndex({
                         <p className="text-muted-foreground text-sm mt-1">
                             Request to drop from your current enrollment.
                         </p>
+                        <div className="mt-3">
+                            <Link href="/student/transfer-request">
+                                <Button variant="outline" size="sm">Transfer Out</Button>
+                            </Link>
+                        </div>
                     </div>
 
                     {!deadlinePassed ? (
