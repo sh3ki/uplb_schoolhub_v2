@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -207,6 +208,13 @@ class TransferRequestController extends Controller
         }
 
         $transferRequest->finalizeByRegistrar(Auth::id());
+
+        $studentUserId = $transferRequest->student?->user?->id;
+        if ($studentUserId) {
+            DB::table(config('session.table', 'sessions'))
+                ->where('user_id', $studentUserId)
+                ->delete();
+        }
 
         return back()->with('success', 'Student has been officially transferred out and account access is disabled.');
     }
