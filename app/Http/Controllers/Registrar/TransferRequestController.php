@@ -33,15 +33,37 @@ class TransferRequestController extends Controller
         if ($tab && $tab !== 'all') {
             if ($tab === 'finalized') {
                 if ($hasFinalizedColumn) {
-                    $query->whereNotNull('finalized_at');
+                    $query->where(function ($q) {
+                        $q->whereNotNull('finalized_at')
+                            ->orWhereHas('student', function ($sq) {
+                                $sq->where('enrollment_status', 'dropped')
+                                    ->where('is_active', false);
+                            });
+                    });
                 } else {
-                    $query->whereRaw('1 = 0');
+                    $query->whereHas('student', function ($q) {
+                        $q->where('enrollment_status', 'dropped')
+                            ->where('is_active', false);
+                    });
                 }
             } else {
                 $query->where('registrar_status', $tab);
 
                 if ($tab === 'approved' && $hasFinalizedColumn) {
-                    $query->whereNull('finalized_at');
+                    $query->where(function ($q) {
+                        $q->whereNull('finalized_at')
+                            ->whereDoesntHave('student', function ($sq) {
+                                $sq->where('enrollment_status', 'dropped')
+                                    ->where('is_active', false);
+                            });
+                    });
+                }
+
+                if ($tab === 'approved' && !$hasFinalizedColumn) {
+                    $query->whereDoesntHave('student', function ($q) {
+                        $q->where('enrollment_status', 'dropped')
+                            ->where('is_active', false);
+                    });
                 }
             }
         }
@@ -104,7 +126,10 @@ class TransferRequestController extends Controller
                 ] : null,
                 'registrar_approved_at' => $r->registrar_approved_at?->format('M d, Y h:i A'),
                 'accounting_approved_at' => $r->accounting_approved_at?->format('M d, Y h:i A'),
-                'finalized_at' => $r->finalized_at?->format('M d, Y h:i A'),
+                'finalized_at' => $r->finalized_at?->format('M d, Y h:i A')
+                    ?? (($r->student && !$r->student->is_active && $r->student->enrollment_status === 'dropped')
+                        ? $r->updated_at?->format('M d, Y h:i A')
+                        : null),
                 'created_at' => $r->created_at->format('M d, Y h:i A'),
                 'student' => $r->student ? [
                     'id' => $r->student->id,
@@ -125,10 +150,30 @@ class TransferRequestController extends Controller
         $stats = [
             'pending' => TransferRequest::where('registrar_status', 'pending')->count(),
             'approved' => $hasFinalizedColumn
-                ? TransferRequest::where('registrar_status', 'approved')->whereNull('finalized_at')->count()
-                : TransferRequest::where('registrar_status', 'approved')->count(),
+                ? TransferRequest::where('registrar_status', 'approved')
+                    ->where(function ($q) {
+                        $q->whereNull('finalized_at')
+                            ->whereDoesntHave('student', function ($sq) {
+                                $sq->where('enrollment_status', 'dropped')
+                                    ->where('is_active', false);
+                            });
+                    })->count()
+                : TransferRequest::where('registrar_status', 'approved')
+                    ->whereDoesntHave('student', function ($q) {
+                        $q->where('enrollment_status', 'dropped')
+                            ->where('is_active', false);
+                    })->count(),
             'rejected' => TransferRequest::where('registrar_status', 'rejected')->count(),
-            'finalized' => $hasFinalizedColumn ? TransferRequest::whereNotNull('finalized_at')->count() : 0,
+            'finalized' => TransferRequest::where(function ($q) use ($hasFinalizedColumn) {
+                if ($hasFinalizedColumn) {
+                    $q->whereNotNull('finalized_at');
+                }
+
+                $q->orWhereHas('student', function ($sq) {
+                    $sq->where('enrollment_status', 'dropped')
+                        ->where('is_active', false);
+                });
+            })->count(),
         ];
 
         $settings = AppSetting::current();
