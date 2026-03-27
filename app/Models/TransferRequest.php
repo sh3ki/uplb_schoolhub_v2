@@ -36,6 +36,8 @@ class TransferRequest extends Model
         'accounting_status',
         'accounting_approved_by',
         'accounting_approved_at',
+        'finalized_by',
+        'finalized_at',
         'accounting_remarks',
         'outstanding_balance',
         'transfer_fee_amount',
@@ -50,6 +52,7 @@ class TransferRequest extends Model
     protected $casts = [
         'registrar_approved_at' => 'datetime',
         'accounting_approved_at' => 'datetime',
+        'finalized_at' => 'datetime',
         'processed_at' => 'datetime',
         'months_stayed_enrolled' => 'integer',
         'subjects_completed' => 'boolean',
@@ -79,6 +82,11 @@ class TransferRequest extends Model
     public function accountingApprovedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'accounting_approved_by');
+    }
+
+    public function finalizedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'finalized_by');
     }
 
     public function approveByRegistrar(int $userId, ?string $remarks = null): void
@@ -150,8 +158,13 @@ class TransferRequest extends Model
         ]);
     }
 
-    public function finalizeByRegistrar(): void
+    public function finalizeByRegistrar(int $userId): void
     {
+        $this->update([
+            'finalized_by' => $userId,
+            'finalized_at' => now(),
+        ]);
+
         $student = $this->student;
         $student->update([
             'enrollment_status' => 'dropped',
