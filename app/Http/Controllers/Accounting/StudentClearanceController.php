@@ -21,6 +21,7 @@ class StudentClearanceController extends Controller
     public function index(Request $request)
     {
         $baseQuery = Student::with(['enrollmentClearance', 'fees'])
+            ->withoutTransferredOut()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
@@ -209,6 +210,14 @@ class StudentClearanceController extends Controller
      */
     public function show(Student $student)
     {
+        $isTransferredOut = $student->transferRequests()
+            ->whereNotNull('finalized_at')
+            ->exists();
+
+        if ($isTransferredOut) {
+            abort(404);
+        }
+
         $student->load(['enrollmentClearance', 'fees.payments', 'requirements.requirement']);
 
         $schoolYear = $student->school_year ?? date('Y') . '-' . (date('Y') + 1);
