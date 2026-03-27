@@ -208,6 +208,24 @@ class DropRequestController extends Controller
             'is_active' => true,
         ]);
 
+        if ($student->user) {
+            $clearance = \App\Models\EnrollmentClearance::where('user_id', $student->user->id)->first();
+            if ($clearance) {
+                $clearance->update([
+                    'registrar_clearance' => false,
+                    'registrar_cleared_at' => null,
+                    'registrar_cleared_by' => null,
+                    'accounting_clearance' => false,
+                    'accounting_cleared_at' => null,
+                    'accounting_cleared_by' => null,
+                    'official_enrollment' => false,
+                    'officially_enrolled_at' => null,
+                    'officially_enrolled_by' => null,
+                    'enrollment_status' => 'not_started',
+                ]);
+            }
+        }
+
         return back()->with('success', 'Student has been reactivated and can now log in again.');
     }
 
