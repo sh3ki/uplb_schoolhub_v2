@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,19 +27,27 @@ class EnsureStudentActive
             return $next($request);
         }
 
-        // Check if student exists and is active
-        if ($user->student_id) {
-            $student = $user->student;
-            
-            if ($student && !$student->is_active) {
-                Auth::logout();
-                $request->session()->invalidate();
-                $request->session()->regenerateToken();
+        $student = $user->student;
 
-                return redirect()->route('login')->with('error', 
-                    'Your account has been deactivated. Please visit the registrar\'s office for assistance.'
-                );
-            }
+        // Fallback for legacy records where user.student_id may be missing.
+        if (!$student && $user->email) {
+            $student = Student::where('email', $user->email)->first();
+        }
+
+        // Student role must always have an active linked student record.
+        if (!$student || !$student->is_active || $student->enrollment_status === 'dropped') {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->with('error',
+                'Your account has been deactivated. Please visit the registrar\'s office for assistance.'
+            );
+        }
+
+        // Heal legacy linkage for future requests.
+        if ((int) $user->student_id !== (int) $student->id) {
+            $user->forceFill(['student_id' => $student->id])->save();
         }
 
         return $next($request);
