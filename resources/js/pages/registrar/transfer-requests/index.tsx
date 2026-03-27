@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { CalendarDays, CheckCircle2, Clock, Search, ThumbsDown, ThumbsUp, UserRoundX, XCircle } from 'lucide-react';
+import { CalendarDays, CheckCircle2, ChevronRight, Clock, Search, ThumbsDown, ThumbsUp, UserRoundX, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,12 @@ type RequestItem = {
     transfer_fee_amount: number;
     transfer_fee_paid: boolean;
     transfer_fee_or_number: string | null;
+    registrar_approved_by: { id: number; name: string; username: string | null } | null;
+    accounting_approved_by: { id: number; name: string; username: string | null } | null;
+    finalized_by: { id: number; name: string; username: string | null } | null;
+    registrar_approved_at: string | null;
+    accounting_approved_at: string | null;
+    finalized_at: string | null;
     created_at: string;
     student: {
         id: number;
@@ -55,6 +61,41 @@ const statusBadge = (status: string) => {
     if (status === 'approved') return <Badge className="bg-green-100 text-green-800 border border-green-200">Approved</Badge>;
     if (status === 'rejected') return <Badge className="bg-red-100 text-red-800 border border-red-200">Rejected</Badge>;
     return <Badge className="bg-amber-100 text-amber-800 border border-amber-200">Pending</Badge>;
+};
+
+const stepLabel = (step: number) => {
+    if (step === 1) return 'Submitted';
+    if (step === 2) return 'Registrar';
+    if (step === 3) return 'Super-Accounting';
+    return 'Finalize';
+};
+
+const getStepState = (item: RequestItem, step: number) => {
+    if (step === 1) return 'done';
+
+    if (step === 2) {
+        if (item.registrar_status === 'approved') return 'done';
+        if (item.registrar_status === 'rejected') return 'rejected';
+        return 'active';
+    }
+
+    if (step === 3) {
+        if (item.registrar_status !== 'approved') return 'pending';
+        if (item.accounting_status === 'approved') return 'done';
+        if (item.accounting_status === 'rejected') return 'rejected';
+        return 'active';
+    }
+
+    if (item.finalized_at) return 'done';
+    if (item.status === 'rejected') return 'rejected';
+    return 'pending';
+};
+
+const stepClass = (state: string) => {
+    if (state === 'done') return 'bg-green-100 text-green-700 border-green-300';
+    if (state === 'active') return 'bg-blue-100 text-blue-700 border-blue-300';
+    if (state === 'rejected') return 'bg-red-100 text-red-700 border-red-300';
+    return 'bg-slate-100 text-slate-500 border-slate-300';
 };
 
 export default function RegistrarTransferRequests({ requests, stats, tab, filters, transferRequestDeadline }: Props) {
@@ -133,6 +174,8 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                             <TableHead>Program / Year</TableHead>
                                             <TableHead>Reason</TableHead>
                                             <TableHead>Status</TableHead>
+                                            <TableHead>Flow</TableHead>
+                                            <TableHead>Approvals</TableHead>
                                             <TableHead>Super-Accounting</TableHead>
                                             <TableHead>Transfer Fee</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
@@ -140,7 +183,7 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                     </TableHeader>
                                     <TableBody>
                                         {requests.data.length === 0 ? (
-                                            <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
                                         ) : requests.data.map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
@@ -161,6 +204,45 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                 </TableCell>
                                                 <TableCell className="max-w-[280px] truncate" title={item.reason}>{item.reason}</TableCell>
                                                 <TableCell>{statusBadge(item.registrar_status)}</TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-1 text-xs">
+                                                            {[1, 2, 3, 4].map((step) => {
+                                                                const state = getStepState(item, step);
+                                                                return (
+                                                                    <div key={step} className="flex items-center gap-1">
+                                                                        <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border font-medium ${stepClass(state)}`}>
+                                                                            {step}
+                                                                        </span>
+                                                                        {step < 4 && <ChevronRight className="h-3 w-3 text-slate-400" />}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="text-[11px] text-muted-foreground">
+                                                            1 {stepLabel(1)} · 2 {stepLabel(2)} · 3 {stepLabel(3)} · 4 {stepLabel(4)}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="space-y-1 text-xs">
+                                                        <div>
+                                                            <span className="font-medium">Registrar:</span>{' '}
+                                                            {item.registrar_approved_by?.username || item.registrar_approved_by?.name || '—'}
+                                                            {item.registrar_approved_at ? ` (${item.registrar_approved_at})` : ''}
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium">Super-Accounting:</span>{' '}
+                                                            {item.accounting_approved_by?.username || item.accounting_approved_by?.name || '—'}
+                                                            {item.accounting_approved_at ? ` (${item.accounting_approved_at})` : ''}
+                                                        </div>
+                                                        <div>
+                                                            <span className="font-medium">Finalized:</span>{' '}
+                                                            {item.finalized_by?.username || item.finalized_by?.name || '—'}
+                                                            {item.finalized_at ? ` (${item.finalized_at})` : ''}
+                                                        </div>
+                                                    </div>
+                                                </TableCell>
                                                 <TableCell>{statusBadge(item.accounting_status)}</TableCell>
                                                 <TableCell>
                                                     {item.transfer_fee_amount > 0 ? (
