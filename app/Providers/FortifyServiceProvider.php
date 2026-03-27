@@ -14,6 +14,8 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 use Laravel\Fortify\Fortify;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
+use Illuminate\Validation\ValidationException;
+use App\Models\Student;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -51,6 +53,24 @@ class FortifyServiceProvider extends ServiceProvider
                 ->first();
 
             if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                if ($user->role === 'student') {
+                    $student = $user->student;
+
+                    if (!$student && $user->email) {
+                        $student = Student::where('email', $user->email)->first();
+                    }
+
+                    if (!$student || !$student->is_active || $student->enrollment_status === 'dropped') {
+                        throw ValidationException::withMessages([
+                            'email' => 'Your account has been deactivated. Please visit the registrar office for assistance.',
+                        ]);
+                    }
+
+                    if ((int) $user->student_id !== (int) $student->id) {
+                        $user->forceFill(['student_id' => $student->id])->save();
+                    }
+                }
+
                 return $user;
             }
 
