@@ -23,12 +23,17 @@ class MasterlistController extends Controller
             $rolePrefix = 'owner';
         }
 
-        $students = Student::query()
+        $studentsQuery = Student::query()
             ->with('departmentModel:id,name,classification')
             ->whereNull('deleted_at')
             ->orderBy('last_name')
-            ->orderBy('first_name')
-            ->get([
+            ->orderBy('first_name');
+
+        if ($rolePrefix === 'super-accounting') {
+            $studentsQuery->withoutTransferredOut();
+        }
+
+        $students = $studentsQuery->get([
                 'id',
                 'first_name',
                 'last_name',
