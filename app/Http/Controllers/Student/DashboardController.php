@@ -3,8 +3,13 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\FeeItem;
+use App\Models\FeeItemAssignment;
+use App\Models\GrantRecipient;
 use App\Models\Student;
 use App\Models\StudentFee;
+use App\Models\StudentPayment;
+use App\Models\TransferRequest;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
@@ -43,6 +48,23 @@ class DashboardController extends Controller
         // Get payment info using same logic as online payments
         $paymentInfo = $this->getPaymentSummary($student, $targetSchoolYear);
 
+        // Transfer-out fee state (super-accounting-managed)
+        $latestTransferRequest = TransferRequest::where('student_id', $student->id)
+            ->whereNull('deleted_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        $transferFee = $latestTransferRequest ? [
+            'status' => $latestTransferRequest->status,
+            'registrar_status' => $latestTransferRequest->registrar_status,
+            'accounting_status' => $latestTransferRequest->accounting_status,
+            'amount' => (float) $latestTransferRequest->transfer_fee_amount,
+            'paid' => (bool) $latestTransferRequest->transfer_fee_paid,
+            'or_number' => $latestTransferRequest->transfer_fee_or_number,
+            'registrar_remarks' => $latestTransferRequest->registrar_remarks,
+            'accounting_remarks' => $latestTransferRequest->accounting_remarks,
+        ] : null;
+
         // Get previous school year balances
         $previousBalances = $this->getPreviousSchoolYearBalances($student, $targetSchoolYear);
 
@@ -69,6 +91,7 @@ class DashboardController extends Controller
             ],
             'enrollmentClearance' => $student->enrollmentClearance,
             'paymentInfo' => $paymentInfo,
+            'transferFee' => $transferFee,
             'previousBalances' => $previousBalances,
             'incompleteRequirements' => $incompleteRequirements,
         ]);
@@ -79,6 +102,8 @@ class DashboardController extends Controller
      */
     private function getPaymentSummary(Student $student, string $targetSchoolYear): ?array
     {
+        $targetSchoolYear = trim((string) $targetSchoolYear);
+
         $feeRecords = StudentFee::query()
             ->where('student_id', $student->id)
             ->orderByDesc('school_year')
@@ -109,6 +134,21 @@ class DashboardController extends Controller
         $totalDiscount = (float) ($currentFee['grant_discount'] ?? 0);
         $totalPaid = (float) ($currentFee['total_paid'] ?? 0);
         $balance = (float) ($currentFee['balance'] ?? 0);
+
+        // If registrar is already cleared and student_fees has not been fully computed yet,
+        // fall back to assignment-based fee calculation to avoid showing all zeros.
+        $registrarCleared = (bool) optional($student->enrollmentClearance)->registrar_clearance;
+        if ($registrarCleared && ($totalFees <= 0 && $totalDiscount <= 0 && $totalPaid <= 0 && $balance <= 0)) {
+            $totalFees = $this->calculateAssignedFeeTotal($student, $targetSchoolYear);
+            $totalDiscount = $this->calculateGrantDiscountForSchoolYear($student, $targetSchoolYear, $totalFees);
+            $totalPaid = (float) StudentPayment::query()
+                ->where('student_id', $student->id)
+                ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
+                    $q->whereRaw('TRIM(school_year) = ?', [$targetSchoolYear]);
+                })
+                ->sum('amount');
+            $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
+        }
 
         $previousBalance = (float) $feesBySchoolYear
             ->filter(fn (array $fee) => trim((string) $fee['school_year']) !== trim((string) $targetSchoolYear))
@@ -172,6 +212,69 @@ class DashboardController extends Controller
                 ];
             })
             ->toArray();
+    }
+
+    private function calculateAssignedFeeTotal(Student $student, string $schoolYear): float
+    {
+        $assignedFeeItemIds = FeeItemAssignment::query()
+            ->where('school_year', $schoolYear)
+            ->where('is_active', true)
+            ->where(function ($query) use ($student) {
+                if ($student->department?->classification) {
+                    $query->where('classification', $student->department->classification);
+                }
+                if ($student->department_id) {
+                    $query->where('department_id', $student->department_id);
+                }
+                if ($student->year_level_id) {
+                    $query->where('year_level_id', $student->year_level_id);
+                }
+            })
+            ->pluck('fee_item_id')
+            ->toArray();
+
+        $allScopeFeeItemIds = FeeItem::query()
+            ->where('school_year', $schoolYear)
+            ->where('is_active', true)
+            ->where('assignment_scope', 'all')
+            ->pluck('id')
+            ->toArray();
+
+        $feeItemIds = array_values(array_unique(array_merge($assignedFeeItemIds, $allScopeFeeItemIds)));
+        if (empty($feeItemIds)) {
+            return 0;
+        }
+
+        return (float) FeeItem::query()
+            ->whereIn('id', $feeItemIds)
+            ->where('is_active', true)
+            ->sum('selling_price');
+    }
+
+    private function calculateGrantDiscountForSchoolYear(Student $student, string $schoolYear, float $totalFees): float
+    {
+        if ($totalFees <= 0) {
+            return 0;
+        }
+
+        $grantRecipients = GrantRecipient::where('student_id', $student->id)
+            ->where('school_year', $schoolYear)
+            ->where('status', 'active')
+            ->with('grant')
+            ->get();
+
+        if ($grantRecipients->isEmpty()) {
+            return 0;
+        }
+
+        $discount = 0.0;
+        foreach ($grantRecipients as $recipient) {
+            if ($recipient->grant) {
+                $discount += (float) $recipient->grant->calculateDiscount($totalFees);
+            }
+        }
+
+        return $discount;
     }
 
 }
