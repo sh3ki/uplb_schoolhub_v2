@@ -75,6 +75,15 @@ interface Props {
     paymentMethods: { value: string; label: string }[];
     enrollmentStatus?: string;
     isDropped?: boolean;
+    transferFee?: {
+        status: string;
+        registrar_status: string;
+        accounting_status: string;
+        amount: number;
+        paid: boolean;
+        or_number: string | null;
+        finalized_at: string | null;
+    } | null;
 }
 
 const statusConfig: Record<string, { label: string; icon: any; bgColor: string; textColor: string }> = {
@@ -127,7 +136,7 @@ function formatDate(dateString: string): string {
     });
 }
 
-export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, recentPayments, paymentMethods, enrollmentStatus, isDropped = false }: Props) {
+export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, recentPayments, paymentMethods, enrollmentStatus, isDropped = false, transferFee = null }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerTitle, setViewerTitle] = useState('Payment Proof');
@@ -145,6 +154,8 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
     });
 
     const selectedFeeRecord = feeRecords.find((fee) => fee.school_year === form.data.school_year);
+    const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected' && transferFee.amount > 0;
+    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -240,42 +251,89 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Fees</CardTitle>
-                            <Receipt className="h-4 w-4 text-muted-foreground" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{formatCurrency(summary.total_fees)}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Discounts</CardTitle>
-                            <DollarSign className="h-4 w-4 text-green-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-green-600">-{formatCurrency(summary.total_discount)}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-                            <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-blue-600">{formatCurrency(summary.total_paid)}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                            <CardTitle className="text-sm font-medium">Balance</CardTitle>
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.balance)}</div>
-                        </CardContent>
-                    </Card>
+                    {hasTransferFeeFlow ? (
+                        <>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Transfer Out Fee</CardTitle>
+                                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{formatCurrency(transferFeeBalance)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Payment Status</CardTitle>
+                                    <CheckCircle2 className={`h-4 w-4 ${transferFee?.paid ? 'text-green-500' : 'text-amber-500'}`} />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className={`text-2xl font-bold ${transferFee?.paid ? 'text-green-600' : 'text-amber-600'}`}>
+                                        {transferFee?.paid ? 'Paid' : 'Unpaid'}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">OR Number</CardTitle>
+                                    <Receipt className="h-4 w-4 text-blue-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-blue-600">{transferFee?.or_number || 'N/A'}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Finalize Status</CardTitle>
+                                    <AlertTriangle className={`h-4 w-4 ${transferFee?.finalized_at ? 'text-green-500' : 'text-red-500'}`} />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className={`text-2xl font-bold ${transferFee?.finalized_at ? 'text-green-600' : 'text-red-600'}`}>
+                                        {transferFee?.finalized_at ? 'Finalized' : 'Pending'}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </>
+                    ) : (
+                        <>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Total Fees</CardTitle>
+                                    <Receipt className="h-4 w-4 text-muted-foreground" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold">{formatCurrency(summary.total_fees)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Discounts</CardTitle>
+                                    <DollarSign className="h-4 w-4 text-green-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-green-600">-{formatCurrency(summary.total_discount)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+                                    <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-blue-600">{formatCurrency(summary.total_paid)}</div>
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <CardTitle className="text-sm font-medium">Balance</CardTitle>
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.balance)}</div>
+                                </CardContent>
+                            </Card>
+                        </>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -284,44 +342,69 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                         {/* Fee Breakdown */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>Fee Breakdown</CardTitle>
-                                <CardDescription>Your assigned fees based on your classification</CardDescription>
+                                <CardTitle>{hasTransferFeeFlow ? 'Transfer Out Payment' : 'Fee Breakdown'}</CardTitle>
+                                <CardDescription>
+                                    {hasTransferFeeFlow
+                                        ? 'Your transfer out request is now in transfer fee processing mode.'
+                                        : 'Your assigned fees based on your classification'}
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {Object.keys(groupedFeeItems).length === 0 ? (
-                                    <p className="text-center py-8 text-muted-foreground">
-                                        No fees assigned yet.
-                                    </p>
-                                ) : (
-                                    <div className="space-y-6">
-                                        {Object.entries(groupedFeeItems).map(([category, items]) => (
-                                            <div key={category}>
-                                                <h4 className="font-semibold text-sm text-muted-foreground mb-2">{category}</h4>
-                                                <Table>
-                                                    <TableBody>
-                                                        {items.map((item) => (
-                                                            <TableRow key={item.id}>
-                                                                <TableCell>{item.name}</TableCell>
-                                                                <TableCell className="text-right font-medium">
-                                                                    {formatCurrency(item.amount)}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        ))}
-                                                    </TableBody>
-                                                </Table>
-                                            </div>
-                                        ))}
-                                        <div className="flex justify-between py-3 border-t font-semibold">
-                                            <span>Total</span>
-                                            <span>{formatCurrency(summary.total_fees)}</span>
+                                {hasTransferFeeFlow ? (
+                                    <div className="space-y-3 text-sm">
+                                        <div className="flex items-center justify-between rounded-md border p-3">
+                                            <span className="font-medium">Transfer Out Fee</span>
+                                            <span className="font-semibold">{formatCurrency(transferFeeBalance)}</span>
                                         </div>
+                                        <div className="flex items-center justify-between rounded-md border p-3">
+                                            <span className="font-medium">Status</span>
+                                            <Badge className={transferFee?.paid ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>
+                                                {transferFee?.paid ? 'Paid' : 'Unpaid'}
+                                            </Badge>
+                                        </div>
+                                        {transferFee?.or_number && (
+                                            <div className="text-muted-foreground">OR Number: {transferFee.or_number}</div>
+                                        )}
+                                        <p className="text-muted-foreground">
+                                            Please coordinate with super-accounting for transfer fee settlement and official receipt tagging.
+                                        </p>
                                     </div>
+                                ) : (
+                                    Object.keys(groupedFeeItems).length === 0 ? (
+                                        <p className="text-center py-8 text-muted-foreground">
+                                            No fees assigned yet.
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-6">
+                                            {Object.entries(groupedFeeItems).map(([category, items]) => (
+                                                <div key={category}>
+                                                    <h4 className="font-semibold text-sm text-muted-foreground mb-2">{category}</h4>
+                                                    <Table>
+                                                        <TableBody>
+                                                            {items.map((item) => (
+                                                                <TableRow key={item.id}>
+                                                                    <TableCell>{item.name}</TableCell>
+                                                                    <TableCell className="text-right font-medium">
+                                                                        {formatCurrency(item.amount)}
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+                                            ))}
+                                            <div className="flex justify-between py-3 border-t font-semibold">
+                                                <span>Total</span>
+                                                <span>{formatCurrency(summary.total_fees)}</span>
+                                            </div>
+                                        </div>
+                                    )
                                 )}
                             </CardContent>
                         </Card>
 
                         {/* Payment Submission Form */}
-                        {!isDropped && (
+                        {!isDropped && !hasTransferFeeFlow && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
