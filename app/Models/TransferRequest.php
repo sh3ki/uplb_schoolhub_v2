@@ -13,6 +13,19 @@ class TransferRequest extends Model
     protected $fillable = [
         'student_id',
         'reason',
+        'new_school_name',
+        'new_school_address',
+        'receiving_contact_person',
+        'receiving_contact_number',
+        'months_stayed_enrolled',
+        'subjects_completed',
+        'incomplete_subjects',
+        'has_pending_requirements',
+        'pending_requirements_details',
+        'requesting_documents',
+        'requested_documents',
+        'issued_items',
+        'student_notes',
         'status',
         'semester',
         'school_year',
@@ -25,6 +38,9 @@ class TransferRequest extends Model
         'accounting_approved_at',
         'accounting_remarks',
         'outstanding_balance',
+        'transfer_fee_amount',
+        'transfer_fee_paid',
+        'transfer_fee_or_number',
         'balance_override',
         'balance_override_reason',
         'processed_by',
@@ -35,7 +51,13 @@ class TransferRequest extends Model
         'registrar_approved_at' => 'datetime',
         'accounting_approved_at' => 'datetime',
         'processed_at' => 'datetime',
+        'months_stayed_enrolled' => 'integer',
+        'subjects_completed' => 'boolean',
+        'has_pending_requirements' => 'boolean',
+        'requesting_documents' => 'boolean',
         'outstanding_balance' => 'decimal:2',
+        'transfer_fee_amount' => 'decimal:2',
+        'transfer_fee_paid' => 'boolean',
         'balance_override' => 'boolean',
     ];
 
@@ -81,17 +103,37 @@ class TransferRequest extends Model
         ]);
     }
 
-    public function approveByAccounting(int $userId, ?string $remarks = null, bool $override = false, ?string $overrideReason = null, float $outstandingBalance = 0): void
+    public function approveByAccounting(
+        int $userId,
+        ?string $remarks = null,
+        float $transferFeeAmount = 0,
+        bool $transferFeePaid = false,
+        ?string $transferFeeOrNumber = null
+    ): void
     {
         $this->update([
             'accounting_status' => 'approved',
             'accounting_approved_by' => $userId,
             'accounting_approved_at' => now(),
             'accounting_remarks' => $remarks,
-            'outstanding_balance' => $outstandingBalance,
-            'balance_override' => $override,
-            'balance_override_reason' => $overrideReason,
+            'outstanding_balance' => 0,
+            'transfer_fee_amount' => max(0, $transferFeeAmount),
+            'transfer_fee_paid' => $transferFeePaid,
+            'transfer_fee_or_number' => $transferFeePaid ? $transferFeeOrNumber : null,
+            'balance_override' => false,
+            'balance_override_reason' => null,
             'status' => 'approved',
+            'processed_by' => $userId,
+            'processed_at' => now(),
+        ]);
+    }
+
+    public function markTransferFeePaid(int $userId, string $orNumber, ?float $transferFeeAmount = null): void
+    {
+        $this->update([
+            'transfer_fee_paid' => true,
+            'transfer_fee_or_number' => $orNumber,
+            'transfer_fee_amount' => $transferFeeAmount !== null ? max(0, $transferFeeAmount) : $this->transfer_fee_amount,
             'processed_by' => $userId,
             'processed_at' => now(),
         ]);
