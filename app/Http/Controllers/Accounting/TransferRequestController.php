@@ -48,6 +48,11 @@ class TransferRequestController extends Controller
         $requests = $query->latest()->paginate(20)->withQueryString();
 
         $requests->getCollection()->transform(function ($r) {
+            $onlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $transferFeeAmount = (float) $r->transfer_fee_amount;
+            $transferBalanceDue = max(0, $transferFeeAmount - $onlinePaid);
+            $transferFeePaid = (bool) $r->transfer_fee_paid || ($transferFeeAmount > 0 && $transferBalanceDue <= 0);
+
             return [
                 'id' => $r->id,
                 'reason' => $r->reason,
@@ -72,11 +77,11 @@ class TransferRequestController extends Controller
                 'registrar_remarks' => $r->registrar_remarks,
                 'accounting_remarks' => $r->accounting_remarks,
                 'outstanding_balance' => (float) $r->outstanding_balance,
-                'transfer_fee_amount' => (float) $r->transfer_fee_amount,
-                'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
+                'transfer_fee_amount' => $transferFeeAmount,
+                'transfer_fee_paid' => $transferFeePaid,
                 'transfer_fee_or_number' => $r->transfer_fee_or_number,
-                'transfer_online_paid_amount' => (float) ($r->transfer_online_paid_amount ?? 0),
-                'transfer_balance_due' => max(0, (float) $r->transfer_fee_amount - (float) ($r->transfer_online_paid_amount ?? 0)),
+                'transfer_online_paid_amount' => $onlinePaid,
+                'transfer_balance_due' => $transferBalanceDue,
                 'balance_override' => (bool) $r->balance_override,
                 'balance_override_reason' => $r->balance_override_reason,
                 'registrar_approved_by' => $r->registrarApprovedBy ? [
