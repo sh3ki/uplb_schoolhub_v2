@@ -319,9 +319,11 @@ class OnlinePaymentController extends Controller
      */
     private function getFeeSummary(Student $student, string $targetSchoolYear): array
     {
+        $targetSchoolYear = trim((string) $targetSchoolYear);
+
         $fees = StudentFee::with('payments')
             ->where('student_id', $student->id)
-            ->where('school_year', $targetSchoolYear)
+            ->whereRaw('TRIM(school_year) = ?', [$targetSchoolYear])
             ->get();
 
         $totalFees = (float) $fees->sum('total_amount');
@@ -345,7 +347,7 @@ class OnlinePaymentController extends Controller
             $totalPaid = (float) StudentPayment::query()
                 ->where('student_id', $student->id)
                 ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
-                    $q->where('school_year', $targetSchoolYear);
+                    $q->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)]);
                 })
                 ->sum('amount');
         }
