@@ -22,6 +22,7 @@ class StudentClearanceController extends Controller
     {
         $baseQuery = Student::with(['enrollmentClearance', 'fees'])
             ->withoutTransferredOut()
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
@@ -210,6 +211,10 @@ class StudentClearanceController extends Controller
      */
     public function show(Student $student)
     {
+        if ($student->enrollment_status === 'dropped') {
+            abort(404);
+        }
+
         $isTransferredOut = $student->transferRequests()
             ->whereNotNull('finalized_at')
             ->exists();
