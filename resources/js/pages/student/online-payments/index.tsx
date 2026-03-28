@@ -1,6 +1,6 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { CreditCard, Upload, CheckCircle2, XCircle, Clock, AlertTriangle, DollarSign, Receipt, Send, UserMinus, Eye } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Pagination } from '@/components/ui/pagination';
 import { Badge } from '@/components/ui/badge';
@@ -165,6 +165,12 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
 
     const selectedFeeSummary = feeYearSummaries.find((fee) => fee.school_year === form.data.school_year);
     const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected' && transferFee.amount > 0;
+
+    // Keep payload aligned with UI mode so transfer submissions are always tagged correctly.
+    useEffect(() => {
+        form.setData('is_transfer_payment', hasTransferFeeFlow);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hasTransferFeeFlow]);
     const transferTotalFees = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
     const transferTotalPaid = hasTransferFeeFlow ? Math.max(0, transferFee.paid_amount || 0) : 0;
     const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.balance ?? (transferTotalFees - transferTotalPaid)) : 0;
@@ -205,7 +211,6 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.setData('is_transfer_payment', hasTransferFeeFlow);
         form.post('/student/online-payments', {
             forceFormData: true,
             onSuccess: () => {
