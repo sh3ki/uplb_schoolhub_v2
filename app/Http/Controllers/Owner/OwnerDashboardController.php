@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\DocumentRequest;
 use App\Models\DropRequest;
+use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -32,6 +33,11 @@ class OwnerDashboardController extends Controller
 
         // Today's Income (fees + approved document fees + approved drop fees)
         $todayIncome = (float) StudentPayment::whereDate('payment_date', Carbon::today())->sum('amount')
+            + (float) OnlineTransaction::query()
+                ->whereNotNull('transfer_request_id')
+                ->whereIn('status', ['completed', 'verified'])
+                ->whereDate('verified_at', Carbon::today())
+                ->sum('amount')
             + (float) DocumentRequest::where('is_paid', true)
                 ->where('accounting_status', 'approved')
                 ->whereDate('accounting_approved_at', Carbon::today())
@@ -44,6 +50,11 @@ class OwnerDashboardController extends Controller
         // Today's Target (avg daily from last 30 days)
         $thirtyDaysAgo = Carbon::today()->subDays(30);
         $last30Sum = (float) StudentPayment::whereBetween('payment_date', [$thirtyDaysAgo, Carbon::today()])->sum('amount')
+            + (float) OnlineTransaction::query()
+                ->whereNotNull('transfer_request_id')
+                ->whereIn('status', ['completed', 'verified'])
+                ->whereBetween('verified_at', [$thirtyDaysAgo->copy()->startOfDay(), Carbon::today()->endOfDay()])
+                ->sum('amount')
             + (float) DocumentRequest::where('is_paid', true)
                 ->where('accounting_status', 'approved')
                 ->whereBetween('accounting_approved_at', [$thirtyDaysAgo->copy()->startOfDay(), Carbon::today()->endOfDay()])
@@ -73,7 +84,15 @@ class OwnerDashboardController extends Controller
         if ($dateFrom) $overallDropsQuery->whereDate('accounting_approved_at', '>=', $dateFrom);
         if ($dateTo)   $overallDropsQuery->whereDate('accounting_approved_at', '<=', $dateTo);
 
+        $overallTransferQuery = OnlineTransaction::query()
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
+        if ($dateFrom) $overallTransferQuery->whereDate('verified_at', '>=', $dateFrom);
+        if ($dateTo)   $overallTransferQuery->whereDate('verified_at', '<=', $dateTo);
+
         $overallIncome = (float) $overallQuery->sum('amount')
+            + (float) $overallTransferQuery->sum('amount')
             + (float) $overallDocsQuery->sum('fee')
             + (float) $overallDropsQuery->sum('fee_amount');
 
@@ -97,9 +116,21 @@ class OwnerDashboardController extends Controller
                     $feeQuery->where('school_year', $selectedSchoolYear);
                 }]);
             }])
+            ->get();
+
+        $transferRevenueByDepartment = OnlineTransaction::query()
+            ->with('student:id,department_id')
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
             ->get()
-            ->map(function ($department) {
+            ->groupBy(fn($tx) => $tx->student?->department_id)
+            ->map(fn($rows) => (float) $rows->sum('amount'));
+
+        $departmentStats = $departmentStats
+            ->map(function ($department) use ($transferRevenueByDepartment) {
                 $totalRevenue  = $department->students->sum(fn($s) => $s->fees->sum(fn($fee) => (float) $fee->payments->sum('amount')));
+                $totalRevenue += (float) $transferRevenueByDepartment->get($department->id, 0.0);
                 $totalExpected = $department->students->sum(fn($s) => $s->fees->sum('total_amount'));
                 $enrollments = $department->students->filter(fn($s) => $s->fees->isNotEmpty())->count();
 
@@ -122,6 +153,11 @@ class OwnerDashboardController extends Controller
             $start = Carbon::parse($date)->startOfDay();
             $end = Carbon::parse($date)->endOfDay();
             $dayTotal = (float) StudentPayment::whereDate('payment_date', $date)->sum('amount')
+                + (float) OnlineTransaction::query()
+                    ->whereNotNull('transfer_request_id')
+                    ->whereIn('status', ['completed', 'verified'])
+                    ->whereBetween('verified_at', [$start, $end])
+                    ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
                     ->whereBetween('accounting_approved_at', [$start, $end])
@@ -142,6 +178,11 @@ class OwnerDashboardController extends Controller
 
         // Payment count
         $totalPayments = StudentPayment::whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))->count()
+            + OnlineTransaction::query()
+                ->whereNotNull('transfer_request_id')
+                ->whereIn('status', ['completed', 'verified'])
+                ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
+                ->count()
             + DocumentRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))->count()
             + DropRequest::where('is_paid', true)->where('accounting_status', 'approved')->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))->count();
 
