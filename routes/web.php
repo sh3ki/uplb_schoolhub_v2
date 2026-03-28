@@ -59,7 +59,7 @@ Route::get('dashboard', function () {
 
 // Fallback for accidental unprefixed payment-process links.
 Route::get('payments/process/{student}', function (\App\Models\Student $student) {
-    $role = auth()->user()?->role;
+    $role = Auth::user()?->role;
 
     return match ($role) {
         'accounting' => redirect()->route('accounting.payments.process', ['student' => $student->id]),
