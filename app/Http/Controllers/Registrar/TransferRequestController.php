@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\OnlineTransaction;
 use App\Models\Student;
+use App\Models\StudentActionLog;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use App\Models\TransferRequest;
@@ -329,6 +330,9 @@ class TransferRequestController extends Controller
 
     private function resetStudentFinancialLedger(Student $student): void
     {
+        $paymentCount = StudentPayment::where('student_id', $student->id)->count();
+        $onlineCount = OnlineTransaction::where('student_id', $student->id)->count();
+
         OnlineTransaction::where('student_id', $student->id)->delete();
         StudentPayment::where('student_id', $student->id)->delete();
 
@@ -344,6 +348,18 @@ class TransferRequestController extends Controller
         TransferRequest::where('student_id', $student->id)->update([
             'transfer_fee_paid' => false,
             'transfer_fee_or_number' => null,
+        ]);
+
+        StudentActionLog::create([
+            'student_id' => $student->id,
+            'performed_by' => Auth::id(),
+            'action' => 'Financial Ledger Reset on Reactivation',
+            'action_type' => 'status_change',
+            'details' => "Cleared {$paymentCount} payment(s) and {$onlineCount} online transaction(s) during transfer reactivation.",
+            'changes' => [
+                'payments_cleared' => $paymentCount,
+                'online_transactions_cleared' => $onlineCount,
+            ],
         ]);
     }
 }
