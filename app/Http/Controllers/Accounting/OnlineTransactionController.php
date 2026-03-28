@@ -24,6 +24,19 @@ class OnlineTransactionController extends Controller
     {
         $query = OnlineTransaction::with(['student', 'payment', 'verifiedBy']);
 
+        // Finalized transfer requests should not remain in manual verification queue.
+        $query->where(function ($q) {
+            $q->where('status', '!=', 'pending')
+                ->orWhereNull('transfer_request_id')
+                ->orWhereDoesntHave('transferRequest', function ($sq) {
+                    $sq->whereNotNull('finalized_at')
+                        ->orWhereHas('student', function ($studentQuery) {
+                            $studentQuery->where('enrollment_status', 'dropped')
+                                ->where('is_active', false);
+                        });
+                });
+        });
+
         // Search
         if ($search = $request->input('search')) {
             $query->where(function ($q) use ($search) {
