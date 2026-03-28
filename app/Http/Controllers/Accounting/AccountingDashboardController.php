@@ -63,14 +63,21 @@ class AccountingDashboardController extends Controller
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->withoutDropped()
+            ->where(function ($q) use ($selectedSchoolYear) {
+                $q->where('school_year', $selectedSchoolYear)
+                    ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
             })
-            ->whereNotIn('enrollment_status', ['not-enrolled', 'dropped'])
             ->get(['id', 'school_year', 'department_id']);
+
+        if ($eligibleStudents->isEmpty()) {
+            // Fallback to avoid empty dashboards when student profile year is stale but ledgers exist.
+            $eligibleStudents = Student::query()
+                ->with('department:id,name')
+                ->withoutDropped()
+                ->whereHas('fees')
+                ->get(['id', 'school_year', 'department_id']);
+        }
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
         $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, $selectedSchoolYear, $currentSchoolYear);
@@ -132,16 +139,16 @@ class AccountingDashboardController extends Controller
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
                     ->whereBetween('verified_at', [$monthStart, $monthEnd])
-                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                    ->whereIn('student_id', $eligibleStudentIds)
                     ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
-                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                    ->whereIn('student_id', $eligibleStudentIds)
                     ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
                     ->sum('fee')
                 + (float) DropRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
-                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                    ->whereIn('student_id', $eligibleStudentIds)
                     ->whereBetween('accounting_approved_at', [$monthStart, $monthEnd])
                     ->sum('fee_amount');
             
@@ -366,6 +373,11 @@ class AccountingDashboardController extends Controller
         $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
             ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
             ->sum('amount');
+        if ($selectedSchoolYear !== 'all') {
+            $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
+                ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                ->sum('amount');
+        }
         $totalCollectedAllAccounts += (float) OnlineTransaction::query()
             ->whereIn('student_id', $filteredIds)
             ->whereNotNull('transfer_request_id')
@@ -602,7 +614,10 @@ class AccountingDashboardController extends Controller
         if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
         if ($section)      $studentQ->where('section', $section);
         if ($selectedSchoolYear !== 'all') {
-            $studentQ->where('school_year', $selectedSchoolYear);
+            $studentQ->where(function ($q) use ($selectedSchoolYear) {
+                $q->where('school_year', $selectedSchoolYear)
+                    ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
+            });
         }
         $studentIds = $studentQ->pluck('id');
 
