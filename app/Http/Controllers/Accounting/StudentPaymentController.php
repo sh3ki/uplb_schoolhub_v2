@@ -40,6 +40,7 @@ class StudentPaymentController extends Controller
         // Get students from student-accounts (registrar-cleared, in accounting queue or beyond)
         $query = Student::with(['department', 'enrollmentClearance'])
             ->withoutTransferredOut()
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
