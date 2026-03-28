@@ -93,7 +93,12 @@ class TransferRequestController extends Controller
             $fallbackOnlinePaid = (float) OnlineTransaction::query()
                 ->where('student_id', $r->student_id)
                 ->whereNull('transfer_request_id')
-                ->where('payment_context', 'transfer_out_fee')
+                ->where(function ($q) use ($r) {
+                    $q->where('payment_context', 'transfer_out_fee')
+                        ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%')
+                        // Tuition verifications create student_payment_id; null means likely transfer/manual settlement.
+                        ->orWhereNull('student_payment_id');
+                })
                 ->whereIn('status', ['completed', 'verified'])
                 ->when($r->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $r->accounting_approved_at))
                 ->sum('amount');
@@ -277,7 +282,11 @@ class TransferRequestController extends Controller
         $fallbackOnlinePaidAmount = (float) OnlineTransaction::query()
             ->where('student_id', $transferRequest->student_id)
             ->whereNull('transfer_request_id')
-            ->where('payment_context', 'transfer_out_fee')
+            ->where(function ($q) {
+                $q->where('payment_context', 'transfer_out_fee')
+                    ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%')
+                    ->orWhereNull('student_payment_id');
+            })
             ->whereIn('status', ['completed', 'verified'])
             ->when($transferRequest->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $transferRequest->accounting_approved_at))
             ->sum('amount');
@@ -293,6 +302,24 @@ class TransferRequestController extends Controller
         }
 
         DB::transaction(function () use ($transferRequest) {
+            OnlineTransaction::query()
+                ->where('student_id', $transferRequest->student_id)
+                ->whereNull('transfer_request_id')
+                ->where(function ($q) {
+                    $q->where('payment_context', 'transfer_out_fee')
+                        ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%')
+                        ->orWhereNull('student_payment_id');
+                })
+                ->whereIn('status', ['completed', 'verified'])
+                ->when($transferRequest->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $transferRequest->accounting_approved_at))
+                ->get()
+                ->each(function (OnlineTransaction $transaction) use ($transferRequest) {
+                    $transaction->update([
+                        'transfer_request_id' => $transferRequest->id,
+                        'remarks' => trim((string) (($transaction->remarks ?? '') . ' [LinkedToTransferRequest:' . $transferRequest->id . ']')),
+                    ]);
+                });
+
             if ((float) $transferRequest->transfer_fee_amount > 0 && ! $transferRequest->transfer_fee_paid) {
                 $autoOrNumber = $transferRequest->transfer_fee_or_number ?: ('TRF-AUTO-' . now()->format('YmdHis') . '-' . $transferRequest->id);
                 $transferRequest->markTransferFeePaid(
