@@ -580,11 +580,8 @@ class ReportsController extends Controller
             ->whereNotNull('transfer_request_id')
             ->whereIn('status', ['completed', 'verified'])
             ->when($forcedSchoolYear, fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $forcedSchoolYear)])))
-            ->when($departmentId || $classification || $excludeTransferredOut, function ($q) use ($departmentId, $classification, $excludeTransferredOut) {
-                $q->whereHas('student', function ($sq) use ($departmentId, $classification, $excludeTransferredOut) {
-                    if ($excludeTransferredOut) {
-                        $sq->withoutTransferredOut();
-                    }
+            ->when($departmentId || $classification, function ($q) use ($departmentId, $classification) {
+                $q->whereHas('student', function ($sq) use ($departmentId, $classification) {
                     if ($departmentId) {
                         $sq->where('department_id', $departmentId);
                     }
