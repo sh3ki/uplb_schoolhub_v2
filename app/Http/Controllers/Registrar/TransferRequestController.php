@@ -89,6 +89,11 @@ class TransferRequestController extends Controller
         $requests = $query->latest()->paginate(20)->withQueryString();
 
         $requests->getCollection()->transform(function ($r) {
+            $onlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $transferFeeAmount = (float) $r->transfer_fee_amount;
+            $transferBalanceDue = max(0, $transferFeeAmount - $onlinePaid);
+            $transferFeePaid = (bool) $r->transfer_fee_paid || ($transferFeeAmount > 0 && $transferBalanceDue <= 0);
+
             return [
                 'id' => $r->id,
                 'reason' => $r->reason,
@@ -113,11 +118,11 @@ class TransferRequestController extends Controller
                 'registrar_remarks' => $r->registrar_remarks,
                 'accounting_remarks' => $r->accounting_remarks,
                 'outstanding_balance' => (float) $r->outstanding_balance,
-                'transfer_fee_amount' => (float) $r->transfer_fee_amount,
-                'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
+                'transfer_fee_amount' => $transferFeeAmount,
+                'transfer_fee_paid' => $transferFeePaid,
                 'transfer_fee_or_number' => $r->transfer_fee_or_number,
-                'transfer_online_paid_amount' => (float) ($r->transfer_online_paid_amount ?? 0),
-                'transfer_balance_due' => max(0, (float) $r->transfer_fee_amount - (float) ($r->transfer_online_paid_amount ?? 0)),
+                'transfer_online_paid_amount' => $onlinePaid,
+                'transfer_balance_due' => $transferBalanceDue,
                 'balance_override' => (bool) $r->balance_override,
                 'balance_override_reason' => $r->balance_override_reason,
                 'registrar_approved_by' => $r->registrarApprovedBy ? [
@@ -255,11 +260,29 @@ class TransferRequestController extends Controller
             return back()->with('error', 'Transfer request must be approved by super-accounting first.');
         }
 
-        if ((float) $transferRequest->transfer_fee_amount > 0 && ! $transferRequest->transfer_fee_paid) {
+        $onlinePaidAmount = (float) OnlineTransaction::query()
+            ->where('transfer_request_id', $transferRequest->id)
+            ->whereIn('status', ['completed', 'verified'])
+            ->sum('amount');
+
+        $isTransferFeeSettled = (float) $transferRequest->transfer_fee_amount <= 0
+            || (bool) $transferRequest->transfer_fee_paid
+            || $onlinePaidAmount >= (float) $transferRequest->transfer_fee_amount;
+
+        if (! $isTransferFeeSettled) {
             return back()->with('error', 'Transfer out fee must be marked as paid before registrar finalization.');
         }
 
         DB::transaction(function () use ($transferRequest) {
+            if ((float) $transferRequest->transfer_fee_amount > 0 && ! $transferRequest->transfer_fee_paid) {
+                $autoOrNumber = $transferRequest->transfer_fee_or_number ?: ('TRF-AUTO-' . now()->format('YmdHis') . '-' . $transferRequest->id);
+                $transferRequest->markTransferFeePaid(
+                    (int) Auth::id(),
+                    $autoOrNumber,
+                    (float) $transferRequest->transfer_fee_amount
+                );
+            }
+
             $transferRequest->finalizeByRegistrar(Auth::id());
 
             // Finalization is the terminal business step for transfer-out workflow.
