@@ -108,7 +108,18 @@ class OnlineTransactionController extends Controller
         });
 
         // Stats
-        $statsQuery = OnlineTransaction::query();
+        $statsQuery = OnlineTransaction::query()
+            ->where(function ($q) {
+                $q->where('status', '!=', 'pending')
+                    ->orWhereNull('transfer_request_id')
+                    ->orWhereDoesntHave('transferRequest', function ($sq) {
+                        $sq->whereNotNull('finalized_at')
+                            ->orWhereHas('student', function ($studentQuery) {
+                                $studentQuery->where('enrollment_status', 'dropped')
+                                    ->where('is_active', false);
+                            });
+                    });
+            });
 
         $stats = [
             'pending' => (clone $statsQuery)->pending()->count(),
