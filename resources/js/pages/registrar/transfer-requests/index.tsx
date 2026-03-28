@@ -27,6 +27,8 @@ type RequestItem = {
     transfer_fee_amount: number;
     transfer_fee_paid: boolean;
     transfer_fee_or_number: string | null;
+    transfer_online_paid_amount: number;
+    transfer_balance_due: number;
     registrar_approved_by: { id: number; name: string; username: string | null } | null;
     accounting_approved_by: { id: number; name: string; username: string | null } | null;
     finalized_by: { id: number; name: string; username: string | null } | null;
@@ -180,12 +182,13 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                             <TableHead>Approvals</TableHead>
                                             <TableHead>Super-Accounting</TableHead>
                                             <TableHead>Transfer Fee</TableHead>
+                                            <TableHead>Payment Progress</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {requests.data.length === 0 ? (
-                                            <TableRow><TableCell colSpan={9} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={10} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
                                         ) : requests.data.map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
@@ -257,6 +260,19 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">Not set</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.transfer_fee_amount > 0 ? (
+                                                        <div className="text-xs space-y-1">
+                                                            <div>Paid Online: <span className="font-semibold">P{item.transfer_online_paid_amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                                                            <div>Balance Due: <span className={`font-semibold ${item.transfer_balance_due > 0 ? 'text-amber-700' : 'text-green-700'}`}>P{item.transfer_balance_due.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                                                            <Badge className={item.transfer_balance_due <= 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>
+                                                                {item.transfer_balance_due <= 0 ? 'Settled' : 'Awaiting Full Payment'}
+                                                            </Badge>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">N/A</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell className="text-right">
