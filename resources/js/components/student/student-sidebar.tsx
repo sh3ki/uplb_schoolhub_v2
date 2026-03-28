@@ -43,10 +43,11 @@ interface AppSettings {
 }
 
 export function StudentSidebar() {
-    const { announcementCount, auth, appSettings, pendingDropRequestCount, pendingTransferRequestCount } = usePage<{ 
+    const { announcementCount, auth, appSettings, pendingDropRequestCount, pendingTransferRequestCount, pendingOnlineTransactionCount } = usePage<{ 
         announcementCount: number;
         pendingDropRequestCount?: number;
         pendingTransferRequestCount?: number;
+        pendingOnlineTransactionCount?: number;
         auth: { user: { student?: { enrollment_status?: string; department_classification?: string | null } } };
         appSettings?: AppSettings;
     }>().props;
@@ -109,6 +110,7 @@ export function StudentSidebar() {
             title: 'Online Payments',
             href: '/student/online-payments',
             icon: CreditCard,
+            badge: pendingOnlineTransactionCount || undefined,
         },
         {
             title: 'Document Requests',
