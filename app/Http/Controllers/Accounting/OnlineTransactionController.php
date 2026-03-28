@@ -166,6 +166,7 @@ class OnlineTransactionController extends Controller
             );
 
             $transaction->update([
+                'transfer_request_id' => $transferRequest->id,
                 'status' => 'completed',
                 'verified_at' => now(),
                 'verified_by' => auth()->user()?->id,
