@@ -46,7 +46,7 @@ interface Transaction {
     id: number;
     date: string;
     time: string;
-    type: 'Fee' | 'Document' | 'Drop';
+    type: 'Fee' | 'Document' | 'Drop' | 'Transfer';
     or_number: string;
     mode: string;
     reference: string | null;
@@ -528,6 +528,7 @@ export default function AccountDashboard({
                                     <SelectItem value="Fee">Fee</SelectItem>
                                     <SelectItem value="Document">Document</SelectItem>
                                     <SelectItem value="Drop">Drop</SelectItem>
+                                    <SelectItem value="Transfer">Transfer</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select value={txMode || 'all'} onValueChange={(v) => setTxMode(v === 'all' ? '' : v)}>
@@ -581,7 +582,7 @@ export default function AccountDashboard({
                                                 <TableCell>
                                                     <Badge
                                                         variant={tx.type === 'Fee' ? 'default' : 'secondary'}
-                                                        className={`${tx.type === 'Fee' ? 'bg-blue-500 hover:bg-blue-600' : tx.type === 'Drop' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-green-500 hover:bg-green-600'}`}
+                                                        className={`${tx.type === 'Fee' ? 'bg-blue-500 hover:bg-blue-600' : tx.type === 'Drop' ? 'bg-orange-500 hover:bg-orange-600' : tx.type === 'Transfer' ? 'bg-violet-500 hover:bg-violet-600' : 'bg-green-500 hover:bg-green-600'}`}
                                                     >
                                                         {tx.type}
                                                     </Badge>
