@@ -198,10 +198,8 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.transform((data) => ({
-            ...data,
-            is_transfer_payment: hasTransferFeeFlow,
-        })).post('/student/online-payments', {
+        form.setData('is_transfer_payment', hasTransferFeeFlow);
+        form.post('/student/online-payments', {
             forceFormData: true,
             onSuccess: () => {
                 toast.success('Changes saved successfully');
