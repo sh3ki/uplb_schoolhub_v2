@@ -22,20 +22,7 @@ class OnlineTransactionController extends Controller
      */
     public function index(Request $request): Response
     {
-        $isSuperAccountingView = str_starts_with((string) ($request->route()?->getName() ?? ''), 'super-accounting.');
-
         $query = OnlineTransaction::with(['student', 'payment', 'verifiedBy']);
-
-        if (!$isSuperAccountingView) {
-            $query
-                ->where(function ($q) {
-                    $q->whereNull('payment_context')
-                        ->orWhere('payment_context', '!=', 'transfer_out_fee');
-                })
-                ->whereHas('student', function ($sq) {
-                    $sq->withoutDropped()->withoutTransferredOut();
-                });
-        }
 
         // Search
         if ($search = $request->input('search')) {
@@ -107,18 +94,8 @@ class OnlineTransactionController extends Controller
             ];
         });
 
-        // Stats (scoped to current role context)
+        // Stats
         $statsQuery = OnlineTransaction::query();
-        if (!$isSuperAccountingView) {
-            $statsQuery
-                ->where(function ($q) {
-                    $q->whereNull('payment_context')
-                        ->orWhere('payment_context', '!=', 'transfer_out_fee');
-                })
-                ->whereHas('student', function ($sq) {
-                    $sq->withoutDropped()->withoutTransferredOut();
-                });
-        }
 
         $stats = [
             'pending' => (clone $statsQuery)->pending()->count(),
