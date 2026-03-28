@@ -382,23 +382,31 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="grid gap-2">
-                                            <Label htmlFor="school_year">Fee / School Year *</Label>
-                                            <select
-                                                id="school_year"
-                                                value={form.data.school_year}
-                                                onChange={(e) => handleSchoolYearChange(e.target.value)}
-                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                required
-                                            >
-                                                {schoolYears.map((year) => {
-                                                    const feeRow = feeRecords.find((fee) => fee.school_year === year);
-                                                    return (
-                                                        <option key={year} value={year}>
-                                                            {year} — Balance: {formatCurrency(feeRow?.balance ?? 0)}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
+                                            <Label htmlFor="school_year">{hasTransferFeeFlow ? 'Transfer Out Fee *' : 'Fee / School Year *'}</Label>
+                                            {hasTransferFeeFlow ? (
+                                                <Input
+                                                    id="school_year"
+                                                    value={`Transfer Fee Balance: ${formatCurrency(transferFeeBalance)}`}
+                                                    readOnly
+                                                />
+                                            ) : (
+                                                <select
+                                                    id="school_year"
+                                                    value={form.data.school_year}
+                                                    onChange={(e) => handleSchoolYearChange(e.target.value)}
+                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                    required
+                                                >
+                                                    {schoolYears.map((year) => {
+                                                        const feeRow = feeRecords.find((fee) => fee.school_year === year);
+                                                        return (
+                                                            <option key={year} value={year}>
+                                                                {year} — Balance: {formatCurrency(feeRow?.balance ?? 0)}
+                                                            </option>
+                                                        );
+                                                    })}
+                                                </select>
+                                            )}
                                             {form.errors.school_year && (
                                                 <p className="text-sm text-red-500">{form.errors.school_year}</p>
                                             )}
@@ -559,7 +567,7 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                 <CardDescription>Your recent payment submissions</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {feeRecords.length > 0 && (
+                                {!hasTransferFeeFlow && feeRecords.length > 0 && (
                                     <div className="mb-4 rounded-md border p-3">
                                         <p className="mb-2 text-sm font-semibold">Balances by School Year</p>
                                         <div className="space-y-1 text-sm">
