@@ -57,6 +57,18 @@ Route::get('dashboard', function () {
     };
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Fallback for accidental unprefixed payment-process links.
+Route::get('payments/process/{student}', function (\App\Models\Student $student) {
+    $role = auth()->user()?->role;
+
+    return match ($role) {
+        'accounting' => redirect()->route('accounting.payments.process', ['student' => $student->id]),
+        'super-accounting' => redirect()->route('super-accounting.payments.process', ['student' => $student->id]),
+        'owner' => redirect()->route('owner.payments.process', ['student' => $student->id]),
+        default => abort(404),
+    };
+})->middleware(['auth', 'verified'])->name('payments.process.fallback');
+
 // Helper function to register settings routes for any role
 if (!function_exists('registerSettingsRoutes')) {
     function registerSettingsRoutes(): void {
