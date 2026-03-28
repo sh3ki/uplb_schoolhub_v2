@@ -8,6 +8,8 @@ use App\Models\DocumentFeeItem;
 use App\Models\DocumentRequest;
 use App\Models\FeeCategory;
 use App\Models\FeeItem;
+use App\Models\OnlineTransaction;
+use App\Models\DropRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -26,7 +28,17 @@ class ReportsController extends Controller
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         $totalStudents = Student::count();
-        $totalRevenue = StudentPayment::sum('amount');
+        $totalRevenue = (float) StudentPayment::sum('amount')
+            + (float) OnlineTransaction::query()
+                ->whereNotNull('transfer_request_id')
+                ->whereIn('status', ['completed', 'verified'])
+                ->sum('amount')
+            + (float) DocumentRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee')
+            + (float) DropRequest::where('is_paid', true)
+                ->where('accounting_status', 'approved')
+                ->sum('fee_amount');
         $totalExpected = StudentFee::sum('total_amount');
         $totalBalance = StudentFee::sum('balance');
 
@@ -144,7 +156,20 @@ class ReportsController extends Controller
                 $studentIds = Student::where('department_id', $department->id)
                     ->whereNull('deleted_at')->pluck('id');
                 $totalBilled = (float) StudentFee::whereIn('student_id', $studentIds)->sum('total_amount');
-                $totalCollected = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount');
+                $totalCollected = (float) StudentPayment::whereIn('student_id', $studentIds)->sum('amount')
+                    + (float) OnlineTransaction::query()
+                        ->whereIn('student_id', $studentIds)
+                        ->whereNotNull('transfer_request_id')
+                        ->whereIn('status', ['completed', 'verified'])
+                        ->sum('amount')
+                    + (float) DocumentRequest::whereIn('student_id', $studentIds)
+                        ->where('is_paid', true)
+                        ->where('accounting_status', 'approved')
+                        ->sum('fee')
+                    + (float) DropRequest::whereIn('student_id', $studentIds)
+                        ->where('is_paid', true)
+                        ->where('accounting_status', 'approved')
+                        ->sum('fee_amount');
                 $totalBalance = (float) StudentFee::whereIn('student_id', $studentIds)->sum('balance');
                 $collectionRate = $totalBilled > 0 ? round(($totalCollected / $totalBilled) * 100, 1) : 0;
 
@@ -202,7 +227,20 @@ class ReportsController extends Controller
         for ($month = 1; $month <= 12; $month++) {
             $start = Carbon::create($currentYear, $month, 1)->startOfMonth();
             $end = Carbon::create($currentYear, $month, 1)->endOfMonth();
-            $amount = (float) StudentPayment::whereBetween('payment_date', [$start, $end])->sum('amount');
+            $amount = (float) StudentPayment::whereBetween('payment_date', [$start, $end])->sum('amount')
+                + (float) OnlineTransaction::query()
+                    ->whereNotNull('transfer_request_id')
+                    ->whereIn('status', ['completed', 'verified'])
+                    ->whereBetween('verified_at', [$start, $end])
+                    ->sum('amount')
+                + (float) DocumentRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$start, $end])
+                    ->sum('fee')
+                + (float) DropRequest::where('is_paid', true)
+                    ->where('accounting_status', 'approved')
+                    ->whereBetween('accounting_approved_at', [$start, $end])
+                    ->sum('fee_amount');
             $monthlyTrend[] = [
                 'month' => Carbon::create($currentYear, $month, 1)->format('M'),
                 'amount' => $amount,
