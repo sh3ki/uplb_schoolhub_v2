@@ -262,6 +262,46 @@ class TransferRequestController extends Controller
         DB::transaction(function () use ($transferRequest) {
             $transferRequest->finalizeByRegistrar(Auth::id());
 
+            // Finalization is the terminal business step for transfer-out workflow.
+            // If an online transfer payment is still pending, settle it here so
+            // super-accounting no longer needs to manually verify it afterward.
+            $pendingTransferTransactions = OnlineTransaction::query()
+                ->where(function ($q) use ($transferRequest) {
+                    $q->where('transfer_request_id', $transferRequest->id)
+                        ->orWhere(function ($sq) use ($transferRequest) {
+                            $sq->whereNull('transfer_request_id')
+                                ->where('remarks', 'like', '%[TransferRequest: ' . $transferRequest->id . ']%');
+                        });
+                })
+                ->where('status', 'pending')
+                ->get();
+
+            if ($pendingTransferTransactions->isNotEmpty()) {
+                $verifiedBy = $transferRequest->accounting_approved_by ?: Auth::id();
+
+                foreach ($pendingTransferTransactions as $transaction) {
+                    $transaction->update([
+                        'transfer_request_id' => $transferRequest->id,
+                        'status' => 'completed',
+                        'verified_at' => now(),
+                        'verified_by' => $verifiedBy,
+                        'remarks' => trim((string) (($transaction->remarks ?? '') . ' [AutoSettledOnRegistrarFinalize]')),
+                    ]);
+                }
+
+                StudentActionLog::create([
+                    'student_id' => $transferRequest->student_id,
+                    'performed_by' => Auth::id(),
+                    'action' => 'Auto-settled transfer online transaction(s)',
+                    'action_type' => 'status_change',
+                    'details' => 'Registrar finalization auto-settled pending transfer online transaction(s).',
+                    'changes' => [
+                        'transfer_request_id' => $transferRequest->id,
+                        'transactions_settled' => $pendingTransferTransactions->count(),
+                    ],
+                ]);
+            }
+
             $student = $transferRequest->student;
             if (!$student) {
                 return;
