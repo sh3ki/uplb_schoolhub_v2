@@ -169,6 +169,11 @@ class Student extends Model
         });
     }
 
+    public function scopeWithoutDropped($query)
+    {
+        return $query->where('enrollment_status', '!=', 'dropped');
+    }
+
     /**
      * Get the section this student is assigned to
      */
