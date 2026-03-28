@@ -10,6 +10,7 @@ use App\Models\StudentPayment;
 use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -160,7 +161,7 @@ class OnlineTransactionController extends Controller
 
             $orNumber = $validated['or_number'] ?? ('TRF-OT-' . $transaction->transaction_id);
             $transferRequest->markTransferFeePaid(
-                auth()->id(),
+                (int) Auth::id(),
                 $orNumber,
                 (float) $transferRequest->transfer_fee_amount
             );
@@ -169,7 +170,7 @@ class OnlineTransactionController extends Controller
                 'transfer_request_id' => $transferRequest->id,
                 'status' => 'completed',
                 'verified_at' => now(),
-                'verified_by' => auth()->user()?->id,
+                'verified_by' => Auth::id(),
                 'remarks' => trim((string) (($transaction->remarks ?? '') . ' [VerifiedAs: transfer_out_fee]')),
             ]);
 
@@ -228,7 +229,7 @@ class OnlineTransactionController extends Controller
             'reference_number' => $transaction->reference_number,
             'bank_name' => $paymentMode === 'BANK' ? $transaction->bank_name : null,
             'notes' => 'Online transaction: ' . $transaction->transaction_id . ' (' . trim((string) $currentSchoolYear) . ')',
-            'recorded_by' => auth()->user()?->id,
+            'recorded_by' => Auth::id(),
         ]);
 
         // Update student fee balance
@@ -239,7 +240,7 @@ class OnlineTransactionController extends Controller
             'student_payment_id' => $payment->id,
             'status' => 'completed',
             'verified_at' => now(),
-            'verified_by' => auth()->user()?->id,
+            'verified_by' => Auth::id(),
         ]);
 
         return redirect()->back()->with('success', 'Transaction verified and payment recorded.');
@@ -314,7 +315,7 @@ class OnlineTransactionController extends Controller
                     'reference_number' => $linkedPayment->reference_number,
                     'bank_name' => $linkedPayment->bank_name,
                     'notes' => 'Refund reversal for online transaction ' . $transaction->transaction_id,
-                    'recorded_by' => auth()->id(),
+                    'recorded_by' => Auth::id(),
                 ]);
 
                 $fee = StudentFee::find($linkedPayment->student_fee_id);
@@ -337,7 +338,7 @@ class OnlineTransactionController extends Controller
                         $transferRequest->update([
                             'transfer_fee_paid' => false,
                             'transfer_fee_or_number' => null,
-                            'processed_by' => auth()->id(),
+                            'processed_by' => Auth::id(),
                             'processed_at' => now(),
                         ]);
                     }
