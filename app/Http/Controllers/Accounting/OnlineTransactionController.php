@@ -12,6 +12,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -185,11 +186,10 @@ class OnlineTransactionController extends Controller
             'or_number' => 'nullable|string|max:100',
         ]);
 
-        if ($this->isTransferFeeTransaction($transaction)) {
-            $transferRequest = $this->resolveTransferRequestFromTransaction($transaction);
-            if (!$transferRequest) {
-                return redirect()->back()->with('error', 'Transfer request reference was not found for this transaction.');
-            }
+        $transferRequest = $this->resolveTransferRequestFromTransaction($transaction)
+            ?? $this->resolveActiveApprovedTransferRequestForStudent((int) $transaction->student_id);
+
+        if ($transferRequest && $this->shouldProcessAsTransferPayment($transaction, $transferRequest)) {
 
             if ((int) $transferRequest->student_id !== (int) $transaction->student_id) {
                 return redirect()->back()->with('error', 'Transfer request does not match transaction student.');
@@ -435,5 +435,49 @@ class OnlineTransactionController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveActiveApprovedTransferRequestForStudent(int $studentId): ?TransferRequest
+    {
+        $query = TransferRequest::query()
+            ->where('student_id', $studentId)
+            ->where('registrar_status', 'approved')
+            ->where('accounting_status', 'approved');
+
+        if (Schema::hasColumn('transfer_requests', 'finalized_at')) {
+            $query->whereNull('finalized_at');
+        }
+
+        return $query->latest('id')->first();
+    }
+
+    private function shouldProcessAsTransferPayment(OnlineTransaction $transaction, TransferRequest $transferRequest): bool
+    {
+        if ((int) $transferRequest->student_id !== (int) $transaction->student_id) {
+            return false;
+        }
+
+        if ($this->isTransferFeeTransaction($transaction)) {
+            return true;
+        }
+
+        if ($transferRequest->accounting_status !== 'approved') {
+            return false;
+        }
+
+        $requiredAmount = max(0, (float) $transferRequest->transfer_fee_amount);
+        if ($requiredAmount <= 0) {
+            return false;
+        }
+
+        $alreadySettled = (float) OnlineTransaction::query()
+            ->where('transfer_request_id', $transferRequest->id)
+            ->whereIn('status', ['completed', 'verified'])
+            ->where('id', '!=', $transaction->id)
+            ->sum('amount');
+
+        $remainingBalance = max(0, $requiredAmount - $alreadySettled);
+
+        return $remainingBalance > 0 && (float) $transaction->amount >= $remainingBalance;
     }
 }
