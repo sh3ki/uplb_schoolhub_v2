@@ -199,14 +199,8 @@ class ReportsController extends Controller
                     $sq->withoutTransferredOut();
                 });
             })
-            ->whereHas('student.enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
-            })
             ->whereHas('student', function ($q) {
-                $q->whereNotIn('enrollment_status', ['not-enrolled', 'dropped']);
+                $q->withoutDropped();
             })
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear));
 
