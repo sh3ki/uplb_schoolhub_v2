@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Schema;
 
 class TransferRequest extends Model
@@ -88,6 +89,11 @@ class TransferRequest extends Model
     public function finalizedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'finalized_by');
+    }
+
+    public function onlineTransactions(): HasMany
+    {
+        return $this->hasMany(OnlineTransaction::class, 'transfer_request_id');
     }
 
     public function approveByRegistrar(int $userId, ?string $remarks = null): void
