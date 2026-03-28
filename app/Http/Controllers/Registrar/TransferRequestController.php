@@ -89,7 +89,16 @@ class TransferRequestController extends Controller
         $requests = $query->latest()->paginate(20)->withQueryString();
 
         $requests->getCollection()->transform(function ($r) {
-            $onlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $linkedOnlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $fallbackOnlinePaid = (float) OnlineTransaction::query()
+                ->where('student_id', $r->student_id)
+                ->whereNull('transfer_request_id')
+                ->where('payment_context', 'transfer_out_fee')
+                ->whereIn('status', ['completed', 'verified'])
+                ->when($r->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $r->accounting_approved_at))
+                ->sum('amount');
+
+            $onlinePaid = $linkedOnlinePaid + $fallbackOnlinePaid;
             $transferFeeAmount = (float) $r->transfer_fee_amount;
             $transferBalanceDue = max(0, $transferFeeAmount - $onlinePaid);
             $transferFeePaid = (bool) $r->transfer_fee_paid || ($transferFeeAmount > 0 && $transferBalanceDue <= 0);
@@ -260,10 +269,20 @@ class TransferRequestController extends Controller
             return back()->with('error', 'Transfer request must be approved by super-accounting first.');
         }
 
-        $onlinePaidAmount = (float) OnlineTransaction::query()
+        $linkedOnlinePaidAmount = (float) OnlineTransaction::query()
             ->where('transfer_request_id', $transferRequest->id)
             ->whereIn('status', ['completed', 'verified'])
             ->sum('amount');
+
+        $fallbackOnlinePaidAmount = (float) OnlineTransaction::query()
+            ->where('student_id', $transferRequest->student_id)
+            ->whereNull('transfer_request_id')
+            ->where('payment_context', 'transfer_out_fee')
+            ->whereIn('status', ['completed', 'verified'])
+            ->when($transferRequest->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $transferRequest->accounting_approved_at))
+            ->sum('amount');
+
+        $onlinePaidAmount = $linkedOnlinePaidAmount + $fallbackOnlinePaidAmount;
 
         $isTransferFeeSettled = (float) $transferRequest->transfer_fee_amount <= 0
             || (bool) $transferRequest->transfer_fee_paid
