@@ -73,6 +73,7 @@ interface OnlineTransaction {
     failure_reason?: string;
     remarks?: string;
     or_number?: string;
+    payment_context?: 'tuition' | 'transfer_out_fee';
     created_at: string;
     student: Student;
     verified_by?: { name: string };
@@ -337,6 +338,7 @@ export default function OnlineTransactionsIndex({
                                 <TableHead>Reference</TableHead>
                                 <TableHead>Student</TableHead>
                                 <TableHead>Provider</TableHead>
+                                <TableHead>Payment For</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Date</TableHead>
@@ -346,7 +348,7 @@ export default function OnlineTransactionsIndex({
                         <TableBody>
                             {transactions.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                         No online transactions found.
                                     </TableCell>
                                 </TableRow>
@@ -376,6 +378,11 @@ export default function OnlineTransactionsIndex({
                                                 <span>{getProviderIcon(transaction.payment_provider)}</span>
                                                 <span>{providers?.[transaction.payment_provider] || transaction.payment_provider}</span>
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="secondary" className={transaction.payment_context === 'transfer_out_fee' ? 'bg-violet-100 text-violet-800 border border-violet-200' : ''}>
+                                                {transaction.payment_context === 'transfer_out_fee' ? 'Transfer Out Fee' : 'Tuition'}
+                                            </Badge>
                                         </TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(transaction.amount)}</TableCell>
                                         <TableCell>{getStatusBadge(transaction.status)}</TableCell>
