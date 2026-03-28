@@ -22,7 +22,11 @@ class TransferRequestController extends Controller
             'registrarApprovedBy:id,name,username',
             'accountingApprovedBy:id,name,username',
             'finalizedBy:id,name,username',
-        ])->where('registrar_status', 'approved');
+        ])->withSum([
+            'onlineTransactions as transfer_online_paid_amount' => function ($q) {
+                $q->whereIn('status', ['completed', 'verified']);
+            }
+        ], 'amount')->where('registrar_status', 'approved');
 
         if ($tab === 'pending') {
             $query->where('accounting_status', 'pending');
@@ -71,6 +75,8 @@ class TransferRequestController extends Controller
                 'transfer_fee_amount' => (float) $r->transfer_fee_amount,
                 'transfer_fee_paid' => (bool) $r->transfer_fee_paid,
                 'transfer_fee_or_number' => $r->transfer_fee_or_number,
+                'transfer_online_paid_amount' => (float) ($r->transfer_online_paid_amount ?? 0),
+                'transfer_balance_due' => max(0, (float) $r->transfer_fee_amount - (float) ($r->transfer_online_paid_amount ?? 0)),
                 'balance_override' => (bool) $r->balance_override,
                 'balance_override_reason' => $r->balance_override_reason,
                 'registrar_approved_by' => $r->registrarApprovedBy ? [
