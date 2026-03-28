@@ -80,6 +80,8 @@ interface Props {
         registrar_status: string;
         accounting_status: string;
         amount: number;
+        paid_amount: number;
+        balance: number;
         paid: boolean;
         or_number: string | null;
         finalized_at: string | null;
@@ -151,11 +153,18 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
         bank_name: '',
         receipt_image: null as File | null,
         notes: '',
+        is_transfer_payment: false,
     });
 
     const selectedFeeRecord = feeRecords.find((fee) => fee.school_year === form.data.school_year);
     const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected' && transferFee.amount > 0;
-    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
+    const transferTotalFees = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
+    const transferTotalPaid = hasTransferFeeFlow ? Math.max(0, transferFee.paid_amount || 0) : 0;
+    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.balance ?? (transferTotalFees - transferTotalPaid)) : 0;
+    const summaryTotalFees = hasTransferFeeFlow ? transferTotalFees : summary.total_fees;
+    const summaryTotalDiscount = hasTransferFeeFlow ? 0 : summary.total_discount;
+    const summaryTotalPaid = hasTransferFeeFlow ? transferTotalPaid : summary.total_paid;
+    const summaryBalance = hasTransferFeeFlow ? transferFeeBalance : summary.balance;
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -189,7 +198,10 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        form.post('/student/online-payments', {
+        form.transform((data) => ({
+            ...data,
+            is_transfer_payment: hasTransferFeeFlow,
+        })).post('/student/online-payments', {
             forceFormData: true,
             onSuccess: () => {
                 toast.success('Changes saved successfully');
@@ -251,89 +263,42 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
 
                 {/* Summary Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    {hasTransferFeeFlow ? (
-                        <>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Transfer Out Fee</CardTitle>
-                                    <Receipt className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatCurrency(transferFeeBalance)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Payment Status</CardTitle>
-                                    <CheckCircle2 className={`h-4 w-4 ${transferFee?.paid ? 'text-green-500' : 'text-amber-500'}`} />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className={`text-2xl font-bold ${transferFee?.paid ? 'text-green-600' : 'text-amber-600'}`}>
-                                        {transferFee?.paid ? 'Paid' : 'Unpaid'}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">OR Number</CardTitle>
-                                    <Receipt className="h-4 w-4 text-blue-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-blue-600">{transferFee?.or_number || 'N/A'}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Finalize Status</CardTitle>
-                                    <AlertTriangle className={`h-4 w-4 ${transferFee?.finalized_at ? 'text-green-500' : 'text-red-500'}`} />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className={`text-2xl font-bold ${transferFee?.finalized_at ? 'text-green-600' : 'text-red-600'}`}>
-                                        {transferFee?.finalized_at ? 'Finalized' : 'Pending'}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    ) : (
-                        <>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Total Fees</CardTitle>
-                                    <Receipt className="h-4 w-4 text-muted-foreground" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold">{formatCurrency(summary.total_fees)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Discounts</CardTitle>
-                                    <DollarSign className="h-4 w-4 text-green-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-green-600">-{formatCurrency(summary.total_discount)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-                                    <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-blue-600">{formatCurrency(summary.total_paid)}</div>
-                                </CardContent>
-                            </Card>
-                            <Card>
-                                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                    <CardTitle className="text-sm font-medium">Balance</CardTitle>
-                                    <AlertTriangle className="h-4 w-4 text-red-500" />
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-2xl font-bold text-red-600">{formatCurrency(summary.balance)}</div>
-                                </CardContent>
-                            </Card>
-                        </>
-                    )}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Fees</CardTitle>
+                            <Receipt className="h-4 w-4 text-muted-foreground" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold">{formatCurrency(summaryTotalFees)}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Discounts</CardTitle>
+                            <DollarSign className="h-4 w-4 text-green-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-green-600">-{formatCurrency(summaryTotalDiscount)}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+                            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-blue-600">{formatCurrency(summaryTotalPaid)}</div>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardTitle className="text-sm font-medium">Balance</CardTitle>
+                            <AlertTriangle className="h-4 w-4 text-red-500" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-2xl font-bold text-red-600">{formatCurrency(summaryBalance)}</div>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -366,7 +331,7 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                             <div className="text-muted-foreground">OR Number: {transferFee.or_number}</div>
                                         )}
                                         <p className="text-muted-foreground">
-                                            Please coordinate with super-accounting for transfer fee settlement and official receipt tagging.
+                                            Submit your online transfer out payment below. Super-accounting verification will update registrar finalization eligibility.
                                         </p>
                                     </div>
                                 ) : (
@@ -404,7 +369,7 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                         </Card>
 
                         {/* Payment Submission Form */}
-                        {!isDropped && !hasTransferFeeFlow && (
+                        {!isDropped && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -447,12 +412,17 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                                 type="number"
                                                 step="0.01"
                                                 min="1"
-                                                max={selectedFeeRecord?.balance ?? summary.balance}
+                                                max={hasTransferFeeFlow ? undefined : (selectedFeeRecord?.balance ?? summary.balance)}
                                                 value={form.data.amount}
                                                 onChange={(e) => form.setData('amount', e.target.value)}
                                                 placeholder="0.00"
                                                 required
                                             />
+                                            {hasTransferFeeFlow && transferFeeBalance > 0 && (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Required minimum for verification: {formatCurrency(transferFeeBalance)} (exact or greater).
+                                                </p>
+                                            )}
                                             {form.errors.amount && (
                                                 <p className="text-sm text-red-500">{form.errors.amount}</p>
                                             )}
