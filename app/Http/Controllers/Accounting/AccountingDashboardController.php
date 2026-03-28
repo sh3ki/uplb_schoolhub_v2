@@ -139,7 +139,7 @@ class AccountingDashboardController extends Controller
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
                     ->whereBetween('verified_at', [$monthStart, $monthEnd])
-                    ->whereIn('student_id', $eligibleStudentIds)
+                    ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
                     ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
@@ -378,11 +378,32 @@ class AccountingDashboardController extends Controller
                 ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->sum('amount');
         }
-        $totalCollectedAllAccounts += (float) OnlineTransaction::query()
-            ->whereIn('student_id', $filteredIds)
+        $transferBaseQuery = OnlineTransaction::query()
             ->whereNotNull('transfer_request_id')
             ->whereIn('status', ['completed', 'verified'])
-            ->sum('amount');
+            ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
+
+        if ($classification || $departmentId || $program || $yearLevel || $section) {
+            $transferBaseQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                if ($classification) {
+                    $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                }
+                if ($departmentId) {
+                    $q->where('department_id', $departmentId);
+                }
+                if ($program) {
+                    $q->where('program', $program);
+                }
+                if ($yearLevel) {
+                    $q->where('year_level', $yearLevel);
+                }
+                if ($section) {
+                    $q->where('section', $section);
+                }
+            });
+        }
+
+        $totalCollectedAllAccounts += (float) $transferBaseQuery->sum('amount');
 
         $stats = [
             'total_students' => $totalStudents,
@@ -465,10 +486,29 @@ class AccountingDashboardController extends Controller
 
             $total = (float) $dayPayments->sum('amount')
                 + (float) OnlineTransaction::query()
-                    ->whereIn('student_id', $filteredIds)
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
                     ->whereDate('verified_at', $date)
+                    ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
+                    ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                        $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                            if ($classification) {
+                                $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                            }
+                            if ($departmentId) {
+                                $sq->where('department_id', $departmentId);
+                            }
+                            if ($program) {
+                                $sq->where('program', $program);
+                            }
+                            if ($yearLevel) {
+                                $sq->where('year_level', $yearLevel);
+                            }
+                            if ($section) {
+                                $sq->where('section', $section);
+                            }
+                        });
+                    })
                     ->sum('amount')
                 + (float) $dayDocuments->sum('fee')
                 + (float) $dayDrops->sum('fee_amount');
@@ -638,8 +678,31 @@ class AccountingDashboardController extends Controller
             ->with('verifiedBy:id,name')
             ->whereNotNull('transfer_request_id')
             ->whereIn('status', ['completed', 'verified'])
-            ->whereIn('student_id', $studentIds)
             ->whereBetween('verified_at', [$periodStart, $periodEnd]);
+
+        if ($selectedSchoolYear !== 'all') {
+            $transferTransactionsQuery->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
+        }
+
+        if ($classification || $departmentId || $program || $yearLevel || $section) {
+            $transferTransactionsQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                if ($classification) {
+                    $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                }
+                if ($departmentId) {
+                    $q->where('department_id', $departmentId);
+                }
+                if ($program) {
+                    $q->where('program', $program);
+                }
+                if ($yearLevel) {
+                    $q->where('year_level', $yearLevel);
+                }
+                if ($section) {
+                    $q->where('section', $section);
+                }
+            });
+        }
 
         if ($isSuperAccounting && $selectedAccountId !== 'all') {
             $transferTransactionsQuery->where('verified_by', (int) $selectedAccountId);
@@ -707,9 +770,28 @@ class AccountingDashboardController extends Controller
         }
         $overallFeePaid = (float) $overallFeePaidQuery->sum('amount');
         $overallFeePaid += (float) OnlineTransaction::query()
-            ->whereIn('student_id', $studentIds)
             ->whereNotNull('transfer_request_id')
             ->whereIn('status', ['completed', 'verified'])
+            ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
+            ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                    if ($classification) {
+                        $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                    }
+                    if ($departmentId) {
+                        $sq->where('department_id', $departmentId);
+                    }
+                    if ($program) {
+                        $sq->where('program', $program);
+                    }
+                    if ($yearLevel) {
+                        $sq->where('year_level', $yearLevel);
+                    }
+                    if ($section) {
+                        $sq->where('section', $section);
+                    }
+                });
+            })
             ->when($isSuperAccounting && $selectedAccountId !== 'all', fn($q) => $q->where('verified_by', (int) $selectedAccountId))
             ->sum('amount');
 
@@ -762,9 +844,28 @@ class AccountingDashboardController extends Controller
                     ->whereBetween('payment_date', [$periodStart, $periodEnd])
                     ->sum('amount');
                 $feeTotal += (float) OnlineTransaction::query()
-                    ->whereIn('student_id', $studentIds)
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
+                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
+                    ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                        $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                            if ($classification) {
+                                $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                            }
+                            if ($departmentId) {
+                                $sq->where('department_id', $departmentId);
+                            }
+                            if ($program) {
+                                $sq->where('program', $program);
+                            }
+                            if ($yearLevel) {
+                                $sq->where('year_level', $yearLevel);
+                            }
+                            if ($section) {
+                                $sq->where('section', $section);
+                            }
+                        });
+                    })
                     ->where('verified_by', $accountId)
                     ->whereBetween('verified_at', [$periodStart, $periodEnd])
                     ->sum('amount');
