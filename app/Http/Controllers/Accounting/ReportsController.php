@@ -10,6 +10,7 @@ use App\Models\DocumentRequest;
 use App\Models\FeeCategory;
 use App\Models\FeeItem;
 use App\Models\GrantRecipient;
+use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentActionLog;
 use App\Models\StudentFee;
@@ -50,6 +51,7 @@ class ReportsController extends Controller
         // Build scoped student IDs for demographic filters
         $scopedStudentIds = Student::query()
             ->when($excludeTransferredOut, fn($q) => $q->withoutTransferredOut())
+            ->withoutDropped()
             ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
             ->when($classification, fn($q) => $q->whereHas('department', fn($dq) => $dq->where('classification', $classification)))
             ->pluck('id');
@@ -91,6 +93,23 @@ class ReportsController extends Controller
             ->where('is_paid', true)
             ->where('accounting_status', 'approved');
 
+        $transferQuery = OnlineTransaction::query()
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified']);
+
+        if ($from) {
+            $transferQuery->whereDate('verified_at', '>=', $from);
+        }
+        if ($to) {
+            $transferQuery->whereDate('verified_at', '<=', $to);
+        }
+        if ($schoolYear) {
+            $transferQuery->whereHas('student', fn($q) => $q->where('school_year', $schoolYear));
+        }
+        if ($excludeTransferredOut || $departmentId || $classification) {
+            $transferQuery->whereIn('student_id', $scopedStudentIds);
+        }
+
         if ($from) {
             $dropQuery->whereDate('accounting_approved_at', '>=', $from);
         }
@@ -131,6 +150,10 @@ class ReportsController extends Controller
 
         foreach ((clone $dropQuery)->get(['accounting_approved_at', 'fee_amount']) as $drop) {
             $addSummary($drop->accounting_approved_at?->toDateString(), (float) $drop->fee_amount);
+        }
+
+        foreach ((clone $transferQuery)->get(['verified_at', 'amount']) as $transfer) {
+            $addSummary($transfer->verified_at?->toDateString(), (float) $transfer->amount);
         }
 
         $paymentSummary = $summaryByDate
@@ -183,7 +206,7 @@ class ReportsController extends Controller
                 });
             })
             ->whereHas('student', function ($q) {
-                $q->where('enrollment_status', '!=', 'not-enrolled');
+                $q->whereNotIn('enrollment_status', ['not-enrolled', 'dropped']);
             })
             ->when($schoolYear, fn($q) => $q->where('school_year', $schoolYear));
 
@@ -534,13 +557,14 @@ class ReportsController extends Controller
         $students = Student::query()
             ->with('department:id,name,classification')
             ->when($excludeTransferredOut, fn($q) => $q->withoutTransferredOut())
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
                         ->orWhere('enrollment_status', 'completed');
                 });
             })
-            ->where('enrollment_status', '!=', 'not-enrolled')
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'dropped'])
             ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
             ->when($classification, function ($q) use ($classification) {
                 $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
@@ -556,6 +580,16 @@ class ReportsController extends Controller
             ->groupBy(function (StudentFee $fee) {
                 return $fee->student_id . '|' . trim((string) $fee->school_year);
             });
+
+        $transferCollectedByDepartment = OnlineTransaction::query()
+            ->with('student:id,department_id,school_year')
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->whereIn('student_id', $studentIds)
+            ->when($forcedSchoolYear, fn($q) => $q->whereHas('student', fn($sq) => $sq->where('school_year', $forcedSchoolYear)))
+            ->get()
+            ->groupBy(fn($tx) => $tx->student?->department_id)
+            ->map(fn($rows) => (float) $rows->sum('amount'));
 
         $departments = Department::query()
             ->when($departmentId, fn($q) => $q->where('id', $departmentId))
@@ -590,6 +624,8 @@ class ReportsController extends Controller
                     }
                 }
 
+                $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
+                $collected += (float) ($transferCollectedByDepartment->get($dept->id, 0.0));
                 $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
 
                 return [
