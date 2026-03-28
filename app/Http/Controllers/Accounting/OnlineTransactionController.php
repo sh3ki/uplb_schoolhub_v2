@@ -22,7 +22,20 @@ class OnlineTransactionController extends Controller
      */
     public function index(Request $request): Response
     {
+        $isSuperAccountingView = str_starts_with((string) ($request->route()?->getName() ?? ''), 'super-accounting.');
+
         $query = OnlineTransaction::with(['student', 'payment', 'verifiedBy']);
+
+        if (!$isSuperAccountingView) {
+            $query
+                ->where(function ($q) {
+                    $q->whereNull('payment_context')
+                        ->orWhere('payment_context', '!=', 'transfer_out_fee');
+                })
+                ->whereHas('student', function ($sq) {
+                    $sq->withoutDropped()->withoutTransferredOut();
+                });
+        }
 
         // Search
         if ($search = $request->input('search')) {
@@ -94,12 +107,24 @@ class OnlineTransactionController extends Controller
             ];
         });
 
-        // Stats
+        // Stats (scoped to current role context)
+        $statsQuery = OnlineTransaction::query();
+        if (!$isSuperAccountingView) {
+            $statsQuery
+                ->where(function ($q) {
+                    $q->whereNull('payment_context')
+                        ->orWhere('payment_context', '!=', 'transfer_out_fee');
+                })
+                ->whereHas('student', function ($sq) {
+                    $sq->withoutDropped()->withoutTransferredOut();
+                });
+        }
+
         $stats = [
-            'pending' => OnlineTransaction::pending()->count(),
-            'verified' => OnlineTransaction::completed()->count(),
-            'total_pending_amount' => OnlineTransaction::pending()->sum('amount'),
-            'total_verified_today' => OnlineTransaction::completed()->whereDate('verified_at', today())->sum('amount'),
+            'pending' => (clone $statsQuery)->pending()->count(),
+            'verified' => (clone $statsQuery)->completed()->count(),
+            'total_pending_amount' => (clone $statsQuery)->pending()->sum('amount'),
+            'total_verified_today' => (clone $statsQuery)->completed()->whereDate('verified_at', today())->sum('amount'),
         ];
         
         // Providers
