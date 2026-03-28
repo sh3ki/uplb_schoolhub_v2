@@ -276,11 +276,21 @@ class HandleInertiaRequests extends Middleware
 
     protected function getPendingOnlineTransactionCount($user): int
     {
-        if (!$user || !in_array($user->role, ['accounting', 'super-accounting'])) {
+        if (!$user) {
             return 0;
         }
         try {
-            return OnlineTransaction::where('status', 'pending')->count();
+            if (in_array($user->role, ['accounting', 'super-accounting'])) {
+                return OnlineTransaction::where('status', 'pending')->count();
+            }
+
+            if ($user->role === 'student' && $user->student_id) {
+                return OnlineTransaction::where('student_id', $user->student_id)
+                    ->where('status', 'pending')
+                    ->count();
+            }
+
+            return 0;
         } catch (\Exception $e) {
             return 0;
         }
