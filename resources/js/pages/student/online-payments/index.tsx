@@ -71,6 +71,13 @@ interface Props {
     }>;
     schoolYears: string[];
     selectedSchoolYear: string;
+    feeYearSummaries: Array<{
+        school_year: string;
+        total_fees: number;
+        total_discount: number;
+        total_paid: number;
+        balance: number;
+    }>;
     recentPayments: PaginatedRecentPayments;
     paymentMethods: { value: string; label: string }[];
     enrollmentStatus?: string;
@@ -138,7 +145,7 @@ function formatDate(dateString: string): string {
     });
 }
 
-export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, recentPayments, paymentMethods, enrollmentStatus, isDropped = false, transferFee = null }: Props) {
+export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, feeYearSummaries, recentPayments, paymentMethods, enrollmentStatus, isDropped = false, transferFee = null }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerTitle, setViewerTitle] = useState('Payment Proof');
@@ -156,15 +163,15 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
         is_transfer_payment: false,
     });
 
-    const selectedFeeRecord = feeRecords.find((fee) => fee.school_year === form.data.school_year);
+    const selectedFeeSummary = feeYearSummaries.find((fee) => fee.school_year === form.data.school_year);
     const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected' && transferFee.amount > 0;
     const transferTotalFees = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
     const transferTotalPaid = hasTransferFeeFlow ? Math.max(0, transferFee.paid_amount || 0) : 0;
     const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.balance ?? (transferTotalFees - transferTotalPaid)) : 0;
-    const summaryTotalFees = hasTransferFeeFlow ? transferTotalFees : summary.total_fees;
-    const summaryTotalDiscount = hasTransferFeeFlow ? 0 : summary.total_discount;
-    const summaryTotalPaid = hasTransferFeeFlow ? transferTotalPaid : summary.total_paid;
-    const summaryBalance = hasTransferFeeFlow ? transferFeeBalance : summary.balance;
+    const summaryTotalFees = hasTransferFeeFlow ? transferTotalFees : (selectedFeeSummary?.total_fees ?? summary.total_fees);
+    const summaryTotalDiscount = hasTransferFeeFlow ? 0 : (selectedFeeSummary?.total_discount ?? summary.total_discount);
+    const summaryTotalPaid = hasTransferFeeFlow ? transferTotalPaid : (selectedFeeSummary?.total_paid ?? summary.total_paid);
+    const summaryBalance = hasTransferFeeFlow ? transferFeeBalance : (selectedFeeSummary?.balance ?? summary.balance);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -398,10 +405,10 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                                     required
                                                 >
                                                     {schoolYears.map((year) => {
-                                                        const feeRow = feeRecords.find((fee) => fee.school_year === year);
+                                                        const yearSummary = feeYearSummaries.find((fee) => fee.school_year === year);
                                                         return (
                                                             <option key={year} value={year}>
-                                                                {year} — Balance: {formatCurrency(feeRow?.balance ?? 0)}
+                                                                {year} — Balance: {formatCurrency(yearSummary?.balance ?? 0)}
                                                             </option>
                                                         );
                                                     })}
@@ -567,12 +574,12 @@ export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYea
                                 <CardDescription>Your recent payment submissions</CardDescription>
                             </CardHeader>
                             <CardContent>
-                                {!hasTransferFeeFlow && feeRecords.length > 0 && (
+                                {!hasTransferFeeFlow && feeYearSummaries.length > 0 && (
                                     <div className="mb-4 rounded-md border p-3">
                                         <p className="mb-2 text-sm font-semibold">Balances by School Year</p>
                                         <div className="space-y-1 text-sm">
-                                            {feeRecords.map((fee) => (
-                                                <div key={fee.id} className="flex items-center justify-between">
+                                            {feeYearSummaries.map((fee) => (
+                                                <div key={fee.school_year} className="flex items-center justify-between">
                                                     <span>{fee.school_year}</span>
                                                     <span className={fee.balance > 0 ? 'font-semibold text-red-600' : 'text-green-600'}>
                                                         {formatCurrency(fee.balance)}
