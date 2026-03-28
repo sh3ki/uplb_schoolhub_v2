@@ -29,7 +29,7 @@ class ExamApprovalController extends Controller
 
         $query = ExamApproval::with(['student', 'approvedBy'])
             ->whereHas('student', function ($q) {
-                $q->withoutTransferredOut();
+                $q->withoutTransferredOut()->withoutDropped();
             });
 
         // Search
@@ -62,6 +62,7 @@ class ExamApprovalController extends Controller
         // registrar-cleared, active enrollment stage, and payment status is partial/paid (not unpaid/overdue).
         $eligibleStudents = Student::whereNull('deleted_at')
             ->withoutTransferredOut()
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
@@ -101,6 +102,7 @@ class ExamApprovalController extends Controller
 
         $studentsQuery = Student::whereNull('deleted_at')
             ->withoutTransferredOut()
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
