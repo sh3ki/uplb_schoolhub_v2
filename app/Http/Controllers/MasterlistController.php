@@ -33,6 +33,10 @@ class MasterlistController extends Controller
             $studentsQuery->withoutTransferredOut();
         }
 
+        if (in_array($rolePrefix, ['accounting', 'super-accounting'], true)) {
+            $studentsQuery->withoutDropped();
+        }
+
         $students = $studentsQuery->get([
                 'id',
                 'first_name',
