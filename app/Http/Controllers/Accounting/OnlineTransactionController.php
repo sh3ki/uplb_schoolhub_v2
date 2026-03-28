@@ -7,6 +7,7 @@ use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
+use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,7 @@ class OnlineTransactionController extends Controller
                 'failure_reason' => null,
                 'remarks' => $transaction->remarks,
                 'or_number' => $transaction->payment?->or_number,
+                'payment_context' => $transaction->payment_context ?? 'tuition',
                 'created_at' => $transaction->created_at,
                 'student' => $transaction->student ? [
                     'id' => $transaction->student->id,
@@ -127,6 +129,51 @@ class OnlineTransactionController extends Controller
         $validated = $request->validate([
             'or_number' => 'nullable|string|max:100',
         ]);
+
+        if ($this->isTransferFeeTransaction($transaction)) {
+            $transferRequest = $this->resolveTransferRequestFromTransaction($transaction);
+            if (!$transferRequest) {
+                return redirect()->back()->with('error', 'Transfer request reference was not found for this transaction.');
+            }
+
+            if ((int) $transferRequest->student_id !== (int) $transaction->student_id) {
+                return redirect()->back()->with('error', 'Transfer request does not match transaction student.');
+            }
+
+            if ($transferRequest->accounting_status !== 'approved') {
+                return redirect()->back()->with('error', 'Transfer request is not in approved super-accounting state.');
+            }
+
+            $alreadySettled = (float) OnlineTransaction::query()
+                ->where('transfer_request_id', $transferRequest->id)
+                ->whereIn('status', ['completed', 'verified'])
+                ->where('id', '!=', $transaction->id)
+                ->sum('amount');
+
+            $requiredAmount = max(0, (float) $transferRequest->transfer_fee_amount);
+            $settledAfterVerification = $alreadySettled + (float) $transaction->amount;
+
+            if ($settledAfterVerification < $requiredAmount) {
+                $remaining = $requiredAmount - $settledAfterVerification;
+                return redirect()->back()->with('error', 'Transfer out payment cannot be verified yet. Remaining required amount: ' . number_format($remaining, 2));
+            }
+
+            $orNumber = $validated['or_number'] ?? ('TRF-OT-' . $transaction->transaction_id);
+            $transferRequest->markTransferFeePaid(
+                auth()->id(),
+                $orNumber,
+                (float) $transferRequest->transfer_fee_amount
+            );
+
+            $transaction->update([
+                'status' => 'completed',
+                'verified_at' => now(),
+                'verified_by' => auth()->user()?->id,
+                'remarks' => trim((string) (($transaction->remarks ?? '') . ' [VerifiedAs: transfer_out_fee]')),
+            ]);
+
+            return redirect()->back()->with('success', 'Transfer out online payment verified and transfer request marked paid.');
+        }
 
         // Create payment record for the student's billing school year.
         $student = Student::find($transaction->student_id);
@@ -276,6 +323,25 @@ class OnlineTransactionController extends Controller
             }
 
             $transaction->refund($validated['remarks'] ?? null);
+
+            if ($this->isTransferFeeTransaction($transaction)) {
+                $transferRequest = $this->resolveTransferRequestFromTransaction($transaction);
+                if ($transferRequest) {
+                    $remainingSettled = (float) OnlineTransaction::query()
+                        ->where('transfer_request_id', $transferRequest->id)
+                        ->whereIn('status', ['completed', 'verified'])
+                        ->sum('amount');
+
+                    if ($remainingSettled < (float) $transferRequest->transfer_fee_amount) {
+                        $transferRequest->update([
+                            'transfer_fee_paid' => false,
+                            'transfer_fee_or_number' => null,
+                            'processed_by' => auth()->id(),
+                            'processed_at' => now(),
+                        ]);
+                    }
+                }
+            }
         });
 
         return redirect()->back()->with('success', 'Transaction refunded.');
@@ -289,5 +355,29 @@ class OnlineTransactionController extends Controller
         $transaction->delete();
 
         return redirect()->back()->with('success', 'Transaction deleted successfully.');
+    }
+
+    private function isTransferFeeTransaction(OnlineTransaction $transaction): bool
+    {
+        if (($transaction->payment_context ?? null) === 'transfer_out_fee') {
+            return true;
+        }
+
+        $remarks = (string) ($transaction->remarks ?? '');
+        return stripos($remarks, '[PaymentType: transfer_out_fee]') !== false;
+    }
+
+    private function resolveTransferRequestFromTransaction(OnlineTransaction $transaction): ?TransferRequest
+    {
+        if ($transaction->transfer_request_id) {
+            return TransferRequest::find($transaction->transfer_request_id);
+        }
+
+        $remarks = (string) ($transaction->remarks ?? '');
+        if (preg_match('/\[TransferRequest:\s*(\d+)\]/i', $remarks, $matches)) {
+            return TransferRequest::find((int) ($matches[1] ?? 0));
+        }
+
+        return null;
     }
 }
