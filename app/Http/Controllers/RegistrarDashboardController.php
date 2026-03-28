@@ -36,7 +36,11 @@ class RegistrarDashboardController extends Controller
 
         // Get enrollment statistics (filtered by school year)
         $stats = [
-            'activeStudents'    => Student::query()->when($selectedSY !== 'all', fn($q) => $q->where('school_year', $selectedSY))->count(),
+            'activeStudents'    => Student::query()
+                ->when($selectedSY !== 'all', fn($q) => $q->where('school_year', $selectedSY))
+                ->withoutDropped()
+                ->withoutTransferredOut()
+                ->count(),
             'officiallyEnrolled'=> Student::query()->when($selectedSY !== 'all', fn($q) => $q->where('school_year', $selectedSY))->where('enrollment_status', 'enrolled')->count(),
             'registrarPending'  => Student::query()->when($selectedSY !== 'all', fn($q) => $q->where('school_year', $selectedSY))->where('enrollment_status', 'pending-registrar')->count(),
             'accountingPending' => Student::query()->when($selectedSY !== 'all', fn($q) => $q->where('school_year', $selectedSY))->where('enrollment_status', 'pending-accounting')->count(),
