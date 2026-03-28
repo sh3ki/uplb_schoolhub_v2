@@ -126,14 +126,17 @@ class DashboardController extends Controller
             ->map(fn ($rows) => $rows->first())
             ->values();
 
-        $currentFee = $feesBySchoolYear->first(function (array $fee) use ($targetSchoolYear) {
-            return trim((string) $fee['school_year']) === trim((string) $targetSchoolYear);
-        });
+        $currentFeeRows = StudentFee::query()
+            ->with('payments:id,student_fee_id,amount')
+            ->where('student_id', $student->id)
+            ->whereRaw('TRIM(school_year) = ?', [$targetSchoolYear])
+            ->get();
 
-        $totalFees = (float) ($currentFee['total_amount'] ?? 0);
-        $totalDiscount = (float) ($currentFee['grant_discount'] ?? 0);
-        $totalPaid = (float) ($currentFee['total_paid'] ?? 0);
-        $balance = (float) ($currentFee['balance'] ?? 0);
+        $totalFees = (float) $currentFeeRows->sum('total_amount');
+        $totalDiscount = (float) $currentFeeRows->sum('grant_discount');
+        $totalPaid = (float) $currentFeeRows->flatMap->payments->sum('amount');
+        $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
+        $currentFee = $currentFeeRows->sortByDesc('id')->first();
 
         // If registrar is already cleared and student_fees has not been fully computed yet,
         // fall back to assignment-based fee calculation to avoid showing all zeros.
@@ -144,7 +147,7 @@ class DashboardController extends Controller
             $totalPaid = (float) StudentPayment::query()
                 ->where('student_id', $student->id)
                 ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
-                    $q->whereRaw('TRIM(school_year) = ?', [$targetSchoolYear]);
+                    $q->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)]);
                 })
                 ->sum('amount');
             $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
