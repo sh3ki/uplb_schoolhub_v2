@@ -56,6 +56,14 @@ class ReportsController extends Controller
             ->when($classification, fn($q) => $q->whereHas('department', fn($dq) => $dq->where('classification', $classification)))
             ->pluck('id');
 
+        // Transfer fee transactions can legitimately belong to students that are
+        // already dropped/transferred-out after finalization. Keep demographic
+        // filters, but do not exclude these terminal-status students.
+        $transferScopedStudentIds = Student::query()
+            ->when($departmentId, fn($q) => $q->where('department_id', $departmentId))
+            ->when($classification, fn($q) => $q->whereHas('department', fn($dq) => $dq->where('classification', $classification)))
+            ->pluck('id');
+
         // Collection Summary (fees + documents + drops), grouped by transaction date
         $paymentQuery = StudentPayment::query();
         
@@ -107,7 +115,7 @@ class ReportsController extends Controller
             $transferQuery->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $schoolYear)]));
         }
         if ($departmentId || $classification) {
-            $transferQuery->whereIn('student_id', $scopedStudentIds);
+            $transferQuery->whereIn('student_id', $transferScopedStudentIds);
         }
 
         if ($from) {
