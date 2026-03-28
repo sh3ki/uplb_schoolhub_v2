@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\OnlineTransaction;
 use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -48,7 +49,16 @@ class TransferRequestController extends Controller
         $requests = $query->latest()->paginate(20)->withQueryString();
 
         $requests->getCollection()->transform(function ($r) {
-            $onlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $linkedOnlinePaid = (float) ($r->transfer_online_paid_amount ?? 0);
+            $fallbackOnlinePaid = (float) OnlineTransaction::query()
+                ->where('student_id', $r->student_id)
+                ->whereNull('transfer_request_id')
+                ->where('payment_context', 'transfer_out_fee')
+                ->whereIn('status', ['completed', 'verified'])
+                ->when($r->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $r->accounting_approved_at))
+                ->sum('amount');
+
+            $onlinePaid = $linkedOnlinePaid + $fallbackOnlinePaid;
             $transferFeeAmount = (float) $r->transfer_fee_amount;
             $transferBalanceDue = max(0, $transferFeeAmount - $onlinePaid);
             $transferFeePaid = (bool) $r->transfer_fee_paid || ($transferFeeAmount > 0 && $transferBalanceDue <= 0);
