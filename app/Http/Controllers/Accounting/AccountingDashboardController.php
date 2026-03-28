@@ -139,7 +139,7 @@ class AccountingDashboardController extends Controller
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
                     ->whereBetween('verified_at', [$monthStart, $monthEnd])
-                    ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
+                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
                     ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
@@ -380,8 +380,11 @@ class AccountingDashboardController extends Controller
         }
         $transferBaseQuery = OnlineTransaction::query()
             ->whereNotNull('transfer_request_id')
-            ->whereIn('status', ['completed', 'verified'])
-            ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
+            ->whereIn('status', ['completed', 'verified']);
+
+        if ($selectedSchoolYear !== 'all') {
+            $transferBaseQuery->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
+        }
 
         if ($classification || $departmentId || $program || $yearLevel || $section) {
             $transferBaseQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
@@ -489,7 +492,7 @@ class AccountingDashboardController extends Controller
                     ->whereNotNull('transfer_request_id')
                     ->whereIn('status', ['completed', 'verified'])
                     ->whereDate('verified_at', $date)
-                    ->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]))
+                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
                     ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
                         $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
                             if ($classification) {
@@ -836,7 +839,7 @@ class AccountingDashboardController extends Controller
 
         $accountingBreakdown = collect();
         if ($isSuperAccounting) {
-            $accountingBreakdown = $accountingAccounts->map(function ($account) use ($studentIds, $periodStart, $periodEnd) {
+            $accountingBreakdown = $accountingAccounts->map(function ($account) use ($studentIds, $periodStart, $periodEnd, $selectedSchoolYear, $classification, $departmentId, $program, $yearLevel, $section) {
                 $accountId = (int) $account->id;
 
                 $feeTotal = (float) StudentPayment::whereIn('student_id', $studentIds)
