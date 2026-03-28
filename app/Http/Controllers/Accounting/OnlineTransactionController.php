@@ -161,7 +161,7 @@ class OnlineTransactionController extends Controller
             })
             ->chunkById(100, function ($transactions) {
                 foreach ($transactions as $transaction) {
-                    $verifiedBy = $transaction->transferRequest?->accounting_approved_by ?: auth()->id();
+                    $verifiedBy = $transaction->transferRequest?->accounting_approved_by ?: Auth::id();
                     $transaction->update([
                         'status' => 'completed',
                         'verified_at' => $transaction->verified_at ?? now(),
