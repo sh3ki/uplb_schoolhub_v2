@@ -14,8 +14,10 @@ class OnlineTransaction extends Model
     protected $fillable = [
         'student_id',
         'student_payment_id',
+        'transfer_request_id',
         'transaction_id',
         'payment_method',
+        'payment_context',
         'amount',
         'status',
         'reference_number',
@@ -49,6 +51,14 @@ class OnlineTransaction extends Model
     public function payment(): BelongsTo
     {
         return $this->belongsTo(StudentPayment::class, 'student_payment_id');
+    }
+
+    /**
+     * Get the associated transfer request when this is a transfer out fee payment.
+     */
+    public function transferRequest(): BelongsTo
+    {
+        return $this->belongsTo(TransferRequest::class, 'transfer_request_id');
     }
 
     /**
