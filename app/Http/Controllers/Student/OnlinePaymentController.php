@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -107,11 +108,24 @@ class OnlinePaymentController extends Controller
             ->latest('id')
             ->first();
 
+        $transferFeePaidAmount = 0.0;
+        if ($latestTransferRequest) {
+            $transferFeePaidAmount = (float) OnlineTransaction::query()
+                ->where('transfer_request_id', $latestTransferRequest->id)
+                ->whereIn('status', ['completed', 'verified'])
+                ->sum('amount');
+        }
+
+        $transferFeeAmount = (float) ($latestTransferRequest?->transfer_fee_amount ?? 0);
+        $transferFeeBalance = max(0, $transferFeeAmount - $transferFeePaidAmount);
+
         $transferFee = $latestTransferRequest ? [
             'status' => $latestTransferRequest->status,
             'registrar_status' => $latestTransferRequest->registrar_status,
             'accounting_status' => $latestTransferRequest->accounting_status,
-            'amount' => (float) $latestTransferRequest->transfer_fee_amount,
+            'amount' => $transferFeeAmount,
+            'paid_amount' => $transferFeePaidAmount,
+            'balance' => $transferFeeBalance,
             'paid' => (bool) $latestTransferRequest->transfer_fee_paid,
             'or_number' => $latestTransferRequest->transfer_fee_or_number,
             'finalized_at' => $latestTransferRequest->finalized_at?->format('Y-m-d H:i:s'),
@@ -151,7 +165,44 @@ class OnlinePaymentController extends Controller
             'receipt_image' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120', // 5MB max
             'notes' => 'nullable|string|max:500',
             'bank_name' => 'nullable|required_if:payment_method,bank_transfer|string|max:255',
+            'is_transfer_payment' => 'nullable|boolean',
         ]);
+
+        $isTransferPayment = (bool) ($validated['is_transfer_payment'] ?? false);
+
+        $activeTransferRequest = TransferRequest::query()
+            ->where('student_id', $student->id)
+            ->whereNull('deleted_at')
+            ->where('registrar_status', 'approved')
+            ->where('accounting_status', 'approved')
+            ->latest('id')
+            ->first();
+
+        if ($isTransferPayment) {
+            if (!$activeTransferRequest) {
+                throw ValidationException::withMessages([
+                    'amount' => 'No active transfer out payment request was found.',
+                ]);
+            }
+
+            $alreadyPaid = (float) OnlineTransaction::query()
+                ->where('transfer_request_id', $activeTransferRequest->id)
+                ->whereIn('status', ['completed', 'verified'])
+                ->sum('amount');
+
+            $remainingBalance = max(0, (float) $activeTransferRequest->transfer_fee_amount - $alreadyPaid);
+            if ($remainingBalance <= 0) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Transfer out fee is already fully settled.',
+                ]);
+            }
+
+            if ((float) $validated['amount'] < $remainingBalance) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Amount must be exact or greater than remaining transfer out balance of ' . number_format($remainingBalance, 2) . '.',
+                ]);
+            }
+        }
 
         // Store the receipt image
         $receiptPath = null;
@@ -163,17 +214,22 @@ class OnlinePaymentController extends Controller
         $transactionId = 'OT-' . now()->format('Ymd') . '-' . strtoupper(substr(uniqid(), -6));
 
         $selectedSchoolYear = trim((string) $validated['school_year']);
-        $hasFeeYear = StudentFee::where('student_id', $student->id)
-            ->whereRaw('TRIM(school_year) = ?', [$selectedSchoolYear])
-            ->exists();
+        if (!$isTransferPayment) {
+            $hasFeeYear = StudentFee::where('student_id', $student->id)
+                ->whereRaw('TRIM(school_year) = ?', [$selectedSchoolYear])
+                ->exists();
 
-        if (!$hasFeeYear) {
-            return back()->withErrors([
-                'school_year' => 'Selected school year is not available for this student.',
-            ]);
+            if (!$hasFeeYear) {
+                return back()->withErrors([
+                    'school_year' => 'Selected school year is not available for this student.',
+                ]);
+            }
         }
 
         $remarksPayload = '[SchoolYear: ' . $selectedSchoolYear . ']';
+        if ($isTransferPayment && $activeTransferRequest) {
+            $remarksPayload .= ' [PaymentType: transfer_out_fee] [TransferRequest: ' . $activeTransferRequest->id . ']';
+        }
         if (!empty($validated['notes'])) {
             $remarksPayload .= ' ' . trim((string) $validated['notes']);
         }
@@ -181,9 +237,11 @@ class OnlinePaymentController extends Controller
         // Create online transaction
         OnlineTransaction::create([
             'student_id' => $student->id,
+            'transfer_request_id' => ($isTransferPayment && $activeTransferRequest) ? $activeTransferRequest->id : null,
             'transaction_id' => $transactionId,
             'amount' => $validated['amount'],
             'payment_method' => $validated['payment_method'],
+            'payment_context' => $isTransferPayment ? 'transfer_out_fee' : 'tuition',
             'reference_number' => $validated['reference_number'],
             'bank_name' => $validated['bank_name'] ?? null,
             'payment_proof' => $receiptPath,
