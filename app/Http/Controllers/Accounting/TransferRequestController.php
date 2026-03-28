@@ -53,7 +53,11 @@ class TransferRequestController extends Controller
             $fallbackOnlinePaid = (float) OnlineTransaction::query()
                 ->where('student_id', $r->student_id)
                 ->whereNull('transfer_request_id')
-                ->where('payment_context', 'transfer_out_fee')
+                ->where(function ($q) {
+                    $q->where('payment_context', 'transfer_out_fee')
+                        ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%')
+                        ->orWhereNull('student_payment_id');
+                })
                 ->whereIn('status', ['completed', 'verified'])
                 ->when($r->accounting_approved_at, fn($q) => $q->where('verified_at', '>=', $r->accounting_approved_at))
                 ->sum('amount');
