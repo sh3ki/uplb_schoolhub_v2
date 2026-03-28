@@ -597,7 +597,7 @@ class ReportsController extends Controller
             ->get();
 
         return $departments
-            ->map(function ($dept) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear) {
+            ->map(function ($dept) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear, $transferCollectedByDepartment) {
                 $deptStudents = $students->where('department_id', $dept->id)->values();
 
                 $billed = 0.0;
