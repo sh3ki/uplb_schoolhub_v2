@@ -22,6 +22,8 @@ class OnlineTransactionController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->reconcileFinalizedTransferTransactions();
+
         $query = OnlineTransaction::with(['student', 'payment', 'verifiedBy']);
 
         // Finalized transfer requests should not remain in manual verification queue.
@@ -142,6 +144,32 @@ class OnlineTransactionController extends Controller
             'stats' => $stats,
             'filters' => $request->only(['search', 'status', 'payment_method', 'from', 'to']),
         ]);
+    }
+
+    private function reconcileFinalizedTransferTransactions(): void
+    {
+        OnlineTransaction::query()
+            ->with('transferRequest:id,accounting_approved_by')
+            ->where('status', 'pending')
+            ->whereNotNull('transfer_request_id')
+            ->whereHas('transferRequest', function ($q) {
+                $q->whereNotNull('finalized_at')
+                    ->orWhereHas('student', function ($studentQuery) {
+                        $studentQuery->where('enrollment_status', 'dropped')
+                            ->where('is_active', false);
+                    });
+            })
+            ->chunkById(100, function ($transactions) {
+                foreach ($transactions as $transaction) {
+                    $verifiedBy = $transaction->transferRequest?->accounting_approved_by ?: auth()->id();
+                    $transaction->update([
+                        'status' => 'completed',
+                        'verified_at' => $transaction->verified_at ?? now(),
+                        'verified_by' => $verifiedBy,
+                        'remarks' => trim((string) (($transaction->remarks ?? '') . ' [AutoReconciledFinalizedTransfer]')),
+                    ]);
+                }
+            });
     }
 
     /**
