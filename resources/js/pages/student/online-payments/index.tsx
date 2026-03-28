@@ -425,7 +425,7 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
                                                 type="number"
                                                 step="0.01"
                                                 min="1"
-                                                max={hasTransferFeeFlow ? undefined : (selectedFeeRecord?.balance ?? summary.balance)}
+                                                max={hasTransferFeeFlow ? undefined : (selectedFeeSummary?.balance ?? summary.balance)}
                                                 value={form.data.amount}
                                                 onChange={(e) => form.setData('amount', e.target.value)}
                                                 placeholder="0.00"
