@@ -8,6 +8,7 @@ use App\Models\Department;
 use App\Models\DocumentRequest;
 use App\Models\DropRequest;
 use App\Models\AppSetting;
+use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -68,7 +69,7 @@ class AccountingDashboardController extends Controller
                         ->orWhere('enrollment_status', 'completed');
                 });
             })
-            ->where('enrollment_status', '!=', 'not-enrolled')
+            ->whereNotIn('enrollment_status', ['not-enrolled', 'dropped'])
             ->get(['id', 'school_year', 'department_id']);
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
@@ -127,6 +128,12 @@ class AccountingDashboardController extends Controller
             $amount = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])
                 ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->sum('amount')
+                + (float) OnlineTransaction::query()
+                    ->whereNotNull('transfer_request_id')
+                    ->whereIn('status', ['completed', 'verified'])
+                    ->whereBetween('verified_at', [$monthStart, $monthEnd])
+                    ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
+                    ->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
                     ->whereHas('student', fn($q) => $q->where('school_year', $selectedSchoolYear))
@@ -308,6 +315,7 @@ class AccountingDashboardController extends Controller
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
+        $studentQ->where('enrollment_status', '!=', 'dropped');
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -357,6 +365,11 @@ class AccountingDashboardController extends Controller
         // Keep simplified dashboard cards on the same fee-ledger basis as receivables/balances.
         $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
             ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
+            ->sum('amount');
+        $totalCollectedAllAccounts += (float) OnlineTransaction::query()
+            ->whereIn('student_id', $filteredIds)
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
             ->sum('amount');
 
         $stats = [
@@ -439,6 +452,12 @@ class AccountingDashboardController extends Controller
                 ->get();
 
             $total = (float) $dayPayments->sum('amount')
+                + (float) OnlineTransaction::query()
+                    ->whereIn('student_id', $filteredIds)
+                    ->whereNotNull('transfer_request_id')
+                    ->whereIn('status', ['completed', 'verified'])
+                    ->whereDate('verified_at', $date)
+                    ->sum('amount')
                 + (float) $dayDocuments->sum('fee')
                 + (float) $dayDrops->sum('fee_amount');
 
@@ -574,6 +593,7 @@ class AccountingDashboardController extends Controller
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
+        $studentQ->where('enrollment_status', '!=', 'dropped');
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -598,6 +618,19 @@ class AccountingDashboardController extends Controller
         }
 
         $payments = $paymentsQuery->get();
+
+        $transferTransactionsQuery = OnlineTransaction::query()
+            ->with('verifiedBy:id,name')
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->whereIn('student_id', $studentIds)
+            ->whereBetween('verified_at', [$periodStart, $periodEnd]);
+
+        if ($isSuperAccounting && $selectedAccountId !== 'all') {
+            $transferTransactionsQuery->where('verified_by', (int) $selectedAccountId);
+        }
+
+        $transferTransactions = $transferTransactionsQuery->get();
 
         $documents = DocumentRequest::with(['accountingApprovedBy:id,name', 'processedBy:id,name'])
             ->whereIn('student_id', $studentIds)
@@ -646,10 +679,11 @@ class AccountingDashboardController extends Controller
             })
             ->get();
 
-        $feeCount    = $payments->count();
+        $transferCount = $transferTransactions->count();
+        $feeCount    = $payments->count() + $transferCount;
         $docCount    = $documents->count();
         $dropCount   = $dropRequests->count();
-        $feeSum      = (float) $payments->sum('amount');
+        $feeSum      = (float) $payments->sum('amount') + (float) $transferTransactions->sum('amount');
         $docSum      = (float) $documents->sum('fee');
         $dropSum     = (float) $dropRequests->sum('fee_amount');
         $overallFeePaidQuery = StudentPayment::whereIn('student_id', $studentIds);
@@ -657,6 +691,12 @@ class AccountingDashboardController extends Controller
             $overallFeePaidQuery->where('recorded_by', (int) $selectedAccountId);
         }
         $overallFeePaid = (float) $overallFeePaidQuery->sum('amount');
+        $overallFeePaid += (float) OnlineTransaction::query()
+            ->whereIn('student_id', $studentIds)
+            ->whereNotNull('transfer_request_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->when($isSuperAccounting && $selectedAccountId !== 'all', fn($q) => $q->where('verified_by', (int) $selectedAccountId))
+            ->sum('amount');
 
         $overallDocumentPaidQuery = DocumentRequest::whereIn('student_id', $studentIds)
             ->where('is_paid', true)
@@ -705,6 +745,13 @@ class AccountingDashboardController extends Controller
                 $feeTotal = (float) StudentPayment::whereIn('student_id', $studentIds)
                     ->where('recorded_by', $accountId)
                     ->whereBetween('payment_date', [$periodStart, $periodEnd])
+                    ->sum('amount');
+                $feeTotal += (float) OnlineTransaction::query()
+                    ->whereIn('student_id', $studentIds)
+                    ->whereNotNull('transfer_request_id')
+                    ->whereIn('status', ['completed', 'verified'])
+                    ->where('verified_by', $accountId)
+                    ->whereBetween('verified_at', [$periodStart, $periodEnd])
                     ->sum('amount');
 
                 $documentTotal = (float) DocumentRequest::whereIn('student_id', $studentIds)
@@ -756,7 +803,8 @@ class AccountingDashboardController extends Controller
         $periodEndDay = $periodEnd->copy()->startOfDay();
         while ($periodDay->lte($periodEndDay)) {
             $dayPayments = $payments->filter(fn($p) => Carbon::parse($p->payment_date)->isSameDay($periodDay));
-            $dayAmount   = (float) $dayPayments->sum('amount');
+            $dayTransfer = $transferTransactions->filter(fn($t) => $t->verified_at && Carbon::parse($t->verified_at)->isSameDay($periodDay));
+            $dayAmount   = (float) $dayPayments->sum('amount') + (float) $dayTransfer->sum('amount');
             if ($dayAmount > 0) {
                 $avgHour = $dayPayments->avg(fn($p) => Carbon::parse($p->created_at)->hour);
                 $avgTime = $avgHour !== null
@@ -790,6 +838,22 @@ class AccountingDashboardController extends Controller
                 'student_id'   => $p->student_id,
                 'processed_by' => $p->recordedBy?->name ?? 'N/A',
                 'sort_at'      => $sortAt,
+            ];
+        }
+        foreach ($transferTransactions->sortByDesc('verified_at')->take(10) as $transferTx) {
+            $transferDateTime = Carbon::parse($transferTx->verified_at ?? $transferTx->transaction_date ?? $transferTx->created_at);
+            $transactions[] = [
+                'id'           => 'transfer-' . $transferTx->id,
+                'date'         => $transferDateTime->format('Y-m-d'),
+                'time'         => $transferDateTime->format('h:i A'),
+                'type'         => 'Transfer',
+                'or_number'    => $transferTx->transaction_id,
+                'mode'         => strtoupper((string) ($transferTx->payment_method ?? 'ONLINE')),
+                'reference'    => 'Transfer Out Fee',
+                'amount'       => (float) $transferTx->amount,
+                'student_id'   => $transferTx->student_id,
+                'processed_by' => $transferTx->verifiedBy?->name ?? 'N/A',
+                'sort_at'      => $transferDateTime->timestamp,
             ];
         }
         foreach ($documents->take(10) as $doc) {
