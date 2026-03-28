@@ -7,10 +7,15 @@ use App\Models\AppSetting;
 use App\Models\DropRequest;
 use App\Models\FeeCategory;
 use App\Models\FeeItem;
+use App\Models\OnlineTransaction;
 use App\Models\Student;
+use App\Models\StudentFee;
+use App\Models\StudentPayment;
+use App\Models\TransferRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -203,30 +208,55 @@ class DropRequestController extends Controller
             return back()->with('error', 'Only dropped students can be reactivated.');
         }
 
-        $student->update([
-            'enrollment_status' => 'not-enrolled',
-            'is_active' => true,
-        ]);
+        DB::transaction(function () use ($student) {
+            $student->update([
+                'enrollment_status' => 'not-enrolled',
+                'is_active' => true,
+            ]);
 
-        if ($student->user) {
-            $clearance = \App\Models\EnrollmentClearance::where('user_id', $student->user->id)->first();
-            if ($clearance) {
-                $clearance->update([
-                    'registrar_clearance' => false,
-                    'registrar_cleared_at' => null,
-                    'registrar_cleared_by' => null,
-                    'accounting_clearance' => false,
-                    'accounting_cleared_at' => null,
-                    'accounting_cleared_by' => null,
-                    'official_enrollment' => false,
-                    'officially_enrolled_at' => null,
-                    'officially_enrolled_by' => null,
-                    'enrollment_status' => 'not_started',
-                ]);
+            if ($student->user) {
+                $clearance = \App\Models\EnrollmentClearance::where('user_id', $student->user->id)->first();
+                if ($clearance) {
+                    $clearance->update([
+                        'registrar_clearance' => false,
+                        'registrar_cleared_at' => null,
+                        'registrar_cleared_by' => null,
+                        'accounting_clearance' => false,
+                        'accounting_cleared_at' => null,
+                        'accounting_cleared_by' => null,
+                        'official_enrollment' => false,
+                        'officially_enrolled_at' => null,
+                        'officially_enrolled_by' => null,
+                        'enrollment_status' => 'not_started',
+                    ]);
+                }
             }
-        }
+
+            $this->resetStudentFinancialLedger($student);
+        });
 
         return back()->with('success', 'Student has been reactivated and can now log in again.');
+    }
+
+    private function resetStudentFinancialLedger(Student $student): void
+    {
+        // Reset to clean enrollment billing state: remove historical payments/submissions, keep fee templates.
+        OnlineTransaction::where('student_id', $student->id)->delete();
+        StudentPayment::where('student_id', $student->id)->delete();
+
+        StudentFee::where('student_id', $student->id)
+            ->get()
+            ->each(function (StudentFee $fee) {
+                $fee->update([
+                    'total_paid' => 0,
+                    'balance' => max(0, (float) $fee->total_amount - (float) $fee->grant_discount),
+                ]);
+            });
+
+        TransferRequest::where('student_id', $student->id)->update([
+            'transfer_fee_paid' => false,
+            'transfer_fee_or_number' => null,
+        ]);
     }
 
     /**
