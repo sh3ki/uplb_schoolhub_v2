@@ -279,7 +279,7 @@ class TransferRequestController extends Controller
             if ($pendingTransferTransactions->isNotEmpty()) {
                 $verifiedBy = $transferRequest->accounting_approved_by ?: Auth::id();
 
-                foreach ($pendingTransferTransactions as $transaction) {
+                $pendingTransferTransactions->each(function (OnlineTransaction $transaction) use ($transferRequest, $verifiedBy) {
                     $transaction->update([
                         'transfer_request_id' => $transferRequest->id,
                         'status' => 'completed',
@@ -287,7 +287,7 @@ class TransferRequestController extends Controller
                         'verified_by' => $verifiedBy,
                         'remarks' => trim((string) (($transaction->remarks ?? '') . ' [AutoSettledOnRegistrarFinalize]')),
                     ]);
-                }
+                });
 
                 StudentActionLog::create([
                     'student_id' => $transferRequest->student_id,
