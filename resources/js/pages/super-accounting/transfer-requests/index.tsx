@@ -24,6 +24,8 @@ type RequestItem = {
     transfer_fee_amount: number;
     transfer_fee_paid: boolean;
     transfer_fee_or_number: string | null;
+    transfer_online_paid_amount: number;
+    transfer_balance_due: number;
     student_notes: string | null;
     registrar_remarks: string | null;
     registrar_approved_by: { id: number; name: string; username: string | null } | null;
@@ -147,13 +149,14 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                             <TableHead>Flow</TableHead>
                                             <TableHead>Approvals</TableHead>
                                             <TableHead>Transfer Out Fee</TableHead>
+                                            <TableHead>Payment Progress</TableHead>
                                             <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {requests.data.length === 0 ? (
-                                            <TableRow><TableCell colSpan={7} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
+                                            <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
                                         ) : requests.data.map((item) => (
                                             <TableRow key={item.id}>
                                                 <TableCell>
@@ -219,6 +222,19 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                         </div>
                                                     ) : (
                                                         <span className="text-muted-foreground">Not set</span>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {item.transfer_fee_amount > 0 ? (
+                                                        <div className="space-y-1 text-xs">
+                                                            <div>Paid Online: <span className="font-semibold">{currency(item.transfer_online_paid_amount)}</span></div>
+                                                            <div>Balance Due: <span className={`font-semibold ${item.transfer_balance_due > 0 ? 'text-amber-700' : 'text-green-700'}`}>{currency(item.transfer_balance_due)}</span></div>
+                                                            <Badge className={item.transfer_balance_due <= 0 ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-amber-100 text-amber-800 border border-amber-200'}>
+                                                                {item.transfer_balance_due <= 0 ? 'Settled' : 'Awaiting Full Payment'}
+                                                            </Badge>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">N/A</span>
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{statusBadge(item.accounting_status)}</TableCell>
