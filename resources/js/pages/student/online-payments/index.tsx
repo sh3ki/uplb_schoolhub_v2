@@ -145,7 +145,7 @@ function formatDate(dateString: string): string {
     });
 }
 
-export default function OnlinePayment({ feeItems, summary, feeRecords, schoolYears, selectedSchoolYear, feeYearSummaries, recentPayments, paymentMethods, enrollmentStatus, isDropped = false, transferFee = null }: Props) {
+export default function OnlinePayment({ feeItems, summary, schoolYears, selectedSchoolYear, feeYearSummaries, recentPayments, paymentMethods, enrollmentStatus, isDropped = false, transferFee = null }: Props) {
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [viewerTitle, setViewerTitle] = useState('Payment Proof');
