@@ -339,6 +339,27 @@ class OnlinePaymentController extends Controller
                 ->sum('amount');
         }
 
+        $registrarCleared = (bool) optional($student->enrollmentClearance)->registrar_clearance;
+        if ($registrarCleared && ($totalFees <= 0 && $totalDiscount <= 0 && $totalPaid <= 0)) {
+            $feeItems = $this->getStudentFeeItems($student, $targetSchoolYear);
+            $totalFees = (float) collect($feeItems)->sum('amount');
+
+            $grantRecipients = $this->getGrantRecipientsForFeeYear($student, $targetSchoolYear);
+            $totalDiscount = 0.0;
+            foreach ($grantRecipients as $recipient) {
+                if ($recipient->grant) {
+                    $totalDiscount += $recipient->grant->calculateDiscount($totalFees);
+                }
+            }
+
+            $totalPaid = (float) StudentPayment::query()
+                ->where('student_id', $student->id)
+                ->whereHas('studentFee', function ($q) use ($targetSchoolYear) {
+                    $q->whereRaw('TRIM(school_year) = ?', [trim((string) $targetSchoolYear)]);
+                })
+                ->sum('amount');
+        }
+
         $balance = max(0, $totalFees - $totalDiscount - $totalPaid);
 
         return [
