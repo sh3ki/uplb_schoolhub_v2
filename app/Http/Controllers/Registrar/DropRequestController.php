@@ -9,6 +9,7 @@ use App\Models\FeeCategory;
 use App\Models\FeeItem;
 use App\Models\OnlineTransaction;
 use App\Models\Student;
+use App\Models\StudentActionLog;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
 use App\Models\TransferRequest;
@@ -114,7 +115,9 @@ class DropRequestController extends Controller
             'tab' => $tab,
             'filters' => $request->only(['search']),
             'dropFeeItems' => $dropFeeItems,
-            'dropRequestDeadline' => $dropSettings->drop_request_deadline?->format('Y-m-d'),
+            'dropRequestDeadline' => $dropSettings->drop_request_deadline
+                ? \Illuminate\Support\Carbon::parse($dropSettings->drop_request_deadline)->format('Y-m-d')
+                : null,
         ]);
     }
 
@@ -240,6 +243,9 @@ class DropRequestController extends Controller
 
     private function resetStudentFinancialLedger(Student $student): void
     {
+        $paymentCount = StudentPayment::where('student_id', $student->id)->count();
+        $onlineCount = OnlineTransaction::where('student_id', $student->id)->count();
+
         // Reset to clean enrollment billing state: remove historical payments/submissions, keep fee templates.
         OnlineTransaction::where('student_id', $student->id)->delete();
         StudentPayment::where('student_id', $student->id)->delete();
@@ -256,6 +262,18 @@ class DropRequestController extends Controller
         TransferRequest::where('student_id', $student->id)->update([
             'transfer_fee_paid' => false,
             'transfer_fee_or_number' => null,
+        ]);
+
+        StudentActionLog::create([
+            'student_id' => $student->id,
+            'performed_by' => Auth::id(),
+            'action' => 'Financial Ledger Reset on Reactivation',
+            'action_type' => 'status_change',
+            'details' => "Cleared {$paymentCount} payment(s) and {$onlineCount} online transaction(s) during drop reactivation.",
+            'changes' => [
+                'payments_cleared' => $paymentCount,
+                'online_transactions_cleared' => $onlineCount,
+            ],
         ]);
     }
 
