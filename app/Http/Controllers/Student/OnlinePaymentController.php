@@ -76,6 +76,16 @@ class OnlinePaymentController extends Controller
         // Get student's fee summary
         $summary = $this->getFeeSummary($student, $selectedSchoolYear);
 
+        $feeYearSummaries = $schoolYears
+            ->map(function ($year) use ($student) {
+                $yearKey = trim((string) $year);
+                return [
+                    'school_year' => $yearKey,
+                    ...$this->getFeeSummary($student, $yearKey),
+                ];
+            })
+            ->values();
+
         // Get recent online payments (paginated, latest first)
         $recentPayments = OnlineTransaction::where('student_id', $student->id)
             ->orderByDesc('created_at')
@@ -134,6 +144,7 @@ class OnlinePaymentController extends Controller
         return Inertia::render('student/online-payments/index', [
             'feeItems' => $feeItems,
             'summary' => $summary,
+            'feeYearSummaries' => $feeYearSummaries,
             'feeRecords' => $feeRecords->values(),
             'schoolYears' => $schoolYears->values(),
             'selectedSchoolYear' => $selectedSchoolYear,
