@@ -244,7 +244,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); approveForm.reset(); setApproveOpen(true); }}><ThumbsUp className="h-4 w-4 text-green-600" /></Button>
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); rejectForm.reset(); setRejectOpen(true); }}><ThumbsDown className="h-4 w-4 text-red-600" /></Button>
                                                         </div>
-                                                    ) : item.accounting_status === 'approved' && !item.transfer_fee_paid && item.transfer_fee_amount > 0 ? (
+                                                    ) : item.accounting_status === 'approved' && item.transfer_fee_amount > 0 && item.transfer_balance_due > 0 ? (
                                                         <Button size="sm" variant="outline" onClick={() => { setSelected(item); markPaidForm.reset(); setMarkPaidOpen(true); }}>
                                                             Mark Paid
                                                         </Button>
