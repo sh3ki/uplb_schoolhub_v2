@@ -417,7 +417,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                                         <TableCell className="text-right">
                                                             {req.accounting_status === 'pending' ? (
                                                                 <div className="flex justify-end gap-2 flex-wrap">
-                                                                    <Button
+                                                                    {/* <Button
                                                                         variant="outline"
                                                                         size="sm"
                                                                         className="text-blue-600 hover:text-blue-700"
@@ -429,7 +429,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                                                     >
                                                                         <Settings2 className="h-4 w-4 mr-1" />
                                                                         Set Fees
-                                                                    </Button>
+                                                                    </Button> */}
                                                                     <Button
                                                                         variant="outline"
                                                                         size="sm"
