@@ -341,13 +341,20 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         if (isAllSelection) {
             const totalFees = normalizedPaymentOptions.reduce((total, fee) => total + fee.total_amount, 0);
             const totalBalance = normalizedPaymentOptions.reduce((total, fee) => total + fee.balance, 0);
+            const latestSchoolYear = fees
+                .map((fee) => fee.school_year?.trim() || '')
+                .filter(Boolean)
+                .sort((a, b) => b.localeCompare(a))[0] || '';
+            const allPreviousBalance = fees
+                .filter((fee) => (fee.school_year?.trim() || '') < latestSchoolYear)
+                .reduce((total, fee) => total + fee.balance, 0);
 
             return {
                 total_fees: totalFees,
                 total_discount: summary.total_discount,
                 total_paid: summary.total_paid,
                 total_balance: totalBalance,
-                previous_balance: summary.previous_balance || 0,
+                previous_balance: allPreviousBalance,
                 current_fees_balance: totalBalance,
             };
         }
@@ -888,7 +895,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 </form>
                             </DialogContent>
                         </Dialog>
-                        <Dialog open={isAddBalanceDialogOpen} onOpenChange={setIsAddBalanceDialogOpen}>
+                        {/* Add Balance intentionally hidden per request. */}
+                        {/* <Dialog open={isAddBalanceDialogOpen} onOpenChange={setIsAddBalanceDialogOpen}>
                             <DialogTrigger asChild>
                                 <Button variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100">
                                     <Scale className="h-4 w-4 mr-2" />
@@ -989,7 +997,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     </DialogFooter>
                                 </form>
                             </DialogContent>
-                        </Dialog>
+                        </Dialog> */}
                     </div>
                     <Dialog open={isPaymentDialogOpen} onOpenChange={setIsPaymentDialogOpen}>
                         <DialogTrigger asChild>
@@ -1416,8 +1424,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         </CardContent>
                                     </Card>
 
-                                    {/* Payment Allocation Card */}
-                                    <Card>
+                                    {/* Payment Allocation disabled per request. */}
+                                    {/* <Card>
                                         <CardHeader>
                                             <CardTitle>Payment Allocation</CardTitle>
                                             <CardDescription>How the payment will be applied</CardDescription>
@@ -1448,7 +1456,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 )}
                                             </div>
                                         </CardContent>
-                                    </Card>
+                                    </Card> */}
                                 </div>
 
                                 {/* Right Column - Fee Summary & Actions */}
@@ -1519,8 +1527,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         </CardContent>
                                     </Card>
 
-                                    {/* Balance Adjustments History */}
-                                    {balanceAdjustments.length > 0 && (
+                                    {/* Balance Adjustments History disabled per request. */}
+                                    {/* {balanceAdjustments.length > 0 && (
                                         <Card>
                                             <CardHeader className="pb-3">
                                                 <CardTitle className="flex items-center gap-2 text-base">
@@ -1546,7 +1554,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 </div>
                                             </CardContent>
                                         </Card>
-                                    )}
+                                    )} */}
 
                                     {/* Action Button */}
                                     <Button 
@@ -1928,8 +1936,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                             </CardContent>
                         </Card>
 
-                        {/* Balance Adjustments */}
-                        <Card>
+                        {/* Balance Adjustments disabled per request. */}
+                        {/* <Card>
                             <CardHeader className="pb-3">
                                 <div className="flex items-center gap-2">
                                     <Scale className="h-5 w-5 text-amber-600" />
@@ -1986,7 +1994,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     </>
                                 )}
                             </CardContent>
-                        </Card>
+                        </Card> */}
 
                         {/* Grants & Discounts Applied */}
                         <Card>
