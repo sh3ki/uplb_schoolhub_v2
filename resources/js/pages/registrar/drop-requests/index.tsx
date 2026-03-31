@@ -586,7 +586,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                         </DialogHeader>
                         <div className="space-y-4 py-4">
                             {/* Fee Items Selection */}
-                            <div className="space-y-3">
+                            {/* <div className="space-y-3">
                                 <Label className="text-sm font-medium">Drop Fee Items</Label>
                                 {loadingFeeItems ? (
                                     <div className="border rounded-lg p-4 text-center text-sm text-muted-foreground">
@@ -628,7 +628,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                         No applicable drop fee items found for this student.
                                     </div>
                                 )}
-                            </div>
+                            </div> */}
 
                             <div className="space-y-2">
                                 <Label htmlFor="approve_remarks">Remarks (Optional)</Label>
