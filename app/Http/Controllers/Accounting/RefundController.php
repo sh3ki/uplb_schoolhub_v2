@@ -199,10 +199,11 @@ class RefundController extends Controller
                         'payment_date' => $processedAt->toDateString(),
                         'or_number' => 'RF-' . $refund->id,
                         'amount' => -abs((float) $refund->amount),
-                        'payment_for' => strtoupper((string) $refund->type) . ' approved',
+                        // Keep enum-safe payment_for value and move descriptive text to notes.
+                        'payment_for' => 'other',
                         'payment_mode' => 'REFUND',
                         'payment_method' => 'other',
-                        'notes' => $refund->accounting_notes ?: $refund->reason,
+                        'notes' => trim(strtoupper((string) $refund->type) . ' approved' . ' - ' . ($refund->accounting_notes ?: $refund->reason)),
                         'recorded_by' => Auth::id(),
                     ]);
 

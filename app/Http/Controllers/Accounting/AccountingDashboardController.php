@@ -648,7 +648,9 @@ class AccountingDashboardController extends Controller
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
-        $studentQ->where('enrollment_status', '!=', 'dropped');
+        if (!$isSuperAccounting) {
+            $studentQ->where('enrollment_status', '!=', 'dropped');
+        }
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }

@@ -18,6 +18,18 @@ import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-l
 type RequestItem = {
     id: number;
     reason: string;
+    new_school_name: string | null;
+    new_school_address: string | null;
+    receiving_contact_person: string | null;
+    receiving_contact_number: string | null;
+    months_stayed_enrolled: string | null;
+    subjects_completed: string | null;
+    incomplete_subjects: string | null;
+    has_pending_requirements: boolean;
+    pending_requirements_details: string | null;
+    requesting_documents: boolean;
+    requested_documents: string | null;
+    issued_items: string | null;
     status: 'pending' | 'approved' | 'rejected';
     registrar_status: 'pending' | 'approved' | 'rejected';
     accounting_status: 'pending' | 'approved' | 'rejected';
@@ -98,6 +110,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     const [approveOpen, setApproveOpen] = useState(false);
     const [rejectOpen, setRejectOpen] = useState(false);
     const [markPaidOpen, setMarkPaidOpen] = useState(false);
+    const [detailsOpen, setDetailsOpen] = useState(false);
 
     const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: true, or_number: '' });
     const rejectForm = useForm({ accounting_remarks: '' });
@@ -115,7 +128,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     return (
         <SuperAccountingLayout>
             <Head title="Transfer Requests" />
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-x-hidden">
                 <PageHeader title="Transfer Request Approvals" description="Super accounting oversight for transfer out requests." />
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -141,6 +154,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 <TabsTrigger value="rejected">Rejected ({stats.rejected})</TabsTrigger>
                             </TabsList>
                             <TabsContent value={activeTab} className="mt-4">
+                                <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -158,7 +172,14 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                         {requests.data.length === 0 ? (
                                             <TableRow><TableCell colSpan={8} className="text-center py-10 text-muted-foreground">No transfer requests found.</TableCell></TableRow>
                                         ) : requests.data.map((item) => (
-                                            <TableRow key={item.id}>
+                                            <TableRow
+                                                key={item.id}
+                                                className="cursor-pointer hover:bg-muted/40"
+                                                onClick={() => {
+                                                    setSelected(item);
+                                                    setDetailsOpen(true);
+                                                }}
+                                            >
                                                 <TableCell>
                                                     <div className="flex items-center gap-3">
                                                         <Avatar>
@@ -238,7 +259,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                     )}
                                                 </TableCell>
                                                 <TableCell>{statusBadge(item.accounting_status)}</TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                                     {item.accounting_status === 'pending' ? (
                                                         <div className="flex justify-end gap-2">
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); approveForm.reset(); setApproveOpen(true); }}><ThumbsUp className="h-4 w-4 text-green-600" /></Button>
@@ -256,10 +277,40 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                         ))}
                                     </TableBody>
                                 </Table>
+                                </div>
                             </TabsContent>
                         </Tabs>
                     </CardContent>
                 </Card>
+
+                <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Transfer Request Details</DialogTitle>
+                            <DialogDescription>
+                                Student-submitted details for transfer out request.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selected && (
+                            <div className="grid gap-2 text-sm">
+                                <div><strong>Reason:</strong> {selected.reason || '—'}</div>
+                                <div><strong>New School:</strong> {selected.new_school_name || '—'}</div>
+                                <div><strong>New School Address:</strong> {selected.new_school_address || '—'}</div>
+                                <div><strong>Receiving Contact Person:</strong> {selected.receiving_contact_person || '—'}</div>
+                                <div><strong>Receiving Contact Number:</strong> {selected.receiving_contact_number || '—'}</div>
+                                <div><strong>Months Stayed Enrolled:</strong> {selected.months_stayed_enrolled || '—'}</div>
+                                <div><strong>Subjects Completed:</strong> {selected.subjects_completed || '—'}</div>
+                                <div><strong>Incomplete Subjects:</strong> {selected.incomplete_subjects || '—'}</div>
+                                <div><strong>Has Pending Requirements:</strong> {selected.has_pending_requirements ? 'Yes' : 'No'}</div>
+                                <div><strong>Pending Requirements Details:</strong> {selected.pending_requirements_details || '—'}</div>
+                                <div><strong>Requesting Documents:</strong> {selected.requesting_documents ? 'Yes' : 'No'}</div>
+                                <div><strong>Requested Documents:</strong> {selected.requested_documents || '—'}</div>
+                                <div><strong>Issued Items:</strong> {selected.issued_items || '—'}</div>
+                                <div><strong>Student Notes:</strong> {selected.student_notes || '—'}</div>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
 
                 <Dialog open={approveOpen} onOpenChange={setApproveOpen}>
                     <DialogContent>

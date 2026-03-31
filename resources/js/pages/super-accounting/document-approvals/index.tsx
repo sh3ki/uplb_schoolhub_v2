@@ -316,6 +316,7 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                 <TableHead>Receipt</TableHead>
                                                 <TableHead className="text-right">Fee</TableHead>
                                                 <TableHead>Registrar</TableHead>
+                                                <TableHead>History</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
@@ -378,6 +379,25 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                                                 <p className="text-muted-foreground">
                                                                     {request.registrar_approved_at}
                                                                 </p>
+                                                            </div>
+                                                        </TableCell>
+                                                        <TableCell>
+                                                            <div className="space-y-1 text-xs">
+                                                                {request.registrar_approved_by && (
+                                                                    <div>
+                                                                        <span className="font-medium text-muted-foreground">Registrar:</span>{' '}
+                                                                        {request.registrar_approved_by.name}
+                                                                    </div>
+                                                                )}
+                                                                {request.accounting_approved_by && (
+                                                                    <div>
+                                                                        <span className="font-medium text-muted-foreground">Accounting:</span>{' '}
+                                                                        {request.accounting_approved_by.name}
+                                                                    </div>
+                                                                )}
+                                                                {request.accounting_approved_at && (
+                                                                    <div className="text-muted-foreground">{request.accounting_approved_at}</div>
+                                                                )}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>

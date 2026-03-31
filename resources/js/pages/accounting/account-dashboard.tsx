@@ -552,8 +552,8 @@ export default function AccountDashboard({
                                         <TableHead className="text-white">OR No.</TableHead>
                                         <TableHead className="text-white">Mode</TableHead>
                                         <TableHead className="text-white">Reference</TableHead>
-                                        <TableHead className="text-white">Processed By</TableHead>
                                         <TableHead className="text-white text-right">Amount</TableHead>
+                                        <TableHead className="text-white">Processed By</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -598,10 +598,10 @@ export default function AccountDashboard({
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>{tx.reference || 'N/A'}</TableCell>
-                                                <TableCell>{tx.processed_by || '—'}</TableCell>
                                                 <TableCell className="text-right font-semibold">
                                                     {formatCurrency(tx.amount)}
                                                 </TableCell>
+                                                <TableCell>{tx.processed_by || '—'}</TableCell>
                                             </TableRow>
                                         ))
                                     )}

@@ -140,7 +140,12 @@ class DashboardController extends Controller
 
         // If registrar is already cleared and student_fees has not been fully computed yet,
         // fall back to assignment-based fee calculation to avoid showing all zeros.
-        $registrarCleared = (bool) optional($student->enrollmentClearance)->registrar_clearance;
+        $clearance = optional($student->enrollmentClearance);
+        $registrarCleared = (bool) (
+            $clearance->registrar_clearance
+            || in_array((string) $clearance->enrollment_status, ['in_progress', 'completed'], true)
+            || in_array((string) $student->enrollment_status, ['pending-accounting', 'pending-enrollment', 'enrolled'], true)
+        );
         if ($registrarCleared && ($totalFees <= 0 && $totalDiscount <= 0 && $totalPaid <= 0 && $balance <= 0)) {
             $totalFees = $this->calculateAssignedFeeTotal($student, $targetSchoolYear);
             $totalDiscount = $this->calculateGrantDiscountForSchoolYear($student, $targetSchoolYear, $totalFees);

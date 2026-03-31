@@ -95,7 +95,9 @@ class StudentAccountController extends Controller
                 ->value('school_year');
 
             $targetSchoolYear = $selectedSchoolYear
-                ?: ($latestRecordedYear ?: ($currentAppYear ?: $student->school_year));
+                // Prefer registrar-assigned current student school year so previous-balance
+                // is immediately visible after promotion/new school year roll-over.
+                ?: ($student->school_year ?: ($latestRecordedYear ?: $currentAppYear));
 
             // Per-year data for metadata (is_overdue, due_date, student_fee_id, payments_count)
             $feeData = $this->calculateStudentFees($student, $targetSchoolYear);
