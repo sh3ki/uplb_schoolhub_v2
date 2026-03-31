@@ -255,6 +255,10 @@ class ReportsController extends Controller
                 /** @var \App\Models\StudentFee $fee */
                 $freshPaid = (float) $fee->payments()->sum('amount');
                 $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshPaid);
+                $previousBalance = (float) StudentFee::query()
+                    ->where('student_id', $fee->student_id)
+                    ->whereRaw('TRIM(school_year) != ?', [trim((string) $fee->school_year)])
+                    ->sum('balance');
                 $paymentStatus = $this->resolvePaymentStatus((float) $fee->total_amount, $freshPaid, $freshBalance);
                 return [
                     'student' => [
@@ -271,6 +275,7 @@ class ReportsController extends Controller
                     'school_year' => $fee->school_year,
                     'total_amount' => $fee->total_amount,
                     'total_paid' => $freshPaid,
+                    'previous_balance' => $previousBalance,
                     'balance' => $freshBalance,
                     'payment_status' => $paymentStatus,
                 ];
@@ -578,10 +583,14 @@ class ReportsController extends Controller
         $feeRows = StudentFee::query()
             ->with('payments:id,student_fee_id,amount')
             ->whereIn('student_id', $studentIds)
-            ->get()
+            ->get();
+
+        $feeRowsByStudentAndYear = $feeRows
             ->groupBy(function (StudentFee $fee) {
                 return $fee->student_id . '|' . trim((string) $fee->school_year);
             });
+
+        $feeRowsByStudent = $feeRows->groupBy('student_id');
 
         $transferCollectedByDepartment = OnlineTransaction::query()
             ->with('student:id,department_id,school_year')
@@ -608,18 +617,19 @@ class ReportsController extends Controller
             ->get();
 
         return $departments
-            ->map(function ($dept) use ($students, $feeRows, $forcedSchoolYear, $activeSchoolYear, $transferCollectedByDepartment) {
+            ->map(function ($dept) use ($students, $feeRowsByStudentAndYear, $feeRowsByStudent, $forcedSchoolYear, $activeSchoolYear, $transferCollectedByDepartment) {
                 $deptStudents = $students->where('department_id', $dept->id)->values();
 
                 $billed = 0.0;
                 $collected = 0.0;
                 $outstanding = 0.0;
+                $previousBalance = 0.0;
 
                 foreach ($deptStudents as $student) {
                     $targetSchoolYear = $forcedSchoolYear ?: ($student->school_year ?: $activeSchoolYear);
                     $key = $student->id . '|' . trim((string) $targetSchoolYear);
                     /** @var StudentFee|null $fee */
-                    $fee = $feeRows->get($key)?->first();
+                    $fee = $feeRowsByStudentAndYear->get($key)?->first();
                     if (!$fee) {
                         continue;
                     }
@@ -633,6 +643,11 @@ class ReportsController extends Controller
                     if ($balance > 0) {
                         $outstanding += $balance;
                     }
+
+                    $studentPreviousBalance = (float) ($feeRowsByStudent->get($student->id, collect())
+                        ->filter(fn(StudentFee $row) => trim((string) $row->school_year) !== trim((string) $targetSchoolYear))
+                        ->sum('balance'));
+                    $previousBalance += max(0, $studentPreviousBalance);
                 }
 
                 $collectionRate = $billed > 0 ? round(($collected / $billed) * 100, 1) : 0.0;
@@ -645,6 +660,7 @@ class ReportsController extends Controller
                     'students'        => $deptStudents->count(),
                     'billed'          => round($billed, 2),
                     'collected'       => round($collected, 2),
+                    'previous_balance'=> round($previousBalance, 2),
                     'balance'         => round($outstanding, 2),
                     'collection_rate' => $collectionRate,
                 ];
