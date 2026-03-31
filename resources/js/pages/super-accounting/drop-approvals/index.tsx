@@ -612,7 +612,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                         </p>
                                     )}
                                 </div>
-                                <div className="space-y-2">
+                                {/* <div className="space-y-2">
                                     <Label htmlFor="or_number">Official Receipt Number</Label>
                                     <Input
                                         id="or_number"
@@ -623,7 +623,7 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                     <p className="text-xs text-muted-foreground">
                                         Enter the official receipt number if payment was made at the cashier
                                     </p>
-                                </div>
+                                </div> */}
                                 <div className="space-y-2">
                                     <Label htmlFor="approve_remarks">Remarks (Optional)</Label>
                                     <Textarea
