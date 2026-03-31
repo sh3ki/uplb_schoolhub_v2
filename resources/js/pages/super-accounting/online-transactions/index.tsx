@@ -351,6 +351,7 @@ export default function OnlineTransactionsIndex({
                                 <TableHead>Payment For</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead>Status</TableHead>
+                                <TableHead>Verified</TableHead>
                                 <TableHead>Date</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -358,7 +359,7 @@ export default function OnlineTransactionsIndex({
                         <TableBody>
                             {transactions.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                                         No online transactions found.
                                     </TableCell>
                                 </TableRow>
@@ -392,6 +393,11 @@ export default function OnlineTransactionsIndex({
                                         </TableCell>
                                         <TableCell className="text-right font-medium">{formatCurrency(transaction.amount)}</TableCell>
                                         <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                                        <TableCell className="text-xs text-muted-foreground">
+                                            {(transaction.status === 'verified' || transaction.status === 'completed')
+                                                ? `${formatDateTime(transaction.verified_at)}${transaction.verified_by?.name ? ` by ${transaction.verified_by.name}` : ''}`
+                                                : '-'}
+                                        </TableCell>
                                         <TableCell>{formatDateTime(transaction.created_at)}</TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
