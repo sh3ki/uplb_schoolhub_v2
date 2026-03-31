@@ -49,6 +49,7 @@ interface Transaction {
     mode: string;
     reference: string | null;
     amount: number;
+    processed_by?: string | null;
     student_id?: number;
 }
 
@@ -503,12 +504,13 @@ export default function AccountDashboard({
                                         <TableHead className="text-white">Mode</TableHead>
                                         <TableHead className="text-white">Reference</TableHead>
                                         <TableHead className="text-white text-right">Amount</TableHead>
+                                        <TableHead className="text-white">Processed By</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {filteredTransactions.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                                                 No transactions found for the selected period.
                                             </TableCell>
                                         </TableRow>
@@ -549,6 +551,7 @@ export default function AccountDashboard({
                                                 <TableCell className="text-right font-semibold">
                                                     {formatCurrency(tx.amount)}
                                                 </TableCell>
+                                                <TableCell>{tx.processed_by || '—'}</TableCell>
                                             </TableRow>
                                         ))
                                     )}
