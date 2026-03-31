@@ -51,6 +51,7 @@ interface BalanceReport {
     school_year: string;
     total_amount: string;
     total_paid: string;
+    previous_balance: string;
     balance: string;
     payment_status: string;
 }
@@ -100,6 +101,7 @@ interface DepartmentRow {
     students: number;
     billed: number;
     collected: number;
+    previous_balance: number;
     balance: number;
     collection_rate: number;
 }
@@ -464,6 +466,7 @@ export default function AccountingReports({
                                     <div className="mb-3 flex justify-end gap-6 text-sm font-semibold">
                                         <span>Total Amount: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.total_amount || 0)), 0))}</span>
                                         <span className="text-green-600">Total Paid: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.total_paid || 0)), 0))}</span>
+                                        <span className="text-orange-600">Previous Balance: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.previous_balance || 0)), 0))}</span>
                                         <span className="text-red-600">Balance: {formatCurrency(balanceReport.reduce((sum, row) => sum + parseFloat(String(row.balance || 0)), 0))}</span>
                                     </div>
                                 )}
@@ -477,6 +480,7 @@ export default function AccountingReports({
                                                 <TableHead>School Year</TableHead>
                                                 <TableHead className="text-right">Total Amount</TableHead>
                                                 <TableHead className="text-right">Total Paid</TableHead>
+                                                <TableHead className="text-right">Previous Balance</TableHead>
                                                 <TableHead className="text-right">Balance</TableHead>
                                                 <TableHead>Status</TableHead>
                                             </TableRow>
@@ -484,7 +488,7 @@ export default function AccountingReports({
                                         <TableBody>
                                             {balanceReport.length === 0 ? (
                                                 <TableRow>
-                                                    <TableCell colSpan={8} className="h-24 text-center">
+                                                    <TableCell colSpan={9} className="h-24 text-center">
                                                         <div className="flex flex-col items-center justify-center gap-2">
                                                             <FileText className="h-8 w-8 text-muted-foreground" />
                                                             <p className="text-muted-foreground">
@@ -517,6 +521,9 @@ export default function AccountingReports({
                                                         </TableCell>
                                                         <TableCell className="text-right text-green-600">
                                                             {formatCurrency(record.total_paid)}
+                                                        </TableCell>
+                                                        <TableCell className="text-right text-orange-600 font-medium">
+                                                            {formatCurrency(record.previous_balance || 0)}
                                                         </TableCell>
                                                         <TableCell className="text-right font-semibold">
                                                             {formatCurrency(record.balance)}
@@ -764,6 +771,7 @@ export default function AccountingReports({
                                                     <TableHead className="text-right">Students</TableHead>
                                                     <TableHead className="text-right">Total Billed</TableHead>
                                                     <TableHead className="text-right">Collected</TableHead>
+                                                    <TableHead className="text-right">Previous Balance</TableHead>
                                                     <TableHead className="text-right">Outstanding</TableHead>
                                                     <TableHead>Collection Rate</TableHead>
                                                 </TableRow>
@@ -791,6 +799,7 @@ export default function AccountingReports({
                                                             <TableCell className="text-right">{d.students.toLocaleString()}</TableCell>
                                                             <TableCell className="text-right">{formatCurrency(d.billed)}</TableCell>
                                                             <TableCell className="text-right text-green-600 font-semibold">{formatCurrency(d.collected)}</TableCell>
+                                                            <TableCell className="text-right text-orange-600 font-semibold">{formatCurrency(d.previous_balance || 0)}</TableCell>
                                                             <TableCell className="text-right">
                                                                 <span className={d.balance > 0 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>
                                                                     {formatCurrency(d.balance)}
@@ -812,6 +821,7 @@ export default function AccountingReports({
                                         <div className="mt-4 flex flex-wrap justify-end gap-6 rounded-lg bg-muted p-3 text-sm font-semibold">
                                             <span>Billed: <span className="text-foreground">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.billed, 0))}</span></span>
                                             <span>Collected: <span className="text-green-600">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.collected, 0))}</span></span>
+                                            <span>Previous Balance: <span className="text-orange-600">{formatCurrency(departmentAnalysis.reduce((s, d) => s + (d.previous_balance || 0), 0))}</span></span>
                                             <span>Outstanding: <span className="text-red-500">{formatCurrency(departmentAnalysis.reduce((s, d) => s + d.balance, 0))}</span></span>
                                         </div>
                                     </>
