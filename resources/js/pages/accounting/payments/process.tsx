@@ -289,14 +289,23 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const activeSummary = useMemo(() => {
         if (isAllSelection) {
             const totalFees = normalizedPaymentOptions.reduce((total, fee) => total + fee.total_amount, 0);
+            const totalDiscount = fees.reduce((total, fee) => total + (fee.grant_discount || 0), 0);
+            const totalPaid = fees.reduce((total, fee) => total + (fee.total_paid || 0), 0);
             const totalBalance = normalizedPaymentOptions.reduce((total, fee) => total + fee.balance, 0);
+            const latestSchoolYear = fees
+                .map((fee) => fee.school_year?.trim() || '')
+                .filter(Boolean)
+                .sort((a, b) => b.localeCompare(a))[0] || '';
+            const allPreviousBalance = fees
+                .filter((fee) => (fee.school_year?.trim() || '') < latestSchoolYear)
+                .reduce((total, fee) => total + fee.balance, 0);
 
             return {
                 total_fees: totalFees,
-                total_discount: summary.total_discount,
-                total_paid: summary.total_paid,
+                total_discount: totalDiscount,
+                total_paid: totalPaid,
                 total_balance: totalBalance,
-                previous_balance: summary.previous_balance || 0,
+                previous_balance: allPreviousBalance,
                 current_fees_balance: totalBalance,
             };
         }
