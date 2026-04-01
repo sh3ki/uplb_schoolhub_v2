@@ -63,17 +63,14 @@ class AccountingDashboardController extends Controller
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
-            ->withoutTransferredOut()
-            ->withoutDropped()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
-            })
-            ->where(function ($q) use ($selectedSchoolYear) {
-                $q->where('school_year', $selectedSchoolYear)
-                    ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
+            ->where(function ($q) {
+                $q->whereHas('enrollmentClearance', function ($eq) {
+                    $eq->where(function ($sq) {
+                        $sq->where('registrar_clearance', true)
+                            ->orWhere('enrollment_status', 'completed');
+                    });
+                })
+                ->orWhere('enrollment_status', 'pending-accounting');
             })
             ->get(['id', 'school_year', 'department_id']);
 
@@ -282,7 +279,9 @@ class AccountingDashboardController extends Controller
             $fee = $feesByStudentYear->get($key)?->first();
 
             $totalAmount = (float) ($fee?->total_amount ?? 0);
-            $totalPaid = (float) ($fee ? $fee->payments->sum('amount') : 0);
+            $linkedPaid = (float) ($fee ? $fee->payments->sum('amount') : 0);
+            $unlinkedPaid = $this->getUnlinkedOnlineTransactionAmountForStudent($student, (string) $targetSchoolYear, $fallbackSchoolYear);
+            $totalPaid = $linkedPaid + $unlinkedPaid;
             $balance = max(0, $totalAmount - (float) ($fee?->grant_discount ?? 0) - $totalPaid);
 
             $snapshots[] = [
@@ -297,6 +296,22 @@ class AccountingDashboardController extends Controller
         }
 
         return $snapshots;
+    }
+
+    private function getUnlinkedOnlineTransactionAmountForStudent(Student $student, string $schoolYear, string $fallbackSchoolYear): float
+    {
+        $normalizedSchoolYear = trim((string) $schoolYear);
+        $billingYear = trim((string) ($student->school_year ?: $fallbackSchoolYear));
+
+        if ($normalizedSchoolYear === '' || $billingYear === '' || $normalizedSchoolYear !== $billingYear) {
+            return 0.0;
+        }
+
+        return (float) OnlineTransaction::query()
+            ->where('student_id', $student->id)
+            ->whereNull('student_payment_id')
+            ->whereIn('status', ['completed', 'verified'])
+            ->sum('amount');
     }
 
     /**
