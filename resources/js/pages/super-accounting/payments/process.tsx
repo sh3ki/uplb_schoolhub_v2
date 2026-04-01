@@ -283,7 +283,7 @@ function renderPesoAmount(amount: number | null, className = '') {
     );
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, currentSchoolYear = '', cashiers = [], balanceAdjustments, paymentFeeOptions = [], feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, cashiers = [], balanceAdjustments, paymentFeeOptions = [], feeEditRows = [], enrollmentClearance = null, currentUser }: Props) {
     const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
     const [isPromissoryDialogOpen, setIsPromissoryDialogOpen] = useState(false);
     const [isAddBalanceDialogOpen, setIsAddBalanceDialogOpen] = useState(false);
