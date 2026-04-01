@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Models\OnlineTransaction;
+use App\Models\RefundRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -379,6 +380,18 @@ class OnlineTransactionController extends Controller
             }
 
             $transaction->refund($validated['remarks'] ?? null);
+
+            RefundRequest::create([
+                'student_id' => $transaction->student_id,
+                'student_fee_id' => $linkedPayment?->student_fee_id,
+                'type' => 'refund',
+                'amount' => abs((float) $transaction->amount),
+                'reason' => 'Online transaction refund: ' . $transaction->transaction_id,
+                'status' => 'approved',
+                'processed_by' => Auth::id(),
+                'processed_at' => now(),
+                'accounting_notes' => $validated['remarks'] ?? null,
+            ]);
 
             if ($this->isTransferFeeTransaction($transaction)) {
                 $transferRequest = $this->resolveTransferRequestFromTransaction($transaction);
