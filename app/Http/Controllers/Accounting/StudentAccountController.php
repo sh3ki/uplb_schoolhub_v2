@@ -56,13 +56,14 @@ class StudentAccountController extends Controller
 
         // Get students with enrollment clearance (registrar-cleared, in accounting queue or beyond)
         $studentsQuery = Student::with(['department'])
-            ->withoutTransferredOut()
-            ->withoutDropped()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->whereHas('enrollmentClearance', function ($eq) {
+                    $eq->where(function ($sq) {
+                        $sq->where('registrar_clearance', true)
+                            ->orWhere('enrollment_status', 'completed');
+                    });
+                })
+                ->orWhere('enrollment_status', 'pending-accounting');
             });
 
         // Search
@@ -161,19 +162,20 @@ class StudentAccountController extends Controller
         );
 
         // Calculate stats dynamically
-        $allStudentIds = Student::whereHas('enrollmentClearance', function ($q) {
-            $q->where(function ($sq) {
-                $sq->where('registrar_clearance', true)
-                    ->orWhere('enrollment_status', 'completed');
-            });
+        $allStudentIds = Student::where(function ($q) {
+            $q->whereHas('enrollmentClearance', function ($eq) {
+                $eq->where(function ($sq) {
+                    $sq->where('registrar_clearance', true)
+                        ->orWhere('enrollment_status', 'completed');
+                });
+            })
+            ->orWhere('enrollment_status', 'pending-accounting');
         })
-        ->withoutTransferredOut()
-        ->withoutDropped()
-        ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
-        ->when($request->input('classification'), function ($q, $classification) {
-            $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
-        })
-        ->pluck('id');
+            ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
+            ->when($request->input('classification'), function ($q, $classification) {
+                $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+            })
+            ->pluck('id');
 
         $stats = $this->calculateStats($allStudentIds, $selectedSchoolYear);
 
@@ -205,13 +207,14 @@ class StudentAccountController extends Controller
             });
 
         $classListBase = Student::whereNull('deleted_at')
-            ->withoutTransferredOut()
-            ->withoutDropped()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->whereHas('enrollmentClearance', function ($eq) {
+                    $eq->where(function ($sq) {
+                        $sq->where('registrar_clearance', true)
+                            ->orWhere('enrollment_status', 'completed');
+                    });
+                })
+                ->orWhere('enrollment_status', 'pending-accounting');
             })
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
@@ -793,12 +796,14 @@ class StudentAccountController extends Controller
 
         // Build the same eligible-students base query as the index
         $studentsQuery = Student::with(['department'])
-            ->withoutTransferredOut()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->whereHas('enrollmentClearance', function ($eq) {
+                    $eq->where(function ($sq) {
+                        $sq->where('registrar_clearance', true)
+                            ->orWhere('enrollment_status', 'completed');
+                    });
+                })
+                ->orWhere('enrollment_status', 'pending-accounting');
             });
 
         if ($classification = $request->classification) {
