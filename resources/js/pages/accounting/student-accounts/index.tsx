@@ -168,7 +168,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     const basePath = `/${routePrefix}`;
     const AccountsLayout = routePrefix === 'owner' ? OwnerLayout : AccountingLayout;
 
-    const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>(filters.status ? 'accounts' : 'classlist');
+    const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>('accounts');
     const [search, setSearch] = useState(filters.search || '');
     const [activeTab, setActiveTab] = useState(filters.status || 'all');
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
