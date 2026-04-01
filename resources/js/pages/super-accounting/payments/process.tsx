@@ -432,6 +432,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         };
     }, [amountReceived, activeSummary]);
 
+    const feesWithBalance = useMemo(() => fees.filter((fee) => fee.balance > 0), [fees]);
+
     const paymentForm = useForm({
         student_id: student.id.toString(),
         student_fee_id: '',
