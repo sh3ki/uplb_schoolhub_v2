@@ -2,7 +2,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, MoreHorizontal, Users, TrendingUp, Clock, Plus, Upload, CreditCard, List } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -170,16 +170,12 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
 
     const [viewMode, setViewMode] = useState<'accounts' | 'classlist'>('accounts');
     const [search, setSearch] = useState(filters.search || '');
-    const [activeTab, setActiveTab] = useState(filters.status || 'all');
+    const activeTab = filters.status || 'all';
     const [schoolYear, setSchoolYear] = useState(filters.school_year || 'all');
     const [schoolYearSort, setSchoolYearSort] = useState<'asc' | 'desc'>(filters.sort_school_year || 'desc');
     const [departmentId, setDepartmentId] = useState(filters.department_id || 'all');
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [isOverdueDialogOpen, setIsOverdueDialogOpen] = useState(false);
-
-    useEffect(() => {
-        setActiveTab(filters.status || 'all');
-    }, [filters.status]);
 
     const overdueForm = useForm({
         classification: 'all',
@@ -205,7 +201,6 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     };
 
     const handleTabChange = (value: string) => {
-        setActiveTab(value);
         router.get(`${basePath}/student-accounts`, {
             search: search || undefined,
             status: value !== 'all' ? value : undefined,
@@ -221,7 +216,6 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
 
     const handleReset = () => {
         setSearch('');
-        setActiveTab('all');
         setSchoolYear('all');
         setSchoolYearSort('desc');
         setDepartmentId('all');
