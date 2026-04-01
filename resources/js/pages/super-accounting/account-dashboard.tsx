@@ -17,6 +17,13 @@ import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -41,7 +48,7 @@ interface FilterOption {
 }
 
 interface Transaction {
-    id: number;
+    id: number | string;
     date: string;
     time: string;
         type: 'Fee' | 'Document' | 'Drop' | 'Transfer';
@@ -185,6 +192,7 @@ export default function AccountDashboard({
     const [txSearch, setTxSearch] = useState('');
     const [txType, setTxType]     = useState('');
     const [txMode, setTxMode]     = useState('');
+    const [selectedTransferTx, setSelectedTransferTx] = useState<Transaction | null>(null);
 
     const filteredTransactions = (transactions || []).filter((tx) => {
         if (txSearch && !tx.or_number?.toLowerCase().includes(txSearch.toLowerCase())) return false;
@@ -524,6 +532,11 @@ export default function AccountDashboard({
                                                         return;
                                                     }
 
+                                                    if (tx.type === 'Transfer') {
+                                                        setSelectedTransferTx(tx);
+                                                        return;
+                                                    }
+
                                                     router.visit(`/super-accounting/payments/process/${tx.student_id}?tab=transactions`);
                                                 }}
                                             >
@@ -560,6 +573,27 @@ export default function AccountDashboard({
                         </div>
                     </CardContent>
                 </Card>
+
+                <Dialog open={!!selectedTransferTx} onOpenChange={(open) => { if (!open) setSelectedTransferTx(null); }}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Transfer Transaction Details</DialogTitle>
+                            <DialogDescription>
+                                Transfer-out fee payment details from transaction history.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {selectedTransferTx && (
+                            <div className="space-y-2 text-sm">
+                                <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{selectedTransferTx.date}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{selectedTransferTx.time}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Reference No.</span><span className="font-mono">{selectedTransferTx.or_number || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Payment Mode</span><span className="font-medium">{selectedTransferTx.mode || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-violet-700">{formatCurrency(selectedTransferTx.amount)}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Processed By</span><span className="font-medium">{selectedTransferTx.processed_by || 'N/A'}</span></div>
+                            </div>
+                        )}
+                    </DialogContent>
+                </Dialog>
 
                 {/* Payment Summary by Mode */}
                 <Card>
