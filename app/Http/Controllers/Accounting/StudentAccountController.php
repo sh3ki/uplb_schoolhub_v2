@@ -58,11 +58,14 @@ class StudentAccountController extends Controller
         $studentsQuery = Student::with(['department'])
             ->withoutTransferredOut()
             ->withoutDropped()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->where('enrollment_status', 'pending-accounting')
+                    ->orWhereHas('enrollmentClearance', function ($clearanceQuery) {
+                        $clearanceQuery->where(function ($sq) {
+                            $sq->where('registrar_clearance', true)
+                                ->orWhere('enrollment_status', 'completed');
+                        });
+                    });
             });
 
         // Search
@@ -161,12 +164,15 @@ class StudentAccountController extends Controller
         );
 
         // Calculate stats dynamically
-        $allStudentIds = Student::whereHas('enrollmentClearance', function ($q) {
-            $q->where(function ($sq) {
-                $sq->where('registrar_clearance', true)
-                    ->orWhere('enrollment_status', 'completed');
+        $allStudentIds = Student::where(function ($q) {
+            $q->where('enrollment_status', 'pending-accounting')
+                ->orWhereHas('enrollmentClearance', function ($clearanceQuery) {
+                    $clearanceQuery->where(function ($sq) {
+                        $sq->where('registrar_clearance', true)
+                            ->orWhere('enrollment_status', 'completed');
+                    });
+                });
             });
-        })
         ->withoutTransferredOut()
         ->withoutDropped()
         ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
@@ -207,11 +213,14 @@ class StudentAccountController extends Controller
         $classListBase = Student::whereNull('deleted_at')
             ->withoutTransferredOut()
             ->withoutDropped()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->where('enrollment_status', 'pending-accounting')
+                    ->orWhereHas('enrollmentClearance', function ($clearanceQuery) {
+                        $clearanceQuery->where(function ($sq) {
+                            $sq->where('registrar_clearance', true)
+                                ->orWhere('enrollment_status', 'completed');
+                        });
+                    });
             })
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
@@ -794,11 +803,14 @@ class StudentAccountController extends Controller
         // Build the same eligible-students base query as the index
         $studentsQuery = Student::with(['department'])
             ->withoutTransferredOut()
-            ->whereHas('enrollmentClearance', function ($q) {
-                $q->where(function ($sq) {
-                    $sq->where('registrar_clearance', true)
-                        ->orWhere('enrollment_status', 'completed');
-                });
+            ->where(function ($q) {
+                $q->where('enrollment_status', 'pending-accounting')
+                    ->orWhereHas('enrollmentClearance', function ($clearanceQuery) {
+                        $clearanceQuery->where(function ($sq) {
+                            $sq->where('registrar_clearance', true)
+                                ->orWhere('enrollment_status', 'completed');
+                        });
+                    });
             });
 
         if ($classification = $request->classification) {
