@@ -2,7 +2,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { Link } from '@inertiajs/react';
 import { AlertTriangle, Eye, MoreHorizontal, Users, TrendingUp, Clock, Plus, Upload, CreditCard, List } from 'lucide-react';
 import { PhilippinePeso } from '@/components/icons/philippine-peso';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { SearchBar } from '@/components/filters/search-bar';
@@ -169,6 +169,10 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     const [departmentId, setDepartmentId] = useState(filters.department_id || 'all');
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [isOverdueDialogOpen, setIsOverdueDialogOpen] = useState(false);
+
+    useEffect(() => {
+        setActiveTab(filters.status || 'all');
+    }, [filters.status]);
 
     const overdueForm = useForm({
         classification: 'all',
