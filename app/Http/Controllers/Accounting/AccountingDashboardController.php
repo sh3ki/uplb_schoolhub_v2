@@ -63,21 +63,19 @@ class AccountingDashboardController extends Controller
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
+            ->withoutTransferredOut()
             ->withoutDropped()
+            ->whereHas('enrollmentClearance', function ($q) {
+                $q->where(function ($sq) {
+                    $sq->where('registrar_clearance', true)
+                        ->orWhere('enrollment_status', 'completed');
+                });
+            })
             ->where(function ($q) use ($selectedSchoolYear) {
                 $q->where('school_year', $selectedSchoolYear)
                     ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
             })
             ->get(['id', 'school_year', 'department_id']);
-
-        if ($eligibleStudents->isEmpty()) {
-            // Fallback to avoid empty dashboards when student profile year is stale but ledgers exist.
-            $eligibleStudents = Student::query()
-                ->with('department:id,name')
-                ->withoutDropped()
-                ->whereHas('fees')
-                ->get(['id', 'school_year', 'department_id']);
-        }
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
         $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, $selectedSchoolYear, $currentSchoolYear);
