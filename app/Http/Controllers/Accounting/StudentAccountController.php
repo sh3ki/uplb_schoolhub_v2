@@ -250,6 +250,45 @@ class StudentAccountController extends Controller
             ];
         }
 
+        $normalizedSchoolYear = trim((string) $schoolYear);
+
+        $existingStudentFee = StudentFee::where('student_id', $student->id)
+            ->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
+            ->first();
+
+        // Preserve manually edited or posted ledgers.
+        if ($existingStudentFee && ($existingStudentFee->payments()->exists() || $existingStudentFee->processed_by !== null)) {
+            $totalAmount = (float) $existingStudentFee->total_amount;
+            $grantDiscount = (float) $existingStudentFee->grant_discount;
+            $totalPaid = (float) $existingStudentFee->payments()->sum('amount');
+            $totalPaid += $this->getUnlinkedOnlineTransactionAmount($student, $normalizedSchoolYear);
+            $balance = max(0, $totalAmount - $grantDiscount - $totalPaid);
+
+            if ((float) $existingStudentFee->total_paid !== $totalPaid
+                || (float) $existingStudentFee->balance !== $balance) {
+                $existingStudentFee->total_paid = $totalPaid;
+                $existingStudentFee->balance = $balance;
+                $existingStudentFee->save();
+            }
+
+            $isOverdue = (bool) ($existingStudentFee->is_overdue && $balance > 0);
+            $paymentStatus = $balance <= 0
+                ? 'paid'
+                : ($isOverdue ? 'overdue' : ($totalPaid > 0 ? 'partial' : 'unpaid'));
+
+            return [
+                'student_fee_id' => $existingStudentFee->id,
+                'total_amount' => $totalAmount,
+                'grant_discount' => $grantDiscount,
+                'total_paid' => $totalPaid,
+                'balance' => $balance,
+                'is_overdue' => $isOverdue,
+                'due_date' => $existingStudentFee->due_date,
+                'payment_status' => $paymentStatus,
+                'payments_count' => $existingStudentFee->payments()->count(),
+            ];
+        }
+
         $templateYear = $this->resolveFeeTemplateYear($student, $schoolYear);
 
         // Calculate total from applicable fee items (exclude Drop category - those are only charged via drop requests).
@@ -327,7 +366,7 @@ class StudentAccountController extends Controller
 
         // Get payment info from student_fees (if exists)
         $studentFee = StudentFee::where('student_id', $student->id)
-            ->where('school_year', $schoolYear)
+            ->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
             ->first();
 
         $totalPaid = $studentFee ? (float) $studentFee->payments()->sum('amount') : 0;
