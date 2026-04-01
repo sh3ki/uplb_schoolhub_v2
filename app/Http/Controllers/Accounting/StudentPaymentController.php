@@ -1902,8 +1902,6 @@ class StudentPaymentController extends Controller
                 ],
                 'total_amount' => 'required|numeric|min:0',
                 'grant_discount' => 'required|numeric|min:0',
-                'total_paid' => 'required|numeric|min:0',
-                'balance' => 'required|numeric|min:0',
                 'status' => 'required|in:unpaid,partial,paid,overdue',
                 'reason' => 'required|string|max:500',
             ]);
@@ -1920,12 +1918,28 @@ class StudentPaymentController extends Controller
             ];
 
             $fee->school_year = $validated['school_year'];
-            $fee->total_amount = (float) $validated['total_amount'];
-            $fee->grant_discount = (float) $validated['grant_discount'];
-            $fee->total_paid = (float) $validated['total_paid'];
-            $fee->balance = (float) $validated['balance'];
-            $fee->payment_status = $validated['status'];
-            $fee->is_overdue = $validated['status'] === 'overdue';
+            $fee->total_amount = number_format((float) $validated['total_amount'], 2, '.', '');
+            $fee->grant_discount = number_format((float) $validated['grant_discount'], 2, '.', '');
+
+            $freshTotalPaid = (float) $fee->payments()->sum('amount')
+                + $this->getUnlinkedOnlineTransactionAmount($student, $validated['school_year']);
+            $freshBalance = max(0, (float) $fee->total_amount - (float) $fee->grant_discount - $freshTotalPaid);
+
+            $resolvedStatus = $validated['status'];
+            if ($freshBalance <= 0) {
+                $resolvedStatus = 'paid';
+            } elseif ($resolvedStatus === 'overdue') {
+                $resolvedStatus = 'overdue';
+            } elseif ($resolvedStatus === 'partial') {
+                $resolvedStatus = $freshTotalPaid > 0 ? 'partial' : 'unpaid';
+            } else {
+                $resolvedStatus = 'unpaid';
+            }
+
+            $fee->total_paid = number_format($freshTotalPaid, 2, '.', '');
+            $fee->balance = number_format($freshBalance, 2, '.', '');
+            $fee->payment_status = $resolvedStatus;
+            $fee->is_overdue = $resolvedStatus === 'overdue';
             $fee->processed_by = $request->user()->id;
             $fee->processed_at = now();
 
@@ -1955,7 +1969,7 @@ class StudentPaymentController extends Controller
                         'grant_discount' => (float) $fee->grant_discount,
                         'total_paid' => (float) $fee->total_paid,
                         'balance' => (float) $fee->balance,
-                        'status' => (string) $fee->payment_status,
+                        'status' => (string) $resolvedStatus,
                         'processed_by' => $request->user()->name,
                         'processed_at' => $fee->processed_at?->toDateTimeString(),
                     ],
