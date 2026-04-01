@@ -165,7 +165,13 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
     });
 
     const selectedFeeSummary = feeYearSummaries.find((fee) => fee.school_year === form.data.school_year);
-    const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected' && transferFee.amount > 0;
+    const rawTransferFeeBalance = transferFee
+        ? Math.max(0, transferFee.balance ?? (transferFee.amount - (transferFee.paid_amount || 0)))
+        : 0;
+    const hasTransferFeeFlow = !!transferFee
+        && transferFee.registrar_status === 'approved'
+        && transferFee.accounting_status !== 'rejected'
+        && rawTransferFeeBalance > 0;
 
     // Keep payload aligned with UI mode so transfer submissions are always tagged correctly.
     useEffect(() => {
@@ -174,7 +180,7 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
     }, [hasTransferFeeFlow]);
     const transferTotalFees = hasTransferFeeFlow ? Math.max(0, transferFee.amount) : 0;
     const transferTotalPaid = hasTransferFeeFlow ? Math.max(0, transferFee.paid_amount || 0) : 0;
-    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.balance ?? (transferTotalFees - transferTotalPaid)) : 0;
+    const transferFeeBalance = hasTransferFeeFlow ? rawTransferFeeBalance : 0;
     const summaryTotalFees = hasTransferFeeFlow ? transferTotalFees : (selectedFeeSummary?.total_fees ?? summary.total_fees);
     const summaryTotalDiscount = hasTransferFeeFlow ? 0 : (selectedFeeSummary?.total_discount ?? summary.total_discount);
     const summaryTotalPaid = hasTransferFeeFlow ? transferTotalPaid : (selectedFeeSummary?.total_paid ?? summary.total_paid);
