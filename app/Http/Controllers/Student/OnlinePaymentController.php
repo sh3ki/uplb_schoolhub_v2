@@ -127,6 +127,9 @@ class OnlinePaymentController extends Controller
         }
 
         $transferFeeAmount = (float) ($latestTransferRequest?->transfer_fee_amount ?? 0);
+        if ($latestTransferRequest && (bool) $latestTransferRequest->transfer_fee_paid) {
+            $transferFeePaidAmount = max($transferFeePaidAmount, $transferFeeAmount);
+        }
         $transferFeeBalance = max(0, $transferFeeAmount - $transferFeePaidAmount);
 
         $transferFee = $latestTransferRequest ? [
