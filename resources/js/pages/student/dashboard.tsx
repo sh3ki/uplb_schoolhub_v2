@@ -62,6 +62,8 @@ interface TransferFee {
     registrar_status: string;
     accounting_status: string;
     amount: number;
+    paid_amount?: number;
+    balance?: number;
     paid: boolean;
     or_number: string | null;
     registrar_remarks: string | null;
@@ -122,8 +124,14 @@ export default function Dashboard({ student, currentSchoolYear, stats, enrollmen
     const totalPreviousBalance = safePreviousBalances.reduce((sum, b) => sum + b.balance, 0);
     const currentBalance = paymentInfo?.balance || 0;
     const totalAllBalance = currentBalance + totalPreviousBalance;
-    const hasTransferFeeFlow = !!transferFee && transferFee.registrar_status === 'approved' && transferFee.accounting_status !== 'rejected';
-    const transferFeeBalance = hasTransferFeeFlow ? Math.max(0, transferFee.amount || 0) : 0;
+    const rawTransferFeeBalance = transferFee
+        ? Math.max(0, transferFee.balance ?? (transferFee.paid ? 0 : (transferFee.amount || 0)))
+        : 0;
+    const hasTransferFeeFlow = !!transferFee
+        && transferFee.registrar_status === 'approved'
+        && transferFee.accounting_status !== 'rejected'
+        && rawTransferFeeBalance > 0;
+    const transferFeeBalance = hasTransferFeeFlow ? rawTransferFeeBalance : 0;
     const showTransferFeeOnly = hasTransferFeeFlow && transferFeeBalance > 0;
 
     return (
