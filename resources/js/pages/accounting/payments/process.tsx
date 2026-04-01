@@ -223,7 +223,7 @@ function renderPesoAmount(amount: number | null, className = '') {
     );
 }
 
-export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, currentSchoolYear = '', paymentFeeOptions = [], cashiers = [], enrollmentClearance = null, currentUser }: Props) {
+export default function PaymentProcess({ student, fees, payments, promissoryNotes, grants, summary, paymentFeeOptions = [], cashiers = [], enrollmentClearance = null, currentUser }: Props) {
     const page = usePage();
     const currentPath = page.url || '';
     const routePrefix = currentPath.startsWith('/owner/') ? 'owner' : 'accounting';
@@ -261,17 +261,9 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         .slice()
         .sort((a, b) => b.school_year.localeCompare(a.school_year));
 
-    const feesWithBalance = normalizedPaymentOptions.filter(f => f.balance > 0);
-
-    const currentYearOption = normalizedPaymentOptions.find(
-        (fee) => fee.school_year.trim() === currentSchoolYear.trim()
-    );
-
-    const defaultSelectedFeeId = (
-        currentYearOption
-        ?? feesWithBalance[0]
-        ?? normalizedPaymentOptions[0]
-    )?.id?.toString() ?? '';
+    const defaultSelectedFeeId = normalizedPaymentOptions.length > 0
+        ? 'all'
+        : '';
 
     const [selectedFeeId, setSelectedFeeId] = useState<string>(
         defaultSelectedFeeId
@@ -843,7 +835,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-6 gap-4 text-center">
+                            <div className="grid grid-cols-5 gap-4 text-center">
                                 <div>
                                     <p className="text-sm text-muted-foreground">Total Fees</p>
                                     <p className="text-lg font-semibold">{formatCurrency(activeSummary.total_fees)}</p>
@@ -859,10 +851,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 <div>
                                     <p className="text-sm text-muted-foreground">Balance</p>
                                     <p className="text-lg font-semibold text-red-600">{formatCurrency(activeSummary.total_balance)}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-muted-foreground">Previous Balance</p>
-                                    <p className="text-lg font-semibold text-orange-600">{formatCurrency(activeSummary.previous_balance || 0)}</p>
                                 </div>
                                 <div className="flex flex-col items-center gap-1">
                                     <p className="text-sm text-muted-foreground">Clearance</p>
