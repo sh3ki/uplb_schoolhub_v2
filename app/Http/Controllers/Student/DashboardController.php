@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FeeItem;
 use App\Models\FeeItemAssignment;
 use App\Models\GrantRecipient;
+use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
@@ -54,16 +55,44 @@ class DashboardController extends Controller
             ->orderByDesc('created_at')
             ->first();
 
-        $transferFee = $latestTransferRequest ? [
-            'status' => $latestTransferRequest->status,
-            'registrar_status' => $latestTransferRequest->registrar_status,
-            'accounting_status' => $latestTransferRequest->accounting_status,
-            'amount' => (float) $latestTransferRequest->transfer_fee_amount,
-            'paid' => (bool) $latestTransferRequest->transfer_fee_paid,
-            'or_number' => $latestTransferRequest->transfer_fee_or_number,
-            'registrar_remarks' => $latestTransferRequest->registrar_remarks,
-            'accounting_remarks' => $latestTransferRequest->accounting_remarks,
-        ] : null;
+        $transferFee = null;
+        if ($latestTransferRequest) {
+            $linkedTransferPaid = (float) OnlineTransaction::query()
+                ->where('transfer_request_id', $latestTransferRequest->id)
+                ->whereIn('status', ['completed', 'verified'])
+                ->sum('amount');
+
+            $fallbackTransferPaid = (float) OnlineTransaction::query()
+                ->where('student_id', $student->id)
+                ->whereNull('transfer_request_id')
+                ->where(function ($q) use ($latestTransferRequest) {
+                    $q->where('payment_context', 'transfer_out_fee')
+                        ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%')
+                        ->orWhere('remarks', 'like', '%[TransferRequest: ' . $latestTransferRequest->id . ']%');
+                })
+                ->whereIn('status', ['completed', 'verified'])
+                ->sum('amount');
+
+            $transferFeeAmount = (float) $latestTransferRequest->transfer_fee_amount;
+            $transferFeePaidAmount = $linkedTransferPaid + $fallbackTransferPaid;
+            if ((bool) $latestTransferRequest->transfer_fee_paid) {
+                $transferFeePaidAmount = max($transferFeePaidAmount, $transferFeeAmount);
+            }
+            $transferFeeBalance = max(0, $transferFeeAmount - $transferFeePaidAmount);
+
+            $transferFee = [
+                'status' => $latestTransferRequest->status,
+                'registrar_status' => $latestTransferRequest->registrar_status,
+                'accounting_status' => $latestTransferRequest->accounting_status,
+                'amount' => $transferFeeAmount,
+                'paid_amount' => $transferFeePaidAmount,
+                'balance' => $transferFeeBalance,
+                'paid' => (bool) $latestTransferRequest->transfer_fee_paid || $transferFeeBalance <= 0,
+                'or_number' => $latestTransferRequest->transfer_fee_or_number,
+                'registrar_remarks' => $latestTransferRequest->registrar_remarks,
+                'accounting_remarks' => $latestTransferRequest->accounting_remarks,
+            ];
+        }
 
         // Get previous school year balances
         $previousBalances = $this->getPreviousSchoolYearBalances($student, $targetSchoolYear);
