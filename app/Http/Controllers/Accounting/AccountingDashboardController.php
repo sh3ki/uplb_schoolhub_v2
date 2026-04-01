@@ -265,6 +265,8 @@ class AccountingDashboardController extends Controller
         $feesByStudentYear = StudentFee::query()
             ->with('payments:id,student_fee_id,amount')
             ->whereIn('student_id', $studentIds)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
             ->get()
             ->groupBy(function (StudentFee $fee) {
                 return $fee->student_id . '|' . trim((string) $fee->school_year);
