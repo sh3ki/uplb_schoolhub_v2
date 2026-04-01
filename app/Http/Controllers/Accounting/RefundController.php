@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
+use App\Models\OnlineTransaction;
 use App\Models\RefundRequest;
 use App\Models\Student;
 use App\Models\StudentFee;
@@ -22,6 +23,8 @@ class RefundController extends Controller
      */
     public function index(Request $request): Response
     {
+        $this->reconcileRefundedOnlineTransactions();
+
         $query = RefundRequest::with([
             'student:id,first_name,last_name,lrn,student_photo_url,program,year_level',
             'studentFee:id,school_year,total_amount,total_paid,balance',
@@ -87,6 +90,47 @@ class RefundController extends Controller
             'tab'     => $status,
             'filters' => $request->only(['search', 'status', 'type']),
         ]);
+    }
+
+    /**
+     * Ensure refunded online transactions are mirrored in refund_requests so
+     * accounting refund views/tabs remain complete even for legacy rows.
+     */
+    private function reconcileRefundedOnlineTransactions(): void
+    {
+        OnlineTransaction::query()
+            ->with(['payment:id,student_fee_id', 'student:id'])
+            ->where('status', 'refunded')
+            ->chunkById(100, function ($transactions) {
+                foreach ($transactions as $transaction) {
+                    $reason = 'Online transaction refund: ' . $transaction->transaction_id;
+
+                    $exists = RefundRequest::query()
+                        ->where('student_id', $transaction->student_id)
+                        ->where('type', 'refund')
+                        ->where(function ($q) use ($reason, $transaction) {
+                            $q->where('reason', $reason)
+                                ->orWhere('reason', 'like', '%' . $transaction->transaction_id . '%');
+                        })
+                        ->exists();
+
+                    if ($exists) {
+                        continue;
+                    }
+
+                    RefundRequest::create([
+                        'student_id' => $transaction->student_id,
+                        'student_fee_id' => $transaction->payment?->student_fee_id,
+                        'type' => 'refund',
+                        'amount' => abs((float) $transaction->amount),
+                        'reason' => $reason,
+                        'status' => 'approved',
+                        'processed_by' => $transaction->verified_by,
+                        'processed_at' => $transaction->verified_at ?? now(),
+                        'accounting_notes' => 'Auto-synced from refunded online transaction.',
+                    ]);
+                }
+            });
     }
 
     /**
