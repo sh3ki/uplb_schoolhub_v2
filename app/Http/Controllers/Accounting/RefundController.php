@@ -201,6 +201,7 @@ class RefundController extends Controller
                         'amount' => -abs((float) $refund->amount),
                         // Keep enum-safe payment_for value and move descriptive text to notes.
                         'payment_for' => 'other',
+                        'payment_mode' => 'CASH',
                         'payment_method' => 'cash',
                         'notes' => trim(strtoupper((string) $refund->type) . ' approved' . ' - ' . ($refund->accounting_notes ?: $refund->reason)),
                         'recorded_by' => Auth::id(),
