@@ -1397,10 +1397,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                         <CardContent>
                                             <div className="space-y-3">
                                                 <div className="flex justify-between py-2 border-b">
-                                                    <span className="text-muted-foreground">Previous Balance</span>
-                                                    <span className="font-medium">{formatCurrency(activeSummary.previous_balance || 0)}</span>
-                                                </div>
-                                                <div className="flex justify-between py-2 border-b">
                                                     <span className="text-muted-foreground">Current Fees Balance</span>
                                                     <span className="font-medium">{formatCurrency(activeSummary.current_fees_balance || activeSummary.total_balance)}</span>
                                                 </div>
