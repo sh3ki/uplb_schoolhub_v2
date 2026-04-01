@@ -91,14 +91,16 @@ class AccountingDashboardController extends Controller
             $totalAmount = (float) $snapshot['total_amount'];
             $paid = (float) $snapshot['total_paid'];
             $balance = (float) $snapshot['balance'];
-            if ($totalAmount <= 0) {
-                continue;
-            }
 
+            // Keep totals aligned with student-accounts receivables math.
             $projectedRevenue += $totalAmount;
             $totalCollected += $paid;
             if ($balance > 0) {
                 $totalOutstanding += $balance;
+            }
+
+            if ($totalAmount <= 0) {
+                continue;
             }
 
             if ($balance <= 0) {
