@@ -183,7 +183,7 @@ export default function MainDashboard({
                         <CardContent className="pt-6">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-sm text-muted-foreground">Total Projected Revenue</p>
+                                    <p className="text-sm text-muted-foreground">Total Receivables</p>
                                     <p className="text-2xl font-bold text-emerald-700">{formatCurrency(projectedRevenue)}</p>
                                 </div>
                                 <BarChart3 className="h-8 w-8 text-emerald-400" />
@@ -222,7 +222,7 @@ export default function MainDashboard({
                             Collection Progress — {selectedYear}
                         </CardTitle>
                         <CardDescription>
-                            Overall collection rate against total projected revenue
+                            Overall collection rate against total receivables
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -232,7 +232,7 @@ export default function MainDashboard({
                         </div>
                         <Progress value={Math.min(parseFloat(collectionRate), 100)} className="h-3" />
                         <p className="text-xs text-muted-foreground mt-2">
-                            {formatCurrency(totalCollected)} collected out of {formatCurrency(projectedRevenue)} projected
+                            {formatCurrency(totalCollected)} collected out of {formatCurrency(projectedRevenue)} receivables
                         </p>
                     </CardContent>
                 </Card>
