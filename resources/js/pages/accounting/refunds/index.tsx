@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Clock, CheckCircle2, XCircle, Search, RefreshCw, Plus, Loader2, List } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Search, Plus, Loader2, List } from 'lucide-react';
 import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -42,10 +42,13 @@ type Student = {
 
 type StudentFee = {
     id: number;
+    student_fee_id: number;
+    or_number: string;
+    payment_date: string;
+    payment_mode: string;
     school_year: string;
-    total_amount: number;
-    total_paid: number;
-    balance: number;
+    amount: number;
+    already_requested: boolean;
 };
 
 type StudentWithFees = {
@@ -54,26 +57,23 @@ type StudentWithFees = {
     lrn: string;
     program: string;
     year_level: string;
-    fees: StudentFee[];
-};
-
-type ProcessedBy = {
-    id: number;
-    name: string;
+    payments: StudentFee[];
 };
 
 type Refund = {
     id: number;
-    type: 'refund' | 'void';
+    type: 'refund';
     amount: number;
     reason: string;
+    reason_display?: string;
+    reference_or_number?: string | null;
     status: 'pending' | 'approved' | 'rejected';
     accounting_notes: string | null;
+    school_year: string | null;
     processed_at: string | null;
     created_at: string;
     student: Student;
-    student_fee: StudentFee | null;
-    processed_by: ProcessedBy | null;
+    processed_by: string | null;
 };
 
 type PaginatedRefunds = {
@@ -95,7 +95,6 @@ type Stats = {
 type Filters = {
     search: string;
     status: string;
-    type: string;
 };
 
 type Props = {
@@ -113,15 +112,13 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
     const [studentSearch, setStudentSearch] = useState('');
     const [studentResults, setStudentResults] = useState<StudentWithFees[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<StudentWithFees | null>(null);
-    const [selectedFee, setSelectedFee] = useState<StudentFee | null>(null);
+    const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
     const [searching, setSearching] = useState(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const createForm = useForm({
         student_id: 0,
-        student_fee_id: 0,
-        type: 'refund' as 'refund' | 'void',
-        amount: '',
+        payment_ids: [] as number[],
         reason: '',
     });
 
@@ -161,26 +158,27 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
 
     const selectStudent = (student: StudentWithFees) => {
         setSelectedStudent(student);
-        setSelectedFee(null);
+        setSelectedPaymentIds([]);
         createForm.setData('student_id', student.id);
-        createForm.setData('student_fee_id', 0);
+        createForm.setData('payment_ids', []);
         setStudentResults([]);
         setStudentSearch('');
     };
 
-    const selectFee = (fee: StudentFee) => {
-        setSelectedFee(fee);
-        createForm.setData('student_fee_id', fee.id);
-        // Default amount to total_paid for refund
-        if (createForm.data.type === 'refund') {
-            createForm.setData('amount', fee.total_paid.toString());
-        }
+    const togglePaymentSelection = (paymentId: number) => {
+        setSelectedPaymentIds((prev) => {
+            const next = prev.includes(paymentId)
+                ? prev.filter((id) => id !== paymentId)
+                : [...prev, paymentId];
+            createForm.setData('payment_ids', next);
+            return next;
+        });
     };
 
     const resetCreateForm = () => {
         setShowCreateDialog(false);
         setSelectedStudent(null);
-        setSelectedFee(null);
+        setSelectedPaymentIds([]);
         setStudentSearch('');
         setStudentResults([]);
         createForm.reset();
@@ -192,6 +190,12 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
             onSuccess: () => resetCreateForm(),
         });
     };
+
+    const selectedPayments = selectedStudent
+        ? selectedStudent.payments.filter((payment) => selectedPaymentIds.includes(payment.id))
+        : [];
+
+    const selectedPaymentTotal = selectedPayments.reduce((sum, payment) => sum + payment.amount, 0);
 
     const handleFilter = (key: string, value: string) => {
         router.get('/accounting/refunds', { ...filters, [key]: value, page: 1 }, {
@@ -219,14 +223,14 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
 
     return (
         <AccountingLayout>
-            <Head title="Refund / Void Requests" />
+            <Head title="Refund Requests" />
 
             <div className="space-y-6 p-6">
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold">Refund / Void Requests</h1>
                         <p className="text-muted-foreground text-sm mt-1">
-                            Review and process student refund and void requests.
+                            Review and process student refund requests.
                         </p>
                     </div>
                     <Button onClick={() => setShowCreateDialog(true)}>
@@ -333,17 +337,6 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <div className="w-36">
-                                <Label className="text-xs mb-1 block">Type</Label>
-                                <Select value={filters.type || 'all'} onValueChange={v => handleFilter('type', v === 'all' ? '' : v)}>
-                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">All Types</SelectItem>
-                                        <SelectItem value="refund">Refund</SelectItem>
-                                        <SelectItem value="void">Void</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -365,7 +358,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                                     <TableHead>Date</TableHead>
                                     <TableHead>Student</TableHead>
                                     <TableHead>LRN</TableHead>
-                                    <TableHead>Type</TableHead>
+                                    <TableHead>OR Number</TableHead>
                                     <TableHead>School Year</TableHead>
                                     <TableHead className="text-right">Amount</TableHead>
                                     <TableHead>Reason</TableHead>
@@ -378,7 +371,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                                 {refunds.data.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
-                                            No refund/void requests found.
+                                            No refund requests found.
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -387,18 +380,13 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                                             <TableCell className="text-sm whitespace-nowrap">{r.created_at}</TableCell>
                                             <TableCell className="font-medium text-sm">{r.student.full_name}</TableCell>
                                             <TableCell className="text-sm font-mono">{r.student.lrn}</TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className="capitalize">
-                                                    {r.type === 'void' ? <RefreshCw className="h-3 w-3 mr-1" /> : null}
-                                                    {r.type}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-sm">{r.student_fee?.school_year || '—'}</TableCell>
+                                            <TableCell><Badge variant="outline">{r.reference_or_number || '—'}</Badge></TableCell>
+                                            <TableCell className="text-sm">{r.school_year || '—'}</TableCell>
                                             <TableCell className="text-right font-medium">{formatCurrency(r.amount)}</TableCell>
-                                            <TableCell className="text-sm max-w-[180px] truncate" title={r.reason}>{r.reason}</TableCell>
+                                            <TableCell className="text-sm max-w-[180px] truncate" title={r.reason_display || r.reason}>{r.reason_display || r.reason}</TableCell>
                                             <TableCell>{statusBadge(r.status)}</TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
-                                                {r.processed_by ? r.processed_by.name : (r.status === 'pending' ? '—' : '—')}
+                                                {r.processed_by || '—'}
                                                 {r.accounting_notes && (
                                                     <p className="text-xs italic">{r.accounting_notes}</p>
                                                 )}
@@ -460,9 +448,9 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                             <DialogDescription>
                                 {actionRefund && (
                                     <>
-                                        <strong>{actionRefund.student.full_name}</strong> — {actionRefund.type} of {formatCurrency(actionRefund.amount)}
+                                        <strong>{actionRefund.student.full_name}</strong> — refund of {formatCurrency(actionRefund.amount)}
                                         <br />
-                                        <span className="text-xs">Reason: {actionRefund.reason}</span>
+                                        <span className="text-xs">Reason: {actionRefund.reason_display || actionRefund.reason}</span>
                                     </>
                                 )}
                             </DialogDescription>
@@ -506,9 +494,9 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                 <DialogContent className="max-w-lg">
                     <form onSubmit={submitCreateForm}>
                         <DialogHeader>
-                            <DialogTitle>Create Refund / Void Request</DialogTitle>
+                            <DialogTitle>Create Refund Request</DialogTitle>
                             <DialogDescription>
-                                Create a refund or void request for a walk-in student.
+                                Create refund request(s) by selecting specific payment transactions (OR numbers).
                             </DialogDescription>
                         </DialogHeader>
 
@@ -555,96 +543,66 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                                             <p className="font-medium">{selectedStudent.full_name}</p>
                                             <p className="text-sm text-muted-foreground">{selectedStudent.lrn} • {selectedStudent.program} - {selectedStudent.year_level}</p>
                                         </div>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setSelectedFee(null); }}>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setSelectedPaymentIds([]); }}>
                                             Change
                                         </Button>
                                     </div>
 
-                                    {/* Fee Selection */}
+                                    {/* Payment Selection */}
                                     <div className="space-y-2">
-                                        <Label>Select Fee Record</Label>
-                                        {selectedStudent.fees.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground">No fee records found for this student.</p>
+                                        <Label>Select Payment Transaction(s)</Label>
+                                        {selectedStudent.payments.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No eligible payment transactions found for this student.</p>
                                         ) : (
                                             <div className="space-y-2">
-                                                {selectedStudent.fees.map(fee => (
+                                                {selectedStudent.payments.map(payment => (
                                                     <button
-                                                        key={fee.id}
+                                                        key={payment.id}
                                                         type="button"
                                                         className={`w-full text-left p-3 rounded-md border transition-colors ${
-                                                            selectedFee?.id === fee.id ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                                                            selectedPaymentIds.includes(payment.id) ? 'border-primary bg-primary/5' : 'hover:bg-muted'
                                                         }`}
-                                                        onClick={() => selectFee(fee)}
+                                                        disabled={payment.already_requested}
+                                                        onClick={() => !payment.already_requested && togglePaymentSelection(payment.id)}
                                                     >
                                                         <div className="flex justify-between">
-                                                            <span className="font-medium text-sm">{fee.school_year}</span>
-                                                            <span className="text-sm">Paid: {formatCurrency(fee.total_paid)}</span>
+                                                            <span className="font-medium text-sm">OR: {payment.or_number || '—'}</span>
+                                                            <span className="text-sm font-medium text-green-600">{formatCurrency(payment.amount)}</span>
                                                         </div>
                                                         <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                                            <span>Total: {formatCurrency(fee.total_amount)}</span>
-                                                            <span>Balance: {formatCurrency(fee.balance)}</span>
+                                                            <span>{payment.school_year || 'No School Year'} • {payment.payment_date}</span>
+                                                            <span>{payment.payment_mode}</span>
                                                         </div>
+                                                        {payment.already_requested && <p className="text-xs text-amber-600 mt-2">Already has a pending/approved refund request</p>}
                                                     </button>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    {selectedFee && (
-                                        <>
-                                            {/* Type */}
-                                            <div className="space-y-2">
-                                                <Label>Request Type</Label>
-                                                <Select
-                                                    value={createForm.data.type}
-                                                    onValueChange={v => createForm.setData('type', v as 'refund' | 'void')}
-                                                >
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="refund">Refund</SelectItem>
-                                                        <SelectItem value="void">Void</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            {/* Amount */}
-                                            <div className="space-y-2">
-                                                <Label>Amount</Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0.01"
-                                                    max={selectedFee.total_paid}
-                                                    value={createForm.data.amount}
-                                                    onChange={e => createForm.setData('amount', e.target.value)}
-                                                    placeholder="Enter amount"
-                                                />
-                                                {createForm.data.type === 'refund' && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Maximum refundable: {formatCurrency(selectedFee.total_paid)}
-                                                    </p>
-                                                )}
-                                                {createForm.errors.amount && (
-                                                    <p className="text-sm text-destructive">{createForm.errors.amount}</p>
-                                                )}
-                                            </div>
-
-                                            {/* Reason */}
-                                            <div className="space-y-2">
-                                                <Label>Reason</Label>
-                                                <Textarea
-                                                    value={createForm.data.reason}
-                                                    onChange={e => createForm.setData('reason', e.target.value)}
-                                                    placeholder="Explain the reason for this request..."
-                                                    rows={3}
-                                                    required
-                                                />
-                                                {createForm.errors.reason && (
-                                                    <p className="text-sm text-destructive">{createForm.errors.reason}</p>
-                                                )}
-                                            </div>
-                                        </>
+                                    {selectedPaymentIds.length > 0 && (
+                                        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                            <p className="font-medium">Selected Transactions: {selectedPaymentIds.length}</p>
+                                            <p className="text-muted-foreground">Total Refund Amount: {formatCurrency(selectedPaymentTotal)}</p>
+                                        </div>
                                     )}
+
+                                    <div className="space-y-2">
+                                        <Label>Reason</Label>
+                                        <Textarea
+                                            value={createForm.data.reason}
+                                            onChange={e => createForm.setData('reason', e.target.value)}
+                                            placeholder="Explain the reason for this request..."
+                                            rows={3}
+                                            required
+                                        />
+                                        {createForm.errors.reason && (
+                                            <p className="text-sm text-destructive">{createForm.errors.reason}</p>
+                                        )}
+                                        {createForm.errors.payment_ids && (
+                                            <p className="text-sm text-destructive">{createForm.errors.payment_ids}</p>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -655,7 +613,7 @@ export default function AccountingRefundsIndex({ refunds, stats, filters }: Prop
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={createForm.processing || !selectedFee || !createForm.data.amount || !createForm.data.reason}
+                                disabled={createForm.processing || selectedPaymentIds.length === 0 || !createForm.data.reason}
                             >
                                 {createForm.processing ? 'Creating...' : 'Create Request'}
                             </Button>
