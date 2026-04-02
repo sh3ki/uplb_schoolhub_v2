@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pagination } from '@/components/ui/pagination';
+import { StudentPhoto } from '@/components/ui/student-photo';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
@@ -23,6 +24,9 @@ import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-l
 type StudentRow = {
     id: number;
     name: string;
+    first_name?: string;
+    last_name?: string;
+    student_photo_url?: string | null;
     lrn: string;
 };
 
@@ -139,7 +143,17 @@ function GenderTable({ title, rows, headerColor, tableId }: { title: string; row
                                 pagedRows.map((row, index) => (
                                     <TableRow key={row.id}>
                                         <TableCell>{(paginationData.current_page - 1) * STUDENTS_PER_PAGE + index + 1}</TableCell>
-                                        <TableCell className="font-medium">{row.name}</TableCell>
+                                        <TableCell>
+                                            <div className="flex items-center gap-2">
+                                                <StudentPhoto
+                                                    src={row.student_photo_url ?? null}
+                                                    firstName={row.first_name || row.name}
+                                                    lastName={row.last_name || ''}
+                                                    size="sm"
+                                                />
+                                                <span className="font-medium">{row.name}</span>
+                                            </div>
+                                        </TableCell>
                                         <TableCell className="font-mono text-sm text-muted-foreground">{row.lrn}</TableCell>
                                     </TableRow>
                                 ))
