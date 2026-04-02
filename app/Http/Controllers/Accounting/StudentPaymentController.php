@@ -562,6 +562,13 @@ class StudentPaymentController extends Controller
                 ];
             });
 
+        $existingRefundOrNumbers = collect($payments)
+            ->pluck('or_number')
+            ->filter()
+            ->map(fn($or) => strtoupper(trim((string) $or)))
+            ->values()
+            ->all();
+
         $refundTransactions = \App\Models\RefundRequest::where('student_id', $student->id)
             ->where('status', 'approved')
             ->with(['processedBy', 'studentFee'])
@@ -586,7 +593,14 @@ class StudentPaymentController extends Controller
                     'type' => 'on-site',
                     'transaction_type' => 'refund',
                 ];
-            });
+            })
+            ->filter(function ($refundTx) use ($existingRefundOrNumbers) {
+                $orNumber = strtoupper(trim((string) ($refundTx['or_number'] ?? '')));
+
+                // Avoid duplicate refund rows when an equivalent negative StudentPayment already exists.
+                return $orNumber === '' || !in_array($orNumber, $existingRefundOrNumbers, true);
+            })
+            ->values();
 
         // Merge on-site and online payments, sorted by date descending.
         $payments = $payments
@@ -700,7 +714,7 @@ class StudentPaymentController extends Controller
             ->values();
 
         $feeEditRows = StudentActionLog::where('student_id', $student->id)
-            ->where('action_type', 'fee_edit')
+            ->whereIn('action_type', ['fee_edit', 'fee_add'])
             ->whereNotNull('changes')
             ->with('performer:id,name')
             ->orderByDesc('created_at')
@@ -723,6 +737,8 @@ class StudentPaymentController extends Controller
                     'status' => (string) ($new['status'] ?? 'unpaid'),
                     'processed_by' => (string) ($new['processed_by'] ?? ($log->performer?->name ?? '-')),
                     'processed_at' => (string) ($new['processed_at'] ?? $log->created_at?->format('Y-m-d H:i:s')),
+                    'reason' => (string) ($new['reason'] ?? ''),
+                    'notes' => (string) ($new['notes'] ?? ''),
                     'is_history' => true,
                 ];
             })
@@ -1773,6 +1789,7 @@ class StudentPaymentController extends Controller
             'school_year' => 'required|string|max:20',
             'total_amount' => 'required|numeric|min:0',
             'reason' => 'required|string|max:500',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $validated['school_year'] = trim((string) $validated['school_year']);
@@ -1806,13 +1823,16 @@ class StudentPaymentController extends Controller
         StudentActionLog::log(
             studentId: $student->id,
             action: "School year fee record added for {$validated['school_year']} — {$validated['reason']}",
-            actionType: 'fee_edit',
+            actionType: 'fee_add',
             details: "Created StudentFee #{$fee->id} for {$validated['school_year']}: ₱" . number_format($validated['total_amount'], 2),
-            notes: null,
+            notes: $validated['notes'] ?? null,
             changes: [
                 'school_year'  => $validated['school_year'],
                 'total_amount' => (float) $validated['total_amount'],
+                'processed_by' => $request->user()->name,
+                'processed_at' => now()->format('Y-m-d H:i:s'),
                 'reason'       => $validated['reason'],
+                'notes'        => $validated['notes'] ?? null,
             ],
             performedBy: $request->user()->id,
         );
