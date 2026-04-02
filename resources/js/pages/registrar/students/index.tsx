@@ -302,15 +302,6 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
         });
     };
 
-    const handleActivate = (studentId: number, name: string) => {
-        if (!confirm(`Activate "${name}"? They will be able to log in and re-register for enrollment.`)) return;
-        router.post(`/registrar/students/${studentId}/activate`, {}, {
-            preserveScroll: true,
-            onSuccess: () => showSuccess(`${name} has been activated.`),
-            onError: () => showError('Failed to activate student.'),
-        });
-    };
-
     const openReEnrollDialog = (studentId: number, name: string) => {
         setReEnrollStudentId(studentId);
         setReEnrollStudentName(name);
@@ -823,15 +814,6 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                                     )}
                                                     {activeTab === 'deactivated' && (
                                                         <>
-                                                            <Button
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="border-green-400 text-green-700 hover:bg-green-50"
-                                                                onClick={() => handleActivate(s.id, fullName)}
-                                                            >
-                                                                <UserCheck className="mr-1 h-3 w-3" />
-                                                                Activate
-                                                            </Button>
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
