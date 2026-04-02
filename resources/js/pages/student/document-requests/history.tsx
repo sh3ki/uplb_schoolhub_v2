@@ -40,15 +40,6 @@ const statusConfig: Record<string, { label: string; color: string; icon: typeof 
 };
 
 export default function DocumentRequestsHistory({ completedRequests }: Props) {
-    const formatCurrency = (amount: string | number) => {
-        const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-        if (isNaN(numAmount)) return '₱0.00';
-        return `₱${numAmount.toLocaleString('en-PH', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-        })}`;
-    };
-
     const releasedCount = completedRequests.filter((r) => r.status === 'released').length;
     const cancelledCount = completedRequests.filter((r) => r.status === 'cancelled').length;
 
@@ -128,7 +119,6 @@ export default function DocumentRequestsHistory({ completedRequests }: Props) {
                                         <TableHead>Status</TableHead>
                                         <TableHead>Request Date</TableHead>
                                         <TableHead>Release Date</TableHead>
-                                        <TableHead className="text-right">Total Fee</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -159,9 +149,6 @@ export default function DocumentRequestsHistory({ completedRequests }: Props) {
                                                 </TableCell>
                                                 <TableCell>{request.request_date || '-'}</TableCell>
                                                 <TableCell>{request.release_date || '-'}</TableCell>
-                                                <TableCell className="text-right font-medium">
-                                                    {formatCurrency(request.total_fee)}
-                                                </TableCell>
                                             </TableRow>
                                         );
                                     })}
