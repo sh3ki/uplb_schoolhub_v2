@@ -28,7 +28,7 @@ import { store as storeStudent, update as updateStudent } from '@/routes/registr
 interface Department {
     id: number;
     name: string;
-    level: string;
+    level?: string;
     classification: string;
 }
 
