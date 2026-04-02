@@ -26,16 +26,10 @@ class MasterlistController extends Controller
         $studentsQuery = Student::query()
             ->with('departmentModel:id,name,classification')
             ->whereNull('deleted_at')
+            ->withoutTransferredOut()
+            ->withoutDropped()
             ->orderBy('last_name')
             ->orderBy('first_name');
-
-        if ($rolePrefix === 'super-accounting') {
-            $studentsQuery->withoutTransferredOut();
-        }
-
-        if (in_array($rolePrefix, ['accounting', 'super-accounting'], true)) {
-            $studentsQuery->withoutDropped();
-        }
 
         $students = $studentsQuery->get([
                 'id',
@@ -62,11 +56,17 @@ class MasterlistController extends Controller
                     'male' => $male->map(fn ($student) => [
                         'id' => $student->id,
                         'name' => $student->last_name . ', ' . $student->first_name,
+                        'first_name' => $student->first_name,
+                        'last_name' => $student->last_name,
+                        'student_photo_url' => $student->student_photo_url,
                         'lrn' => $student->lrn,
                     ])->values(),
                     'female' => $female->map(fn ($student) => [
                         'id' => $student->id,
                         'name' => $student->last_name . ', ' . $student->first_name,
+                        'first_name' => $student->first_name,
+                        'last_name' => $student->last_name,
+                        'student_photo_url' => $student->student_photo_url,
                         'lrn' => $student->lrn,
                     ])->values(),
                 ];
@@ -85,11 +85,17 @@ class MasterlistController extends Controller
                     'male' => $male->map(fn ($student) => [
                         'id' => $student->id,
                         'name' => $student->last_name . ', ' . $student->first_name,
+                        'first_name' => $student->first_name,
+                        'last_name' => $student->last_name,
+                        'student_photo_url' => $student->student_photo_url,
                         'lrn' => $student->lrn,
                     ])->values(),
                     'female' => $female->map(fn ($student) => [
                         'id' => $student->id,
                         'name' => $student->last_name . ', ' . $student->first_name,
+                        'first_name' => $student->first_name,
+                        'last_name' => $student->last_name,
+                        'student_photo_url' => $student->student_photo_url,
                         'lrn' => $student->lrn,
                     ])->values(),
                 ];
