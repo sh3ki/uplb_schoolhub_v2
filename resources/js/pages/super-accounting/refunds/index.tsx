@@ -1,5 +1,4 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { format } from 'date-fns';
 import {
     CheckCircle2,
     XCircle,
@@ -39,13 +38,6 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 
 interface Student {
@@ -58,10 +50,13 @@ interface Student {
 
 interface StudentFee {
     id: number;
+    student_fee_id: number;
+    or_number: string;
+    payment_date: string;
+    payment_mode: string;
     school_year: string;
-    total_amount: number;
-    total_paid: number;
-    balance: number;
+    amount: number;
+    already_requested: boolean;
 }
 
 interface StudentWithFees {
@@ -70,15 +65,17 @@ interface StudentWithFees {
     lrn: string;
     program: string;
     year_level: string;
-    fees: StudentFee[];
+    payments: StudentFee[];
 }
 
 interface RefundRequest {
     id: number;
     student: Student;
     amount: number;
-    type: 'refund' | 'void';
+    type: 'refund';
     reason: string;
+    reason_display?: string;
+    reference_or_number?: string | null;
     school_year: string | null;
     status: 'pending' | 'approved' | 'rejected';
     accounting_notes: string | null;
@@ -140,7 +137,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
     const [studentSearch, setStudentSearch] = useState('');
     const [studentResults, setStudentResults] = useState<StudentWithFees[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<StudentWithFees | null>(null);
-    const [selectedFee, setSelectedFee] = useState<StudentFee | null>(null);
+    const [selectedPaymentIds, setSelectedPaymentIds] = useState<number[]>([]);
     const [searching, setSearching] = useState(false);
     const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -154,9 +151,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
 
     const createForm = useForm({
         student_id: 0,
-        student_fee_id: 0,
-        type: 'refund' as 'refund' | 'void',
-        amount: '',
+        payment_ids: [] as number[],
         reason: '',
     });
 
@@ -230,26 +225,27 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
 
     const selectStudent = (student: StudentWithFees) => {
         setSelectedStudent(student);
-        setSelectedFee(null);
+        setSelectedPaymentIds([]);
         createForm.setData('student_id', student.id);
-        createForm.setData('student_fee_id', 0);
+        createForm.setData('payment_ids', []);
         setStudentResults([]);
         setStudentSearch('');
     };
 
-    const selectFee = (fee: StudentFee) => {
-        setSelectedFee(fee);
-        createForm.setData('student_fee_id', fee.id);
-        // Default amount to total_paid for refund
-        if (createForm.data.type === 'refund') {
-            createForm.setData('amount', fee.total_paid.toString());
-        }
+    const togglePaymentSelection = (paymentId: number) => {
+        setSelectedPaymentIds((prev) => {
+            const next = prev.includes(paymentId)
+                ? prev.filter((id) => id !== paymentId)
+                : [...prev, paymentId];
+            createForm.setData('payment_ids', next);
+            return next;
+        });
     };
 
     const resetCreateForm = () => {
         setShowCreateDialog(false);
         setSelectedStudent(null);
-        setSelectedFee(null);
+        setSelectedPaymentIds([]);
         setStudentSearch('');
         setStudentResults([]);
         createForm.reset();
@@ -262,6 +258,12 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
         });
     };
 
+    const selectedPayments = selectedStudent
+        ? selectedStudent.payments.filter((payment) => selectedPaymentIds.includes(payment.id))
+        : [];
+
+    const selectedPaymentTotal = selectedPayments.reduce((sum, payment) => sum + payment.amount, 0);
+
     const renderRefundTable = (data: RefundRequest[], showActions: boolean = false) => (
         <Table>
             <TableHeader>
@@ -269,7 +271,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                     <TableHead>Student</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Reason</TableHead>
-                    <TableHead>Request Type</TableHead>
+                    <TableHead>OR Number</TableHead>
                     <TableHead>Requested</TableHead>
                     {!showActions && <TableHead>Processed By</TableHead>}
                     <TableHead className="text-right">Actions</TableHead>
@@ -301,10 +303,10 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                                 {formatCurrency(request.amount)}
                             </TableCell>
                             <TableCell>
-                                <span className="line-clamp-2 max-w-[200px]">{request.reason}</span>
+                                <span className="line-clamp-2 max-w-[200px]">{request.reason_display || request.reason}</span>
                             </TableCell>
                             <TableCell>
-                                <Badge variant="outline" className="uppercase">{request.type}</Badge>
+                                <Badge variant="outline">{request.reference_or_number || '-'}</Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground">
                                 {request.created_at}
@@ -562,13 +564,13 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
 
                             <div>
                                 <Label className="text-muted-foreground">Reason</Label>
-                                <p className="text-sm">{selectedRequest.reason}</p>
+                                <p className="text-sm">{selectedRequest.reason_display || selectedRequest.reason}</p>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <Label className="text-muted-foreground">Request Type</Label>
-                                    <p className="font-medium uppercase">{selectedRequest.type}</p>
+                                    <Label className="text-muted-foreground">OR Number</Label>
+                                    <p className="font-medium">{selectedRequest.reference_or_number || '-'}</p>
                                 </div>
                                 <div>
                                     <Label className="text-muted-foreground">School Year</Label>
@@ -689,9 +691,9 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                 <DialogContent className="max-w-lg">
                     <form onSubmit={submitCreateForm}>
                         <DialogHeader>
-                            <DialogTitle>Create Refund / Void Request</DialogTitle>
+                            <DialogTitle>Create Refund Request</DialogTitle>
                             <DialogDescription>
-                                Create a refund or void request for a student.
+                                Create refund request(s) by selecting specific payment transactions (OR numbers).
                             </DialogDescription>
                         </DialogHeader>
 
@@ -738,96 +740,66 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                                             <p className="font-medium">{selectedStudent.full_name}</p>
                                             <p className="text-sm text-muted-foreground">{selectedStudent.lrn} • {selectedStudent.program} - {selectedStudent.year_level}</p>
                                         </div>
-                                        <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setSelectedFee(null); }}>
+                                        <Button type="button" variant="ghost" size="sm" onClick={() => { setSelectedStudent(null); setSelectedPaymentIds([]); }}>
                                             Change
                                         </Button>
                                     </div>
 
-                                    {/* Fee Selection */}
+                                    {/* Payment Selection */}
                                     <div className="space-y-2">
-                                        <Label>Select Fee Record</Label>
-                                        {selectedStudent.fees.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground">No fee records found for this student.</p>
+                                        <Label>Select Payment Transaction(s)</Label>
+                                        {selectedStudent.payments.length === 0 ? (
+                                            <p className="text-sm text-muted-foreground">No eligible payment transactions found for this student.</p>
                                         ) : (
                                             <div className="space-y-2">
-                                                {selectedStudent.fees.map(fee => (
+                                                {selectedStudent.payments.map(payment => (
                                                     <button
-                                                        key={fee.id}
+                                                        key={payment.id}
                                                         type="button"
                                                         className={`w-full text-left p-3 rounded-md border transition-colors ${
-                                                            selectedFee?.id === fee.id ? 'border-primary bg-primary/5' : 'hover:bg-muted'
+                                                            selectedPaymentIds.includes(payment.id) ? 'border-primary bg-primary/5' : 'hover:bg-muted'
                                                         }`}
-                                                        onClick={() => selectFee(fee)}
+                                                        disabled={payment.already_requested}
+                                                        onClick={() => !payment.already_requested && togglePaymentSelection(payment.id)}
                                                     >
                                                         <div className="flex justify-between">
-                                                            <span className="font-medium text-sm">{fee.school_year}</span>
-                                                            <span className="text-sm">Paid: {formatCurrency(fee.total_paid)}</span>
+                                                            <span className="font-medium text-sm">OR: {payment.or_number || '-'}</span>
+                                                            <span className="text-sm font-medium text-green-600">{formatCurrency(payment.amount)}</span>
                                                         </div>
                                                         <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                                                            <span>Total: {formatCurrency(fee.total_amount)}</span>
-                                                            <span>Balance: {formatCurrency(fee.balance)}</span>
+                                                            <span>{payment.school_year || 'No School Year'} • {payment.payment_date}</span>
+                                                            <span>{payment.payment_mode}</span>
                                                         </div>
+                                                        {payment.already_requested && <p className="text-xs text-amber-600 mt-2">Already has a pending/approved refund request</p>}
                                                     </button>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
 
-                                    {selectedFee && (
-                                        <>
-                                            {/* Type */}
-                                            <div className="space-y-2">
-                                                <Label>Request Type</Label>
-                                                <Select
-                                                    value={createForm.data.type}
-                                                    onValueChange={v => createForm.setData('type', v as 'refund' | 'void')}
-                                                >
-                                                    <SelectTrigger><SelectValue /></SelectTrigger>
-                                                    <SelectContent>
-                                                        <SelectItem value="refund">Refund</SelectItem>
-                                                        <SelectItem value="void">Void</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-
-                                            {/* Amount */}
-                                            <div className="space-y-2">
-                                                <Label>Amount</Label>
-                                                <Input
-                                                    type="number"
-                                                    step="0.01"
-                                                    min="0.01"
-                                                    max={selectedFee.total_paid}
-                                                    value={createForm.data.amount}
-                                                    onChange={e => createForm.setData('amount', e.target.value)}
-                                                    placeholder="Enter amount"
-                                                />
-                                                {createForm.data.type === 'refund' && (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        Maximum refundable: {formatCurrency(selectedFee.total_paid)}
-                                                    </p>
-                                                )}
-                                                {createForm.errors.amount && (
-                                                    <p className="text-sm text-destructive">{createForm.errors.amount}</p>
-                                                )}
-                                            </div>
-
-                                            {/* Reason */}
-                                            <div className="space-y-2">
-                                                <Label>Reason</Label>
-                                                <Textarea
-                                                    value={createForm.data.reason}
-                                                    onChange={e => createForm.setData('reason', e.target.value)}
-                                                    placeholder="Explain the reason for this request..."
-                                                    rows={3}
-                                                    required
-                                                />
-                                                {createForm.errors.reason && (
-                                                    <p className="text-sm text-destructive">{createForm.errors.reason}</p>
-                                                )}
-                                            </div>
-                                        </>
+                                    {selectedPaymentIds.length > 0 && (
+                                        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                            <p className="font-medium">Selected Transactions: {selectedPaymentIds.length}</p>
+                                            <p className="text-muted-foreground">Total Refund Amount: {formatCurrency(selectedPaymentTotal)}</p>
+                                        </div>
                                     )}
+
+                                    <div className="space-y-2">
+                                        <Label>Reason</Label>
+                                        <Textarea
+                                            value={createForm.data.reason}
+                                            onChange={e => createForm.setData('reason', e.target.value)}
+                                            placeholder="Explain the reason for this request..."
+                                            rows={3}
+                                            required
+                                        />
+                                        {createForm.errors.reason && (
+                                            <p className="text-sm text-destructive">{createForm.errors.reason}</p>
+                                        )}
+                                        {createForm.errors.payment_ids && (
+                                            <p className="text-sm text-destructive">{createForm.errors.payment_ids}</p>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -838,7 +810,7 @@ export default function RefundRequests({ refunds, stats, tab, filters }: Props) 
                             </Button>
                             <Button
                                 type="submit"
-                                disabled={createForm.processing || !selectedFee || !createForm.data.amount || !createForm.data.reason}
+                                disabled={createForm.processing || selectedPaymentIds.length === 0 || !createForm.data.reason}
                             >
                                 {createForm.processing ? 'Creating...' : 'Create Request'}
                             </Button>
