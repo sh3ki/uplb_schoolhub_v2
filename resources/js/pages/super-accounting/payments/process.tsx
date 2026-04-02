@@ -113,6 +113,8 @@ interface Fee {
     categories: FeeCategory[];
     processed_by?: string | null;
     processed_at?: string | null;
+    reason?: string | null;
+    notes?: string | null;
     carried_forward_balance: number;
     carried_forward_from: string | null;
 }
@@ -188,6 +190,8 @@ interface FeeEditRow {
     status: 'unpaid' | 'partial' | 'paid' | 'overdue';
     processed_by: string;
     processed_at: string;
+    reason?: string;
+    notes?: string;
     is_history: boolean;
 }
 
@@ -471,6 +475,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         school_year: '',
         total_amount: '',
         reason: '',
+        notes: '',
     });
 
     const handleAddSchoolYearSubmit = (e: React.FormEvent) => {
@@ -733,6 +738,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             status: fee.status,
             processed_by: fee.processed_by || '-',
             processed_at: fee.processed_at || '',
+            reason: fee.reason || '',
+            notes: fee.notes || '',
             is_history: false,
         }));
 
@@ -866,6 +873,18 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             />
                                             {addSchoolYearForm.errors.reason && (
                                                 <p className="text-sm text-red-500">{addSchoolYearForm.errors.reason}</p>
+                                            )}
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label>Notes (optional)</Label>
+                                            <Textarea
+                                                value={addSchoolYearForm.data.notes}
+                                                onChange={(e) => addSchoolYearForm.setData('notes', e.target.value)}
+                                                placeholder="Additional context for this fee record..."
+                                                rows={2}
+                                            />
+                                            {addSchoolYearForm.errors.notes && (
+                                                <p className="text-sm text-red-500">{addSchoolYearForm.errors.notes}</p>
                                             )}
                                         </div>
                                         <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
@@ -1777,6 +1796,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableHead className="text-right">Balance</TableHead>
                                                     <TableHead>Status</TableHead>
                                                     <TableHead>Processed By</TableHead>
+                                                    <TableHead>Reason / Notes</TableHead>
                                                     <TableHead>Actions</TableHead>
                                                 </TableRow>
                                             </TableHeader>
@@ -1807,6 +1827,16 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                     <p className="font-medium">{row.processed_by || '-'}</p>
                                                                     {row.processed_at && <p className="text-xs text-muted-foreground">{formatDateTime(row.processed_at)}</p>}
                                                                 </div>
+                                                            </TableCell>
+                                                            <TableCell className="max-w-[260px]">
+                                                                {row.reason ? (
+                                                                    <div className="text-xs space-y-1">
+                                                                        <p><span className="font-medium">Reason:</span> {row.reason}</p>
+                                                                        {row.notes && <p className="text-muted-foreground"><span className="font-medium">Notes:</span> {row.notes}</p>}
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-xs text-muted-foreground">-</span>
+                                                                )}
                                                             </TableCell>
                                                             <TableCell>
                                                                 {!row.is_history && linkedFee ? (
