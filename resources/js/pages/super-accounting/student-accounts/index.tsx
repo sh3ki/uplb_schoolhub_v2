@@ -80,6 +80,11 @@ interface StudentAccount {
     due_date?: string;
     payment_status: string;
     payments_count: number;
+    latest_payment_or_number?: string | null;
+    deactivation_type?: 'dropped' | 'transfer_out' | null;
+    deactivation_reason?: string | null;
+    deactivation_date?: string | null;
+    deactivation_or_number?: string | null;
     grants: Grant[];
 }
 
@@ -169,6 +174,8 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
     const [departmentId, setDepartmentId] = useState(filters.department_id || 'all');
     const [classification, setClassification] = useState(filters.classification || 'all');
     const [isOverdueDialogOpen, setIsOverdueDialogOpen] = useState(false);
+    const [isDeactivatedDetailOpen, setIsDeactivatedDetailOpen] = useState(false);
+    const [selectedDeactivatedAccount, setSelectedDeactivatedAccount] = useState<StudentAccount | null>(null);
 
     useEffect(() => {
         setActiveTab(filters.status || 'all');
@@ -254,6 +261,8 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
         })}`;
     };
 
+    const isDeactivatedTab = activeTab === 'deactivated';
+
     const getStatusBadge = (account: StudentAccount) => {
         if (account.is_overdue) {
             return <Badge variant="destructive" className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Overdue</Badge>;
@@ -266,6 +275,19 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
             default:
                 return <Badge variant="outline">Unpaid</Badge>;
         }
+    };
+
+    const getDeactivationBadge = (account: StudentAccount) => {
+        if (account.deactivation_type === 'transfer_out') {
+            return <Badge className="bg-orange-500">Transfer Out</Badge>;
+        }
+
+        return <Badge className="bg-yellow-600">Dropped</Badge>;
+    };
+
+    const openDeactivatedDetails = (account: StudentAccount) => {
+        setSelectedDeactivatedAccount(account);
+        setIsDeactivatedDetailOpen(true);
     };
 
     const statusOptions = [
@@ -537,6 +559,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                     <TabsList>
                         <TabsTrigger value="classlist"><Users className="mr-1 h-4 w-4 inline" />Class List</TabsTrigger>
                         <TabsTrigger value="all">All</TabsTrigger>
+                        <TabsTrigger value="deactivated">Deactivate</TabsTrigger>
                         <TabsTrigger value="overdue">Overdue</TabsTrigger>
                         <TabsTrigger value="partial">Partial</TabsTrigger>
                         <TabsTrigger value="paid">Paid</TabsTrigger>
@@ -641,6 +664,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                 <TableHead className="text-right">Paid</TableHead>
                                 <TableHead className="text-right">Previous Balance</TableHead>
                                 <TableHead className="text-right">Current Balance</TableHead>
+                                {isDeactivatedTab && <TableHead>Deactivate Status</TableHead>}
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
@@ -648,7 +672,7 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                         <TableBody>
                             {accounts.data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={isDeactivatedTab ? 10 : 9} className="text-center py-8 text-muted-foreground">
                                         No student accounts found.
                                     </TableCell>
                                 </TableRow>
@@ -657,7 +681,14 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                     <TableRow
                                         key={account.id}
                                         className={`cursor-pointer hover:bg-muted/50 ${account.is_overdue ? 'bg-red-50' : ''}`}
-                                        onClick={() => router.visit(`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`)}
+                                        onClick={() => {
+                                            if (isDeactivatedTab) {
+                                                openDeactivatedDetails(account);
+                                                return;
+                                            }
+
+                                            router.visit(`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`);
+                                        }}
                                     >
                                         <TableCell>
                                             <div className="flex items-center gap-3">
@@ -701,47 +732,54 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                                                 <span className="text-green-600">{formatCurrency(0)}</span>
                                             )}
                                         </TableCell>
+                                        {isDeactivatedTab && <TableCell>{getDeactivationBadge(account)}</TableCell>}
                                         <TableCell>{getStatusBadge(account)}</TableCell>
                                         <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="sm">
-                                                        <MoreHorizontal className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
-                                                            <Eye className="h-4 w-4 mr-2" />
-                                                            View Account
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
-                                                            <PhilippinePeso className="h-4 w-4 mr-2" />
-                                                            Process Payment
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    {!account.is_overdue && parseFloat(account.balance) > 0 && account.student_fee_id && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleMarkOverdue(account.student_fee_id)}
-                                                            className="text-red-600"
-                                                        >
-                                                            <AlertTriangle className="h-4 w-4 mr-2" />
-                                                            Mark Overdue
+                                            {isDeactivatedTab ? (
+                                                <Button variant="outline" size="sm" onClick={() => openDeactivatedDetails(account)}>
+                                                    Details
+                                                </Button>
+                                            ) : (
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button variant="ghost" size="sm">
+                                                            <MoreHorizontal className="h-4 w-4" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
+                                                                <Eye className="h-4 w-4 mr-2" />
+                                                                View Account
+                                                            </Link>
                                                         </DropdownMenuItem>
-                                                    )}
-                                                    {account.is_overdue && account.student_fee_id && (
-                                                        <DropdownMenuItem
-                                                            onClick={() => handleClearOverdue(account.student_fee_id)}
-                                                            className="text-green-600"
-                                                        >
-                                                            <AlertTriangle className="h-4 w-4 mr-2" />
-                                                            Clear Overdue
+                                                        <DropdownMenuItem asChild>
+                                                            <Link href={`/super-accounting/payments/process/${account.student.id}?school_year=${encodeURIComponent(account.school_year)}`}>
+                                                                <PhilippinePeso className="h-4 w-4 mr-2" />
+                                                                Process Payment
+                                                            </Link>
                                                         </DropdownMenuItem>
-                                                    )}
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                                        {!account.is_overdue && parseFloat(account.balance) > 0 && account.student_fee_id && (
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleMarkOverdue(account.student_fee_id)}
+                                                                className="text-red-600"
+                                                            >
+                                                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                                                Mark Overdue
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                        {account.is_overdue && account.student_fee_id && (
+                                                            <DropdownMenuItem
+                                                                onClick={() => handleClearOverdue(account.student_fee_id)}
+                                                                className="text-green-600"
+                                                            >
+                                                                <AlertTriangle className="h-4 w-4 mr-2" />
+                                                                Clear Overdue
+                                                            </DropdownMenuItem>
+                                                        )}
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -760,6 +798,88 @@ export default function StudentAccounts({ accounts, schoolYears, stats, departme
                 />
                     </TabsContent>
                 </Tabs>
+
+                <Dialog open={isDeactivatedDetailOpen} onOpenChange={setIsDeactivatedDetailOpen}>
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Deactivated Student Details</DialogTitle>
+                            <DialogDescription>
+                                Review student and payment details for this deactivated account.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {selectedDeactivatedAccount && (
+                            <div className="space-y-4 text-sm">
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <p className="text-muted-foreground">Student</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.student.full_name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">LRN</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.student.lrn}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Program / Year</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.student.program || '—'}{selectedDeactivatedAccount.student.year_level ? ` • ${selectedDeactivatedAccount.student.year_level}` : ''}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Deactivate Status</p>
+                                        <div>{getDeactivationBadge(selectedDeactivatedAccount)}</div>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Deactivation Date</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.deactivation_date ? new Date(selectedDeactivatedAccount.deactivation_date).toLocaleDateString() : '—'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-muted-foreground">Deactivation OR Number</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.deactivation_or_number || '—'}</p>
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <p className="text-muted-foreground">Reason</p>
+                                        <p className="font-medium">{selectedDeactivatedAccount.deactivation_reason || '—'}</p>
+                                    </div>
+                                </div>
+
+                                <div className="rounded-md border p-4">
+                                    <p className="mb-2 font-medium">Payment Summary</p>
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <p className="text-muted-foreground">School Year</p>
+                                            <p className="font-medium">{selectedDeactivatedAccount.school_year || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Latest Payment OR Number</p>
+                                            <p className="font-medium">{selectedDeactivatedAccount.latest_payment_or_number || '—'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Total Fees</p>
+                                            <p className="font-medium">{formatCurrency(selectedDeactivatedAccount.total_amount)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Total Paid</p>
+                                            <p className="font-medium text-green-600">{formatCurrency(selectedDeactivatedAccount.total_paid)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Previous Balance</p>
+                                            <p className="font-medium">{formatCurrency(selectedDeactivatedAccount.previous_balance)}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground">Current Balance</p>
+                                            <p className="font-medium text-red-600">{formatCurrency(selectedDeactivatedAccount.balance)}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setIsDeactivatedDetailOpen(false)}>
+                                Close
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </SuperAccountingLayout>
     );
