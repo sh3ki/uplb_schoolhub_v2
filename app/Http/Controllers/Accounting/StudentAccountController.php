@@ -54,40 +54,71 @@ class StudentAccountController extends Controller
         // Auto-apply overdue status when due date is reached.
         StudentFee::syncOverdueByDueDate($selectedSchoolYear);
 
-        // Get students with enrollment clearance (registrar-cleared, in accounting queue or beyond)
-        $studentsQuery = Student::with(['department'])
+        $status = (string) $request->input('status', 'all');
+
+        // Active accounts list (All/Overdue/Partial/Paid/Unpaid) should exclude dropped and transfer-out students.
+        $activeStudentsQuery = Student::with([
+            'department',
+            'transferRequests' => fn($q) => $q->whereNotNull('finalized_at')->orderByDesc('finalized_at'),
+            'dropRequests' => fn($q) => $q->where('status', 'approved')->orderByDesc('accounting_approved_at'),
+        ])->where(function ($q) {
+            $q->whereHas('enrollmentClearance', function ($eq) {
+                $eq->where(function ($sq) {
+                    $sq->where('registrar_clearance', true)
+                        ->orWhere('enrollment_status', 'completed');
+                });
+            })
+            ->orWhere('enrollment_status', 'pending-accounting');
+        })
+            ->withoutDropped()
+            ->withoutTransferredOut();
+
+        // Deactivated tab (Dropped / Transfer Out only).
+        $deactivatedStudentsQuery = Student::with([
+            'department',
+            'transferRequests' => fn($q) => $q->whereNotNull('finalized_at')->orderByDesc('finalized_at'),
+            'dropRequests' => fn($q) => $q->where('status', 'approved')->orderByDesc('accounting_approved_at'),
+        ])
+            ->whereNull('deleted_at')
             ->where(function ($q) {
-                $q->whereHas('enrollmentClearance', function ($eq) {
-                    $eq->where(function ($sq) {
-                        $sq->where('registrar_clearance', true)
-                            ->orWhere('enrollment_status', 'completed');
-                    });
-                })
-                ->orWhere('enrollment_status', 'pending-accounting');
+                $q->where('is_active', false)
+                    ->orWhere('enrollment_status', 'dropped');
+            })
+            ->where(function ($q) {
+                $q->whereHas('transferRequests', function ($transferQuery) {
+                    $transferQuery->whereNotNull('finalized_at');
+                })->orWhereHas('dropRequests', function ($dropQuery) {
+                    $dropQuery->where('status', 'approved');
+                });
             });
 
-        // Search
-        if ($search = $request->input('search')) {
-            $studentsQuery->where(function ($q) use ($search) {
-                $q->where('first_name', 'like', "%{$search}%")
-                  ->orWhere('last_name', 'like', "%{$search}%")
-                  ->orWhere('lrn', 'like', "%{$search}%");
-            });
-        }
+        $applyFilters = function ($query) use ($request) {
+            if ($search = $request->input('search')) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('lrn', 'like', "%{$search}%");
+                });
+            }
 
-        // Filter by department
-        if ($departmentId = $request->input('department_id')) {
-            $studentsQuery->where('department_id', $departmentId);
-        }
+            if ($departmentId = $request->input('department_id')) {
+                $query->where('department_id', $departmentId);
+            }
 
-        // Filter by classification
-        if ($classification = $request->input('classification')) {
-            $studentsQuery->whereHas('department', function ($q) use ($classification) {
-                $q->where('classification', $classification);
-            });
-        }
+            if ($classification = $request->input('classification')) {
+                $query->whereHas('department', function ($q) use ($classification) {
+                    $q->where('classification', $classification);
+                });
+            }
+        };
 
-        $students = $studentsQuery->latest()->paginate(20)->withQueryString();
+        $applyFilters($activeStudentsQuery);
+        $applyFilters($deactivatedStudentsQuery);
+
+        $students = ($status === 'deactivated' ? $deactivatedStudentsQuery : $activeStudentsQuery)
+            ->latest()
+            ->paginate(20)
+            ->withQueryString();
 
         // Calculate fees dynamically for each student
         $accounts = $students->through(function ($student) use ($selectedSchoolYear, $currentAppYear) {
@@ -112,6 +143,34 @@ class StudentAccountController extends Controller
                 ->where('status', 'active')
                 ->with('grant')
                 ->get();
+
+            $latestTransferRequest = $student->transferRequests->first();
+            $latestDropRequest = $student->dropRequests->first();
+
+            $deactivationType = null;
+            $deactivationReason = null;
+            $deactivationDate = null;
+            $deactivationOrNumber = null;
+
+            if ($latestTransferRequest) {
+                $deactivationType = 'transfer_out';
+                $deactivationReason = $latestTransferRequest->reason;
+                $deactivationDate = $latestTransferRequest->finalized_at;
+                $deactivationOrNumber = $latestTransferRequest->transfer_fee_or_number;
+            } elseif ($latestDropRequest || $student->enrollment_status === 'dropped') {
+                $deactivationType = 'dropped';
+                $deactivationReason = $latestDropRequest?->reason;
+                $deactivationDate = $latestDropRequest?->accounting_approved_at;
+                $deactivationOrNumber = $latestDropRequest?->or_number;
+            }
+
+            $latestPaymentOrNumber = null;
+            if (!empty($feeData['student_fee_id'])) {
+                $latestPaymentOrNumber = StudentPayment::where('student_fee_id', $feeData['student_fee_id'])
+                    ->latest('payment_date')
+                    ->latest('id')
+                    ->value('or_number');
+            }
 
             return [
                 'id' => $student->id,
@@ -138,6 +197,11 @@ class StudentAccountController extends Controller
                 'due_date' => $feeData['due_date'],
                 'payment_status' => $feeData['payment_status'],
                 'payments_count' => $feeData['payments_count'],
+                'latest_payment_or_number' => $latestPaymentOrNumber,
+                'deactivation_type' => $deactivationType,
+                'deactivation_reason' => $deactivationReason,
+                'deactivation_date' => $deactivationDate,
+                'deactivation_or_number' => $deactivationOrNumber,
                 'grants' => $grants->map(fn($gr) => [
                     'name' => $gr->grant->name,
                     'discount' => $gr->discount_amount,
@@ -145,9 +209,8 @@ class StudentAccountController extends Controller
             ];
         });
 
-        // Filter by payment status (after calculation)
-        $status = $request->input('status');
-        if ($status && $status !== 'all') {
+        // Filter by payment status (after calculation).
+        if ($status && $status !== 'all' && $status !== 'deactivated') {
             $accounts->setCollection(
                 $accounts->getCollection()->filter(function ($account) use ($status) {
                     return $account['payment_status'] === $status || ($status === 'overdue' && $account['is_overdue']);
@@ -171,6 +234,8 @@ class StudentAccountController extends Controller
             })
             ->orWhere('enrollment_status', 'pending-accounting');
         })
+            ->withoutDropped()
+            ->withoutTransferredOut()
             ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
             ->when($request->input('classification'), function ($q, $classification) {
                 $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
@@ -216,6 +281,8 @@ class StudentAccountController extends Controller
                 })
                 ->orWhere('enrollment_status', 'pending-accounting');
             })
+            ->withoutDropped()
+            ->withoutTransferredOut()
             ->select('id', 'first_name', 'last_name', 'middle_name', 'suffix', 'lrn', 'gender', 'program', 'year_level', 'section', 'enrollment_status', 'student_photo_url');
 
         return Inertia::render($this->viewPrefix() . '/student-accounts/index', [
