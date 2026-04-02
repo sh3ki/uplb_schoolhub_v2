@@ -184,6 +184,62 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
     const rejectedRequests = requests.filter((r) => r.registrar_status === 'rejected' || r.accounting_status === 'rejected');
     const hasActiveRequests = pendingRequests.length > 0 || readyRequests.length > 0;
 
+    const stepIcon = (state: 'done' | 'pending' | 'rejected') => {
+        if (state === 'done') return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+        if (state === 'rejected') return <XCircle className="h-4 w-4 text-red-500" />;
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+    };
+
+    const renderWorkflowProgress = (request: DocumentRequest) => {
+        const registrarState: 'done' | 'pending' | 'rejected' =
+            request.registrar_status === 'approved'
+                ? 'done'
+                : request.registrar_status === 'rejected'
+                    ? 'rejected'
+                    : 'pending';
+
+        const accountingState: 'done' | 'pending' | 'rejected' =
+            request.accounting_status === 'approved'
+                ? 'done'
+                : request.accounting_status === 'rejected'
+                    ? 'rejected'
+                    : 'pending';
+
+        const finalizationState: 'done' | 'pending' | 'rejected' =
+            request.status === 'ready' || request.status === 'released'
+                ? 'done'
+                : request.status === 'cancelled' || request.status === 'rejected'
+                    ? 'rejected'
+                    : 'pending';
+
+        return (
+            <div className="space-y-1.5">
+                <div className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>1. Request Submitted</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                    {stepIcon(registrarState)}
+                    <span>2. Registrar Review</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                    {stepIcon(accountingState)}
+                    <span>3. Accounting Review</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                    {stepIcon(finalizationState)}
+                    <span>4. Registrar Finalization</span>
+                </div>
+                {request.registrar_remarks && (
+                    <p className="text-xs text-muted-foreground pt-1">Registrar Note: {request.registrar_remarks}</p>
+                )}
+                {request.accounting_remarks && (
+                    <p className="text-xs text-muted-foreground">Accounting Note: {request.accounting_remarks}</p>
+                )}
+            </div>
+        );
+    };
+
     return (
         <StudentLayout>
             <Head title="Document Requests" />
@@ -531,44 +587,7 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.registrar_status === 'approved' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : request.registrar_status === 'rejected' ? (
-                                                                    <XCircle className="h-4 w-4 text-red-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                                                )}
-                                                                <span>Registrar</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.accounting_status === 'approved' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : request.accounting_status === 'rejected' ? (
-                                                                    <XCircle className="h-4 w-4 text-red-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                                                )}
-                                                                <span>Accounting</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.status === 'ready' || request.status === 'released' ? (
-                                                                    <PackageCheck className="h-4 w-4 text-green-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-gray-300" />
-                                                                )}
-                                                                <span>Ready</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.status === 'released' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-gray-300" />
-                                                                )}
-                                                                <span>Released</span>
-                                                            </div>
-                                                        </div>
+                                                        {renderWorkflowProgress(request)}
                                                     </TableCell>
                                                     <TableCell className="font-medium">
                                                         {formatCurrency(request.total_fee)}
@@ -650,44 +669,7 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
-                                                        <div className="space-y-1">
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.registrar_status === 'approved' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : request.registrar_status === 'rejected' ? (
-                                                                    <XCircle className="h-4 w-4 text-red-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                                                )}
-                                                                <span>Registrar</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.accounting_status === 'approved' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : request.accounting_status === 'rejected' ? (
-                                                                    <XCircle className="h-4 w-4 text-red-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-yellow-500" />
-                                                                )}
-                                                                <span>Accounting</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.status === 'ready' || request.status === 'released' ? (
-                                                                    <PackageCheck className="h-4 w-4 text-green-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-gray-300" />
-                                                                )}
-                                                                <span>Ready</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-2 text-sm">
-                                                                {request.status === 'released' ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                                                                ) : (
-                                                                    <Clock className="h-4 w-4 text-gray-300" />
-                                                                )}
-                                                                <span>Released</span>
-                                                            </div>
-                                                        </div>
+                                                        {renderWorkflowProgress(request)}
                                                     </TableCell>
                                                     <TableCell className="font-medium">
                                                         {formatCurrency(request.total_fee)}
@@ -825,41 +807,6 @@ export default function DocumentRequestsIndex({ requests, documentFees, feesByCa
                     </CardContent>
                 </Card>
 
-                {/* Remarks Display */}
-                {requests.some((r) => r.registrar_remarks || r.accounting_remarks) && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-yellow-500" />
-                                Remarks & Feedback
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                            {requests
-                                .filter((r) => r.registrar_remarks || r.accounting_remarks)
-                                .map((request) => (
-                                    <div key={request.id} className="p-4 bg-muted rounded-lg">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <p className="font-medium">{request.document_type_label}</p>
-                                            <Badge className={statusConfig[request.status]?.color || 'bg-gray-100'}>
-                                                {statusConfig[request.status]?.label || request.status}
-                                            </Badge>
-                                        </div>
-                                        {request.registrar_remarks && (
-                                            <p className="text-sm">
-                                                <span className="font-medium">Registrar:</span> {request.registrar_remarks}
-                                            </p>
-                                        )}
-                                        {request.accounting_remarks && (
-                                            <p className="text-sm">
-                                                <span className="font-medium">Accounting:</span> {request.accounting_remarks}
-                                            </p>
-                                        )}
-                                    </div>
-                                ))}
-                        </CardContent>
-                    </Card>
-                )}
             </div>
         </StudentLayout>
     );
