@@ -34,6 +34,8 @@ class ExamApprovalController extends Controller
             ?: now()->format('Y') . '-' . (now()->year + 1);
 
         $studentsQuery = Student::whereNull('deleted_at')
+            ->withoutTransferredOut()
+            ->withoutDropped()
             ->whereHas('enrollmentClearance', function ($q) {
                 $q->where('registrar_clearance', true);
             })
