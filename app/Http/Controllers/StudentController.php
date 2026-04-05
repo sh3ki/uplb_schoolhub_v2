@@ -35,6 +35,12 @@ class StudentController extends Controller
     public function index(Request $request)
     {
         $tab = $request->input('tab', 'active');
+        $transferStatusRelation = [
+            'transferRequests' => fn($q) => $q
+                ->select('id', 'student_id', 'finalized_at')
+                ->whereNotNull('finalized_at')
+                ->orderByDesc('finalized_at'),
+        ];
 
         // Shared academic structure data (always needed for forms / dropdowns)
         $departments  = Department::where('is_active', true)->get(['id', 'name', 'classification']);
@@ -73,15 +79,21 @@ class StudentController extends Controller
         // ── Special tabs: Dropped / Archived / Deactivated ───────────────────────
         if (in_array($tab, ['dropped', 'archived', 'deactivated'])) {
             if ($tab === 'archived') {
-                $specialQuery = Student::onlyTrashed()->with(['department:id,name,classification']);
+                $specialQuery = Student::onlyTrashed()->with(array_merge([
+                    'department:id,name,classification',
+                ], $transferStatusRelation));
             } elseif ($tab === 'deactivated') {
                 $specialQuery = Student::whereNull('deleted_at')
                     ->where('is_active', false)
-                    ->with(['department:id,name,classification']);
+                    ->with(array_merge([
+                        'department:id,name,classification',
+                    ], $transferStatusRelation));
             } else { // dropped
                 $specialQuery = Student::whereNull('deleted_at')
                     ->where('enrollment_status', 'dropped')
-                    ->with(['department:id,name,classification']);
+                    ->with(array_merge([
+                        'department:id,name,classification',
+                    ], $transferStatusRelation));
             }
 
             // Search filter
@@ -129,7 +141,7 @@ class StudentController extends Controller
                 'year_level'        => $s->year_level,
                 'section'           => $s->section,
                 'school_year'       => $s->school_year,
-                'enrollment_status' => $s->enrollment_status,
+                'enrollment_status' => $this->resolveDisplayEnrollmentStatus($s),
                 'is_active'         => (bool) $s->is_active,
                 'deleted_at'        => $tab === 'archived' ? $s->deleted_at?->toDateTimeString() : null,
                 'student_type'      => $s->student_type,
@@ -207,7 +219,15 @@ class StudentController extends Controller
         }
 
         // Get paginated students with requirements and enrollmentClearance
-        $students = $query->with(['requirements.requirement', 'enrollmentClearance', 'user'])->latest()->paginate(10)->withQueryString();
+        $students = $query->with([
+            'requirements.requirement',
+            'enrollmentClearance',
+            'user',
+            'transferRequests' => fn($q) => $q
+                ->select('id', 'student_id', 'finalized_at')
+                ->whereNotNull('finalized_at')
+                ->orderByDesc('finalized_at'),
+        ])->latest()->paginate(10)->withQueryString();
 
         // Compute dynamic requirements status for each student
         $students->getCollection()->transform(function ($student) {
@@ -218,6 +238,7 @@ class StudentController extends Controller
             $student->requirements_percentage = $percentage;
             $student->requirements_status = $percentage === 100 ? 'complete' : ($percentage > 0 ? 'pending' : 'incomplete');
             $student->email_verified = $student->user && $student->user->email_verified_at !== null;
+            $student->enrollment_status = $this->resolveDisplayEnrollmentStatus($student);
 
             return $student;
         });
@@ -253,6 +274,19 @@ class StudentController extends Controller
                 ->orderBy('last_name')->orderBy('first_name')
                 ->get(),
         ]);
+    }
+
+    private function resolveDisplayEnrollmentStatus(Student $student): string
+    {
+        if ($student->enrollment_status !== 'dropped') {
+            return (string) $student->enrollment_status;
+        }
+
+        $hasFinalizedTransfer = $student->relationLoaded('transferRequests')
+            ? $student->transferRequests->contains(fn($request) => $request->finalized_at !== null)
+            : $student->transferRequests()->whereNotNull('finalized_at')->exists();
+
+        return $hasFinalizedTransfer ? 'transferred-out' : 'dropped';
     }
 
     /**
