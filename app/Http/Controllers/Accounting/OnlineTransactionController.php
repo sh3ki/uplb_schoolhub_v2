@@ -355,6 +355,8 @@ class OnlineTransactionController extends Controller
                 ? StudentPayment::find($transaction->student_payment_id)
                 : null;
 
+            $originalOrNumber = trim((string) ($linkedPayment?->or_number ?: $transaction->transaction_id));
+
             if ($linkedPayment) {
                 $reversalAmount = -abs((float) $linkedPayment->amount);
 
@@ -362,14 +364,14 @@ class OnlineTransactionController extends Controller
                     'student_id' => $linkedPayment->student_id,
                     'student_fee_id' => $linkedPayment->student_fee_id,
                     'payment_date' => now()->toDateString(),
-                    'or_number' => ($linkedPayment->or_number ?: 'OT-' . $transaction->transaction_id) . '-RFND',
+                    'or_number' => $originalOrNumber,
                     'amount' => $reversalAmount,
                     'payment_for' => $linkedPayment->payment_for ?: 'other',
                     'payment_mode' => $linkedPayment->payment_mode ?: 'CASH',
                     'payment_method' => $linkedPayment->payment_method,
                     'reference_number' => $linkedPayment->reference_number,
                     'bank_name' => $linkedPayment->bank_name,
-                    'notes' => 'Refund reversal for online transaction ' . $transaction->transaction_id,
+                    'notes' => 'Refund reversal for OR ' . $originalOrNumber . ' [OR:' . $originalOrNumber . '] [TXN:' . $transaction->transaction_id . ']',
                     'recorded_by' => Auth::id(),
                 ]);
 
@@ -386,7 +388,7 @@ class OnlineTransactionController extends Controller
                 'student_fee_id' => $linkedPayment?->student_fee_id,
                 'type' => 'refund',
                 'amount' => abs((float) $transaction->amount),
-                'reason' => 'Online transaction refund: ' . $transaction->transaction_id,
+                'reason' => 'Online transaction refund [OR:' . $originalOrNumber . '] [OTX:' . $transaction->id . '] [TXN:' . $transaction->transaction_id . ']',
                 'status' => 'approved',
                 'processed_by' => Auth::id(),
                 'processed_at' => now(),
