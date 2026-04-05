@@ -778,6 +778,8 @@ class StudentPaymentController extends Controller
                 $schoolYear = (string) ($new['school_year'] ?? ($changes['school_year'] ?? ''));
                 $reason = (string) ($new['reason'] ?? ($changes['reason'] ?? ''));
                 $notes = (string) ($new['notes'] ?? ($changes['notes'] ?? ($log->notes ?? '')));
+                $processedBy = (string) ($new['processed_by'] ?? ($changes['processed_by'] ?? ($log->performer?->name ?? '-')));
+                $processedAt = (string) ($new['processed_at'] ?? ($changes['processed_at'] ?? $log->created_at?->format('Y-m-d H:i:s')));
 
                 if (!$new && $schoolYear === '') {
                     return null;
@@ -791,8 +793,8 @@ class StudentPaymentController extends Controller
                     'total_paid' => (float) ($new['total_paid'] ?? 0),
                     'balance' => (float) ($new['balance'] ?? 0),
                     'status' => (string) ($new['status'] ?? 'unpaid'),
-                    'processed_by' => (string) ($new['processed_by'] ?? ($log->performer?->name ?? '-')),
-                    'processed_at' => (string) ($new['processed_at'] ?? $log->created_at?->format('Y-m-d H:i:s')),
+                    'processed_by' => $processedBy,
+                    'processed_at' => $processedAt,
                     'reason' => $reason,
                     'notes' => $notes,
                     'is_history' => true,
@@ -816,8 +818,30 @@ class StudentPaymentController extends Controller
             $schoolYear = trim((string) ($fee['school_year'] ?? ''));
             $context = $latestFeeContextByYear->get($schoolYear);
 
-            $fee['reason'] = trim((string) ($fee['reason'] ?? ($context['reason'] ?? '')));
-            $fee['notes'] = trim((string) ($fee['notes'] ?? ($context['notes'] ?? '')));
+            $processedBy = trim((string) ($fee['processed_by'] ?? ''));
+            if ($processedBy === '') {
+                $processedBy = trim((string) ($context['processed_by'] ?? '-'));
+            }
+
+            $processedAt = trim((string) ($fee['processed_at'] ?? ''));
+            if ($processedAt === '') {
+                $processedAt = trim((string) ($context['processed_at'] ?? ''));
+            }
+
+            $reason = trim((string) ($fee['reason'] ?? ''));
+            if ($reason === '') {
+                $reason = trim((string) ($context['reason'] ?? ''));
+            }
+
+            $notes = trim((string) ($fee['notes'] ?? ''));
+            if ($notes === '') {
+                $notes = trim((string) ($context['notes'] ?? ''));
+            }
+
+            $fee['processed_by'] = $processedBy !== '' ? $processedBy : '-';
+            $fee['processed_at'] = $processedAt;
+            $fee['reason'] = $reason;
+            $fee['notes'] = $notes;
 
             return $fee;
         });
