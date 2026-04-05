@@ -751,7 +751,7 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                                 <div className="flex items-center justify-end gap-2">
                                                     {activeTab === 'dropped' && (
                                                         <>
-                                                            <Button
+                                                            {/* <Button
                                                                 size="sm"
                                                                 variant="outline"
                                                                 className="border-green-400 text-green-700 hover:bg-green-50"
@@ -759,7 +759,7 @@ export default function StudentsIndex({ students, tab: tabProp = 'active', stats
                                                             >
                                                                 <RefreshCcw className="mr-1 h-3 w-3" />
                                                                 Re-Enroll
-                                                            </Button>
+                                                            </Button> */}
                                                             <Button
                                                                 size="sm"
                                                                 variant="ghost"
