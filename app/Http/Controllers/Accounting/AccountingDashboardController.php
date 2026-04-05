@@ -72,6 +72,8 @@ class AccountingDashboardController extends Controller
                 })
                 ->orWhere('enrollment_status', 'pending-accounting');
             })
+            ->withoutDropped()
+            ->withoutTransferredOut()
             ->get(['id', 'school_year', 'department_id']);
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
@@ -129,15 +131,15 @@ class AccountingDashboardController extends Controller
             $monthStart = Carbon::create($selectedYear, $month, 1)->startOfMonth();
             $monthEnd = Carbon::create($selectedYear, $month, 1)->endOfMonth();
 
+            $transferCollectionsQuery = OnlineTransaction::query()
+                ->whereBetween('verified_at', [$monthStart, $monthEnd]);
+            $this->applyTransferFeeTransactionScope($transferCollectionsQuery);
+            $this->applyTransferFeeSchoolYearFilter($transferCollectionsQuery, $selectedSchoolYear);
+
             $amount = (float) StudentPayment::whereBetween('payment_date', [$monthStart, $monthEnd])
                 ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->sum('amount')
-                + (float) OnlineTransaction::query()
-                    ->whereNotNull('transfer_request_id')
-                    ->whereIn('status', ['completed', 'verified'])
-                    ->whereBetween('verified_at', [$monthStart, $monthEnd])
-                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
-                    ->sum('amount')
+                + (float) $transferCollectionsQuery->sum('amount')
                 + (float) DocumentRequest::where('is_paid', true)
                     ->where('accounting_status', 'approved')
                     ->whereIn('student_id', $eligibleStudentIds)
@@ -338,8 +340,9 @@ class AccountingDashboardController extends Controller
         );
 
         // Build scoped student IDs
-        $studentQ = Student::select('id');
-        $studentQ->where('enrollment_status', '!=', 'dropped');
+        $studentQ = Student::select('id')
+            ->withoutDropped()
+            ->withoutTransferredOut();
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -395,13 +398,9 @@ class AccountingDashboardController extends Controller
                 ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->sum('amount');
         }
-        $transferBaseQuery = OnlineTransaction::query()
-            ->whereNotNull('transfer_request_id')
-            ->whereIn('status', ['completed', 'verified']);
-
-        if ($selectedSchoolYear !== 'all') {
-            $transferBaseQuery->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
-        }
+        $transferBaseQuery = OnlineTransaction::query();
+        $this->applyTransferFeeTransactionScope($transferBaseQuery);
+        $this->applyTransferFeeSchoolYearFilter($transferBaseQuery, $selectedSchoolYear);
 
         if ($classification || $departmentId || $program || $yearLevel || $section) {
             $transferBaseQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
@@ -505,13 +504,13 @@ class AccountingDashboardController extends Controller
                 ->get();
 
             $total = (float) $dayPayments->sum('amount')
-                + (float) OnlineTransaction::query()
-                    ->whereNotNull('transfer_request_id')
-                    ->whereIn('status', ['completed', 'verified'])
-                    ->whereDate('verified_at', $date)
-                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
-                    ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
-                        $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                + (float) (function () use ($date, $selectedSchoolYear, $classification, $departmentId, $program, $yearLevel, $section) {
+                    $dayTransferQuery = OnlineTransaction::query()->whereDate('verified_at', $date);
+                    $this->applyTransferFeeTransactionScope($dayTransferQuery);
+                    $this->applyTransferFeeSchoolYearFilter($dayTransferQuery, $selectedSchoolYear);
+
+                    if ($classification || $departmentId || $program || $yearLevel || $section) {
+                        $dayTransferQuery->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
                             if ($classification) {
                                 $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
                             }
@@ -528,8 +527,10 @@ class AccountingDashboardController extends Controller
                                 $sq->where('section', $section);
                             }
                         });
-                    })
-                    ->sum('amount')
+                    }
+
+                    return $dayTransferQuery->sum('amount');
+                })()
                 + (float) $dayDocuments->sum('fee')
                 + (float) $dayDrops->sum('fee_amount');
 
@@ -664,10 +665,9 @@ class AccountingDashboardController extends Controller
         }
 
         // Build scoped student IDs
-        $studentQ = Student::select('id');
-        if (!$isSuperAccounting) {
-            $studentQ->where('enrollment_status', '!=', 'dropped');
-        }
+        $studentQ = Student::select('id')
+            ->withoutDropped()
+            ->withoutTransferredOut();
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -698,13 +698,9 @@ class AccountingDashboardController extends Controller
 
         $transferTransactionsQuery = OnlineTransaction::query()
             ->with('verifiedBy:id,name')
-            ->whereNotNull('transfer_request_id')
-            ->whereIn('status', ['completed', 'verified'])
             ->whereBetween('verified_at', [$periodStart, $periodEnd]);
-
-        if ($selectedSchoolYear !== 'all') {
-            $transferTransactionsQuery->whereHas('transferRequest', fn($q) => $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]));
-        }
+        $this->applyTransferFeeTransactionScope($transferTransactionsQuery);
+        $this->applyTransferFeeSchoolYearFilter($transferTransactionsQuery, $selectedSchoolYear);
 
         if ($classification || $departmentId || $program || $yearLevel || $section) {
             $transferTransactionsQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
@@ -791,10 +787,11 @@ class AccountingDashboardController extends Controller
             $overallFeePaidQuery->where('recorded_by', (int) $selectedAccountId);
         }
         $overallFeePaid = (float) $overallFeePaidQuery->sum('amount');
-        $overallFeePaid += (float) OnlineTransaction::query()
-            ->whereNotNull('transfer_request_id')
-            ->whereIn('status', ['completed', 'verified'])
-            ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
+        $overallTransferPaidQuery = OnlineTransaction::query();
+        $this->applyTransferFeeTransactionScope($overallTransferPaidQuery);
+        $this->applyTransferFeeSchoolYearFilter($overallTransferPaidQuery, $selectedSchoolYear);
+
+        $overallFeePaid += (float) $overallTransferPaidQuery
             ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
                 $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
                     if ($classification) {
@@ -865,10 +862,11 @@ class AccountingDashboardController extends Controller
                     ->where('recorded_by', $accountId)
                     ->whereBetween('payment_date', [$periodStart, $periodEnd])
                     ->sum('amount');
-                $feeTotal += (float) OnlineTransaction::query()
-                    ->whereNotNull('transfer_request_id')
-                    ->whereIn('status', ['completed', 'verified'])
-                    ->when($selectedSchoolYear !== 'all', fn($q) => $q->whereHas('transferRequest', fn($sq) => $sq->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])))
+                $accountTransferTotalQuery = OnlineTransaction::query();
+                $this->applyTransferFeeTransactionScope($accountTransferTotalQuery);
+                $this->applyTransferFeeSchoolYearFilter($accountTransferTotalQuery, $selectedSchoolYear);
+
+                $feeTotal += (float) $accountTransferTotalQuery
                     ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
                         $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
                             if ($classification) {
@@ -964,12 +962,18 @@ class AccountingDashboardController extends Controller
         // Recent transactions (top 25 payments + top 10 documents)
         foreach ($payments->sortByDesc('payment_date')->take(25) as $p) {
             $sortAt = Carbon::parse($p->created_at)->timestamp;
+            $displayOrNumber = $this->resolveRefundDisplayOrNumber(
+                $p->or_number,
+                (float) $p->amount,
+                (string) ($p->notes ?? '')
+            );
+
             $transactions[] = [
                 'id'           => $p->id,
                 'date'         => Carbon::parse($p->payment_date)->format('Y-m-d'),
                 'time'         => Carbon::parse($p->created_at)->format('h:i A'),
                 'type'         => 'Fee',
-                'or_number'    => $p->or_number ?? 'N/A',
+                'or_number'    => $displayOrNumber ?? 'N/A',
                 'mode'         => $this->normalizePaymentMode($p->payment_mode, $p->payment_method),
                 'reference'    => $p->reference_number,
                 'amount'       => (float) $p->amount,
@@ -1202,6 +1206,73 @@ class AccountingDashboardController extends Controller
         $filename = 'account-dashboard-export-' . $periodStart->format('Ymd') . '-' . $periodEnd->format('Ymd') . '.csv';
 
         return $this->streamCsv($filename, $rows);
+    }
+
+    private function applyTransferFeeTransactionScope($query): void
+    {
+        $query
+            ->whereIn('status', ['completed', 'verified'])
+            ->where(function ($scope) {
+                $scope->whereNotNull('transfer_request_id')
+                    ->orWhere('payment_context', 'transfer_out_fee')
+                    ->orWhere('remarks', 'like', '%[PaymentType: transfer_out_fee]%');
+            });
+    }
+
+    private function applyTransferFeeSchoolYearFilter($query, ?string $selectedSchoolYear): void
+    {
+        $normalizedSchoolYear = trim((string) $selectedSchoolYear);
+        if ($normalizedSchoolYear === '' || strtolower($normalizedSchoolYear) === 'all') {
+            return;
+        }
+
+        $query->where(function ($scope) use ($normalizedSchoolYear) {
+            $scope->whereHas('transferRequest', function ($transferQuery) use ($normalizedSchoolYear) {
+                $transferQuery->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+            })->orWhere(function ($fallbackQuery) use ($normalizedSchoolYear) {
+                $fallbackQuery->whereNull('transfer_request_id')
+                    ->where(function ($legacyScope) use ($normalizedSchoolYear) {
+                        $legacyScope->whereHas('student', function ($studentQuery) use ($normalizedSchoolYear) {
+                            $studentQuery->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+                        })->orWhere('remarks', 'like', '%[SchoolYear:' . $normalizedSchoolYear . '%');
+                    });
+            });
+        });
+    }
+
+    private function resolveRefundDisplayOrNumber(?string $orNumber, float $amount, string $notes = ''): ?string
+    {
+        $resolvedOrNumber = trim((string) $orNumber);
+        $rawNotes = trim($notes);
+        $normalizedNotes = strtolower($rawNotes);
+
+        $isRefundRow = $amount < 0
+            || str_contains($normalizedNotes, 'refund')
+            || str_contains(strtoupper($resolvedOrNumber), '-RFND');
+
+        if (!$isRefundRow) {
+            return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
+        }
+
+        if (preg_match('/\[OR:([^\]]+)\]/i', $rawNotes, $matches) === 1) {
+            $taggedOr = trim((string) ($matches[1] ?? ''));
+            if ($taggedOr !== '') {
+                return $taggedOr;
+            }
+        }
+
+        if (preg_match('/\bfor\s+OR\s+([A-Za-z0-9\-\/_.]+)/i', $rawNotes, $matches) === 1) {
+            $parsedOr = trim((string) ($matches[1] ?? ''));
+            if ($parsedOr !== '') {
+                return $parsedOr;
+            }
+        }
+
+        if ($resolvedOrNumber !== '' && str_ends_with(strtoupper($resolvedOrNumber), '-RFND')) {
+            return preg_replace('/-RFND$/i', '', $resolvedOrNumber) ?: $resolvedOrNumber;
+        }
+
+        return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
     }
 
     /**
