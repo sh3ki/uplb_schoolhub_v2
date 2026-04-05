@@ -1327,7 +1327,9 @@ class AccountingDashboardController extends Controller
             $periodEnd   = Carbon::create($selectedYear, $selectedMonth, 1)->endOfMonth();
         }
 
-        $studentQ = Student::select('id');
+        $studentQ = Student::select('id')
+            ->withoutDropped()
+            ->withoutTransferredOut();
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
