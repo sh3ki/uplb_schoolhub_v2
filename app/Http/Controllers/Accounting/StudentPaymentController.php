@@ -218,11 +218,18 @@ class StudentPaymentController extends Controller
                         if ($normalizedMode === 'BANK_TRANSFER') {
                             $normalizedMode = 'BANK';
                         }
+
+                        $displayOrNumber = $this->resolveRefundDisplayOrNumber(
+                            $transaction->or_number,
+                            (float) $transaction->amount,
+                            (string) ($transaction->notes ?? '')
+                        );
+
                         return [
                             'id' => $transaction->id,
                             'date_time' => $transaction->payment_date . ' ' . $transaction->created_at->format('H:i A'),
                             'payment_date' => $transaction->payment_date,
-                            'or_number' => $transaction->or_number,
+                            'or_number' => $displayOrNumber,
                             'mode' => $normalizedMode,
                             'reference' => $transaction->reference_number ?? 'N/A',
                             'amount' => $transaction->amount,
@@ -475,10 +482,17 @@ class StudentPaymentController extends Controller
                     if ($normalizedMode === 'BANK_TRANSFER') {
                         $normalizedMode = 'BANK';
                     }
+
+                    $displayOrNumber = $this->resolveRefundDisplayOrNumber(
+                        $payment->or_number,
+                        (float) $payment->amount,
+                        (string) ($payment->notes ?? '')
+                    );
+
                     return [
                         'id' => $payment->id,
                         'payment_date' => $payment->payment_date,
-                        'or_number' => $payment->or_number,
+                        'or_number' => $displayOrNumber,
                         'amount' => (float) $payment->amount,
                         'payment_for' => $payment->payment_for,
                         'payment_mode' => $normalizedMode,
@@ -562,10 +576,26 @@ class StudentPaymentController extends Controller
                 ];
             });
 
-        $existingRefundOrNumbers = collect($payments)
+        $existingRefundOrNumbers = collect($feeTransactions)
+            ->filter(function ($row) {
+                $amount = (float) ($row['amount'] ?? 0);
+                $notes = strtolower((string) ($row['notes'] ?? ''));
+
+                return $amount < 0 || str_contains($notes, 'refund');
+            })
             ->pluck('or_number')
             ->filter()
-            ->map(fn($or) => strtoupper(trim((string) $or)))
+            ->map(fn ($or) => $this->normalizeReferenceNumber($or))
+            ->filter()
+            ->values()
+            ->all();
+
+        $existingOnlineRefundReferences = collect($onlineTransactions)
+            ->filter(fn ($row) => (($row['transaction_type'] ?? '') === 'refund'))
+            ->pluck('or_number')
+            ->filter()
+            ->map(fn ($or) => $this->normalizeReferenceNumber($or))
+            ->filter()
             ->values()
             ->all();
 
@@ -576,29 +606,50 @@ class StudentPaymentController extends Controller
             ->get()
             ->map(function ($refund) {
                 $processedAt = $refund->processed_at ?: $refund->updated_at ?: $refund->created_at;
+                $rawReason = (string) ($refund->reason ?? '');
+
+                $originalOrNumber = $this->extractTaggedValue($rawReason, 'OR');
+                $transactionReference = $this->extractTaggedValue($rawReason, 'TXN');
+                $paymentReferenceId = $this->extractTaggedValue($rawReason, 'PAYMENT_ID');
+
+                $displayOrNumber = $originalOrNumber
+                    ?: ($transactionReference ?: ('RF-' . $refund->id));
+
+                $refundNotes = $refund->accounting_notes ?: $this->stripReasonTags($rawReason);
 
                 return [
                     'id' => 2000000 + $refund->id,
                     'payment_date' => ($processedAt ?: now())->format('Y-m-d'),
-                    'or_number' => 'RF-' . $refund->id,
+                    'or_number' => $displayOrNumber,
                     'amount' => -abs((float) $refund->amount),
                     'payment_for' => strtoupper($refund->type) . ' APPROVED',
                     'payment_mode' => 'REFUND',
                     'bank_name' => null,
-                    'notes' => $refund->accounting_notes ?: $refund->reason,
+                    'notes' => $refundNotes,
                     'recorded_by' => $refund->processedBy?->name ?? 'Accounting',
                     'school_year' => $refund->studentFee?->school_year,
                     'created_at' => ($processedAt ?: now())->format('h:i A'),
                     'sort_at' => ($processedAt ?: now())->timestamp,
                     'type' => 'on-site',
                     'transaction_type' => 'refund',
+                    'txn_reference' => $transactionReference,
+                    'payment_reference_id' => $paymentReferenceId,
                 ];
             })
-            ->filter(function ($refundTx) use ($existingRefundOrNumbers) {
-                $orNumber = strtoupper(trim((string) ($refundTx['or_number'] ?? '')));
+            ->filter(function ($refundTx) use ($existingRefundOrNumbers, $existingOnlineRefundReferences) {
+                $orNumber = $this->normalizeReferenceNumber($refundTx['or_number'] ?? null);
+                $txnReference = $this->normalizeReferenceNumber($refundTx['txn_reference'] ?? null);
 
-                // Avoid duplicate refund rows when an equivalent negative StudentPayment already exists.
-                return $orNumber === '' || !in_array($orNumber, $existingRefundOrNumbers, true);
+                // Avoid duplicate refund rows when equivalent negative StudentPayment or refunded online rows already exist.
+                if ($orNumber !== null && in_array($orNumber, $existingRefundOrNumbers, true)) {
+                    return false;
+                }
+
+                if ($txnReference !== null && in_array($txnReference, $existingOnlineRefundReferences, true)) {
+                    return false;
+                }
+
+                return true;
             })
             ->values();
 
@@ -608,6 +659,7 @@ class StudentPaymentController extends Controller
             ->concat($refundTransactions)
             ->sortByDesc('sort_at')
             ->map(function ($row) {
+                unset($row['txn_reference'], $row['payment_reference_id']);
                 unset($row['sort_at']);
                 return $row;
             })
@@ -723,13 +775,17 @@ class StudentPaymentController extends Controller
                 $changes = is_array($log->changes) ? $log->changes : [];
                 $new = is_array($changes['new'] ?? null) ? $changes['new'] : null;
 
-                if (!$new) {
+                $schoolYear = (string) ($new['school_year'] ?? ($changes['school_year'] ?? ''));
+                $reason = (string) ($new['reason'] ?? ($changes['reason'] ?? ''));
+                $notes = (string) ($new['notes'] ?? ($changes['notes'] ?? ($log->notes ?? '')));
+
+                if (!$new && $schoolYear === '') {
                     return null;
                 }
 
                 return [
                     'id' => 'fee-edit-' . $log->id,
-                    'school_year' => (string) ($new['school_year'] ?? ''),
+                    'school_year' => $schoolYear,
                     'total_amount' => (float) ($new['total_amount'] ?? 0),
                     'grant_discount' => (float) ($new['grant_discount'] ?? 0),
                     'total_paid' => (float) ($new['total_paid'] ?? 0),
@@ -737,13 +793,34 @@ class StudentPaymentController extends Controller
                     'status' => (string) ($new['status'] ?? 'unpaid'),
                     'processed_by' => (string) ($new['processed_by'] ?? ($log->performer?->name ?? '-')),
                     'processed_at' => (string) ($new['processed_at'] ?? $log->created_at?->format('Y-m-d H:i:s')),
-                    'reason' => (string) ($new['reason'] ?? ''),
-                    'notes' => (string) ($new['notes'] ?? ''),
+                    'reason' => $reason,
+                    'notes' => $notes,
                     'is_history' => true,
                 ];
             })
             ->filter()
             ->values();
+
+        $latestFeeContextByYear = $feeEditRows
+            ->filter(fn ($row) => trim((string) ($row['school_year'] ?? '')) !== '')
+            ->groupBy(fn ($row) => trim((string) $row['school_year']))
+            ->map(function ($rows) {
+                return $rows
+                    ->sortByDesc(function ($row) {
+                        return strtotime((string) ($row['processed_at'] ?? '')) ?: 0;
+                    })
+                    ->first();
+            });
+
+        $feesWithReasonContext = $fees->map(function ($fee) use ($latestFeeContextByYear) {
+            $schoolYear = trim((string) ($fee['school_year'] ?? ''));
+            $context = $latestFeeContextByYear->get($schoolYear);
+
+            $fee['reason'] = trim((string) ($fee['reason'] ?? ($context['reason'] ?? '')));
+            $fee['notes'] = trim((string) ($fee['notes'] ?? ($context['notes'] ?? '')));
+
+            return $fee;
+        });
 
         // Get cashiers (accounting staff)
         $cashiers = \App\Models\User::where('role', 'accounting')
@@ -767,7 +844,7 @@ class StudentPaymentController extends Controller
                 'student_photo_url' => $student->student_photo_url,
                 'enrollment_status' => $student->enrollment_status,
             ],
-            'fees' => $fees->values(),
+            'fees' => $feesWithReasonContext->values(),
             'payments' => $payments,
             'promissoryNotes' => $promissoryNotes,
             'grants' => $grants,
@@ -1776,6 +1853,64 @@ class StudentPaymentController extends Controller
         }
 
         return collect();
+    }
+
+    private function extractTaggedValue(string $text, string $tag): ?string
+    {
+        $pattern = '/\[' . preg_quote($tag, '/') . ':([^\]]+)\]/i';
+
+        if (preg_match($pattern, $text, $matches) === 1) {
+            $value = trim((string) ($matches[1] ?? ''));
+            return $value !== '' ? $value : null;
+        }
+
+        return null;
+    }
+
+    private function stripReasonTags(string $text): string
+    {
+        return trim((string) preg_replace('/\s*\[(OR|PAYMENT_ID|OTX|TXN):[^\]]+\]\s*/i', ' ', $text));
+    }
+
+    private function normalizeReferenceNumber(?string $value): ?string
+    {
+        $normalized = strtoupper(trim((string) $value));
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveRefundDisplayOrNumber(?string $orNumber, float $amount, string $notes = ''): ?string
+    {
+        $resolvedOrNumber = trim((string) $orNumber);
+        $rawNotes = trim($notes);
+        $normalizedNotes = strtolower($rawNotes);
+
+        $isRefundRow = $amount < 0
+            || str_contains($normalizedNotes, 'refund')
+            || str_contains(strtoupper($resolvedOrNumber), '-RFND');
+
+        if (!$isRefundRow) {
+            return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
+        }
+
+        if (preg_match('/\[OR:([^\]]+)\]/i', $rawNotes, $matches) === 1) {
+            $taggedOr = trim((string) ($matches[1] ?? ''));
+            if ($taggedOr !== '') {
+                return $taggedOr;
+            }
+        }
+
+        if (preg_match('/\bfor\s+OR\s+([A-Za-z0-9\-\/_.]+)/i', $rawNotes, $matches) === 1) {
+            $parsedOr = trim((string) ($matches[1] ?? ''));
+            if ($parsedOr !== '') {
+                return $parsedOr;
+            }
+        }
+
+        if ($resolvedOrNumber !== '' && str_ends_with(strtoupper($resolvedOrNumber), '-RFND')) {
+            return preg_replace('/-RFND$/i', '', $resolvedOrNumber) ?: $resolvedOrNumber;
+        }
+
+        return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
     }
 
     /**
