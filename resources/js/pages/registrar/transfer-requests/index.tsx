@@ -305,8 +305,8 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                         <Button size="sm" onClick={() => finalize(item.id)}>Finalize</Button>
                                                     ) : item.accounting_status === 'approved' && item.student.is_active && item.transfer_fee_amount > 0 && item.transfer_balance_due > 0 ? (
                                                         <Button size="sm" variant="outline" disabled>Awaiting Fee Payment</Button>
-                                                    ) : !item.student.is_active ? (
-                                                        <Button size="sm" variant="outline" onClick={() => reactivate(item.student.id)}>Reactivate</Button>
+                                                    // ) : !item.student.is_active ? (
+                                                    //     <Button size="sm" variant="outline" onClick={() => reactivate(item.student.id)}>Reactivate</Button>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">Processed</span>
                                                     )}
