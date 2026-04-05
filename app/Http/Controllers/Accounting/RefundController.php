@@ -104,11 +104,12 @@ class RefundController extends Controller
     private function reconcileRefundedOnlineTransactions(): void
     {
         OnlineTransaction::query()
-            ->with(['payment:id,student_fee_id', 'student:id'])
+            ->with(['payment:id,student_fee_id,or_number', 'student:id'])
             ->where('status', 'refunded')
             ->chunkById(100, function ($transactions) {
                 foreach ($transactions as $transaction) {
-                    $reason = 'Online transaction refund [OTX:' . $transaction->id . '] [TXN:' . $transaction->transaction_id . ']';
+                    $originalOrNumber = trim((string) ($transaction->payment?->or_number ?: $transaction->transaction_id));
+                    $reason = 'Online transaction refund [OR:' . $originalOrNumber . '] [OTX:' . $transaction->id . '] [TXN:' . $transaction->transaction_id . ']';
 
                     $exists = RefundRequest::query()
                         ->where('student_id', $transaction->student_id)
@@ -281,12 +282,13 @@ class RefundController extends Controller
 
                 if ($fee) {
                     $originalOrNumber = $this->extractTaggedValue((string) $refund->reason, 'OR');
+                    $resolvedRefundOrNumber = trim((string) ($originalOrNumber ?: ('RF-' . $refund->id)));
 
                     StudentPayment::create([
                         'student_id' => $refund->student_id,
                         'student_fee_id' => $fee->id,
                         'payment_date' => $processedAt->toDateString(),
-                        'or_number' => 'RF-' . $refund->id,
+                        'or_number' => $resolvedRefundOrNumber,
                         'amount' => -abs((float) $refund->amount),
                         // Keep enum-safe payment_for value and move descriptive text to notes.
                         'payment_for' => 'other',
