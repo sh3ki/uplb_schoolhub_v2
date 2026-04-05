@@ -102,17 +102,39 @@ class SelfEnrollmentController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->orderBy('payment_date', 'desc')
                 ->get()
-                ->map(fn ($p) => [
-                    'id'           => $p->id,
-                    'payment_date' => trim(($p->payment_date?->format('M d, Y') ?? '') . ' ' . ($p->created_at?->format('h:i A') ?? '')),
-                    'or_number'    => $p->or_number,
-                    'amount'       => (float) $p->amount,
-                    'payment_mode' => $this->normalizePaymentMode($p->payment_mode, $p->payment_method),
-                    'payment_for'  => $p->payment_for,
-                    'notes'        => $p->notes,
-                    'school_year'  => $p->studentFee?->school_year,
-                    'sort_at'      => $p->created_at?->timestamp ?? now()->timestamp,
-                ]);
+                ->map(function ($p) {
+                    $displayOrNumber = $this->resolveRefundDisplayOrNumber(
+                        $p->or_number,
+                        (float) $p->amount,
+                        (string) ($p->notes ?? '')
+                    );
+
+                    return [
+                        'id'           => $p->id,
+                        'payment_date' => trim(($p->payment_date?->format('M d, Y') ?? '') . ' ' . ($p->created_at?->format('h:i A') ?? '')),
+                        'or_number'    => $displayOrNumber,
+                        'amount'       => (float) $p->amount,
+                        'payment_mode' => $this->normalizePaymentMode($p->payment_mode, $p->payment_method),
+                        'payment_for'  => $p->payment_for,
+                        'notes'        => $p->notes,
+                        'school_year'  => $p->studentFee?->school_year,
+                        'sort_at'      => $p->created_at?->timestamp ?? now()->timestamp,
+                    ];
+                });
+
+            $existingRefundOrNumbers = collect($payments)
+                ->filter(function ($row) {
+                    $amount = (float) ($row['amount'] ?? 0);
+                    $notes = strtolower((string) ($row['notes'] ?? ''));
+
+                    return $amount < 0 || str_contains($notes, 'refund');
+                })
+                ->pluck('or_number')
+                ->filter()
+                ->map(fn ($or) => $this->normalizeReferenceNumber($or))
+                ->filter()
+                ->values()
+                ->all();
 
             $refundRows = \App\Models\RefundRequest::where('student_id', $student->id)
                 ->where('status', 'approved')
@@ -124,24 +146,47 @@ class SelfEnrollmentController extends Controller
                 ->get()
                 ->map(function ($refund) {
                     $processedAt = $refund->processed_at ?: $refund->updated_at ?: $refund->created_at;
+                    $rawReason = (string) ($refund->reason ?? '');
+                    $originalOrNumber = $this->extractTaggedValue($rawReason, 'OR');
+                    $transactionReference = $this->extractTaggedValue($rawReason, 'TXN');
+
+                    $displayOrNumber = $originalOrNumber
+                        ?: ($transactionReference ?: ('RF-' . $refund->id));
 
                     return [
                         'id'           => 100000 + $refund->id,
                         'payment_date' => ($processedAt ?: now())->format('M d, Y h:i A'),
-                        'or_number'    => 'RF-' . $refund->id,
+                        'or_number'    => $displayOrNumber,
                         'amount'       => -abs((float) $refund->amount),
                         'payment_mode' => 'REFUND',
                         'payment_for'  => strtoupper((string) $refund->type) . ' approved',
-                        'notes'        => $refund->accounting_notes ?: $refund->reason,
+                        'notes'        => $refund->accounting_notes ?: $this->stripReasonTags($rawReason),
                         'school_year'  => $refund->studentFee?->school_year,
                         'sort_at'      => ($processedAt ?: now())->timestamp,
+                        'txn_reference' => $transactionReference,
                     ];
-                });
+                })
+                ->filter(function ($refundRow) use ($existingRefundOrNumbers) {
+                    $orNumber = $this->normalizeReferenceNumber($refundRow['or_number'] ?? null);
+                    $txnReference = $this->normalizeReferenceNumber($refundRow['txn_reference'] ?? null);
+
+                    if ($orNumber !== null && in_array($orNumber, $existingRefundOrNumbers, true)) {
+                        return false;
+                    }
+
+                    if ($txnReference !== null && in_array($txnReference, $existingRefundOrNumbers, true)) {
+                        return false;
+                    }
+
+                    return true;
+                })
+                ->values();
 
             $payments = $payments
                 ->concat($refundRows)
                 ->sortByDesc('sort_at')
                 ->map(function ($row) {
+                    unset($row['txn_reference']);
                     unset($row['sort_at']);
                     return $row;
                 })
@@ -419,6 +464,64 @@ class SelfEnrollmentController extends Controller
             'BANK', 'BANK_TRANSFER' => 'BANK',
             default => 'CASH',
         };
+    }
+
+    private function extractTaggedValue(string $text, string $tag): ?string
+    {
+        $pattern = '/\[' . preg_quote($tag, '/') . ':([^\]]+)\]/i';
+
+        if (preg_match($pattern, $text, $matches) === 1) {
+            $value = trim((string) ($matches[1] ?? ''));
+            return $value !== '' ? $value : null;
+        }
+
+        return null;
+    }
+
+    private function stripReasonTags(string $text): string
+    {
+        return trim((string) preg_replace('/\s*\[(OR|PAYMENT_ID|OTX|TXN):[^\]]+\]\s*/i', ' ', $text));
+    }
+
+    private function normalizeReferenceNumber(?string $value): ?string
+    {
+        $normalized = strtoupper(trim((string) $value));
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveRefundDisplayOrNumber(?string $orNumber, float $amount, string $notes = ''): ?string
+    {
+        $resolvedOrNumber = trim((string) $orNumber);
+        $rawNotes = trim($notes);
+        $normalizedNotes = strtolower($rawNotes);
+
+        $isRefundRow = $amount < 0
+            || str_contains($normalizedNotes, 'refund')
+            || str_contains(strtoupper($resolvedOrNumber), '-RFND');
+
+        if (!$isRefundRow) {
+            return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
+        }
+
+        if (preg_match('/\[OR:([^\]]+)\]/i', $rawNotes, $matches) === 1) {
+            $taggedOr = trim((string) ($matches[1] ?? ''));
+            if ($taggedOr !== '') {
+                return $taggedOr;
+            }
+        }
+
+        if (preg_match('/\bfor\s+OR\s+([A-Za-z0-9\-\/_.]+)/i', $rawNotes, $matches) === 1) {
+            $parsedOr = trim((string) ($matches[1] ?? ''));
+            if ($parsedOr !== '') {
+                return $parsedOr;
+            }
+        }
+
+        if ($resolvedOrNumber !== '' && str_ends_with(strtoupper($resolvedOrNumber), '-RFND')) {
+            return preg_replace('/-RFND$/i', '', $resolvedOrNumber) ?: $resolvedOrNumber;
+        }
+
+        return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
     }
 
     /**
