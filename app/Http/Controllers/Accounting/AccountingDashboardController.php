@@ -12,6 +12,7 @@ use App\Models\OnlineTransaction;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\StudentPayment;
+use App\Models\TransferRequest;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -55,11 +56,16 @@ class AccountingDashboardController extends Controller
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
         $availableSchoolYears = $this->getAvailableSchoolYears();
+        $requestedSchoolYear = trim((string) $request->input('school_year', ''));
+        $hasExplicitSchoolYearFilter = $requestedSchoolYear !== ''
+            && strtolower($requestedSchoolYear) !== 'all';
         $selectedSchoolYear = $this->resolveSelectedSchoolYear(
-            $request->input('school_year', $currentSchoolYear),
+            $hasExplicitSchoolYearFilter ? $requestedSchoolYear : $currentSchoolYear,
             $currentSchoolYear,
             $availableSchoolYears
         );
+        // Match student-accounts behavior when no school year is explicitly requested.
+        $receivablesSchoolYear = $hasExplicitSchoolYearFilter ? $selectedSchoolYear : null;
 
         $eligibleStudents = Student::query()
             ->with('department:id,name')
@@ -77,7 +83,7 @@ class AccountingDashboardController extends Controller
             ->get(['id', 'school_year', 'department_id']);
 
         $eligibleStudentIds = $eligibleStudents->pluck('id');
-        $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, $selectedSchoolYear, $currentSchoolYear);
+        $snapshots = $this->buildStudentAccountSnapshots($eligibleStudents, $receivablesSchoolYear, $currentSchoolYear);
 
         $fullyPaid = 0;
         $partialPayment = 0;
@@ -728,6 +734,55 @@ class AccountingDashboardController extends Controller
 
         $transferTransactions = $transferTransactionsQuery->get();
 
+        $manualTransferPaymentsQuery = TransferRequest::query()
+            ->with(['processedBy:id,name', 'accountingApprovedBy:id,name'])
+            ->whereIn('student_id', $studentIds)
+            ->where('accounting_status', 'approved')
+            ->where('transfer_fee_paid', true)
+            ->where('transfer_fee_amount', '>', 0)
+            ->whereDoesntHave('onlineTransactions', function ($q) {
+                $q->whereIn('status', ['completed', 'verified']);
+            })
+            ->where(function ($q) use ($periodStart, $periodEnd) {
+                $q->where(function ($inner) use ($periodStart, $periodEnd) {
+                    $inner->whereNotNull('processed_at')
+                        ->whereBetween('processed_at', [$periodStart, $periodEnd]);
+                })->orWhere(function ($inner) use ($periodStart, $periodEnd) {
+                    $inner->whereNull('processed_at')
+                        ->whereNotNull('accounting_approved_at')
+                        ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
+                });
+            });
+
+        if ($classification || $departmentId || $program || $yearLevel || $section) {
+            $manualTransferPaymentsQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                if ($classification) {
+                    $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                }
+                if ($departmentId) {
+                    $q->where('department_id', $departmentId);
+                }
+                if ($program) {
+                    $q->where('program', $program);
+                }
+                if ($yearLevel) {
+                    $q->where('year_level', $yearLevel);
+                }
+                if ($section) {
+                    $q->where('section', $section);
+                }
+            });
+        }
+
+        if ($isSuperAccounting && $selectedAccountId !== 'all') {
+            $manualTransferPaymentsQuery->where(function ($q) use ($selectedAccountId) {
+                $q->where('processed_by', (int) $selectedAccountId)
+                    ->orWhere('accounting_approved_by', (int) $selectedAccountId);
+            });
+        }
+
+        $manualTransferPayments = $manualTransferPaymentsQuery->get();
+
         $documents = DocumentRequest::with(['accountingApprovedBy:id,name', 'processedBy:id,name'])
             ->whereIn('student_id', $studentIds)
             ->where('is_paid', true)
@@ -775,11 +830,13 @@ class AccountingDashboardController extends Controller
             })
             ->get();
 
-        $transferCount = $transferTransactions->count();
+        $transferCount = $transferTransactions->count() + $manualTransferPayments->count();
         $feeCount    = $payments->count() + $transferCount;
         $docCount    = $documents->count();
         $dropCount   = $dropRequests->count();
-        $feeSum      = (float) $payments->sum('amount') + (float) $transferTransactions->sum('amount');
+        $feeSum      = (float) $payments->sum('amount')
+            + (float) $transferTransactions->sum('amount')
+            + (float) $manualTransferPayments->sum('transfer_fee_amount');
         $docSum      = (float) $documents->sum('fee');
         $dropSum     = (float) $dropRequests->sum('fee_amount');
         $overallFeePaidQuery = StudentPayment::whereIn('student_id', $studentIds);
@@ -813,6 +870,44 @@ class AccountingDashboardController extends Controller
             })
             ->when($isSuperAccounting && $selectedAccountId !== 'all', fn($q) => $q->where('verified_by', (int) $selectedAccountId))
             ->sum('amount');
+
+        $overallManualTransferPaidQuery = TransferRequest::query()
+            ->whereIn('student_id', $studentIds)
+            ->where('accounting_status', 'approved')
+            ->where('transfer_fee_paid', true)
+            ->where('transfer_fee_amount', '>', 0)
+            ->whereDoesntHave('onlineTransactions', function ($q) {
+                $q->whereIn('status', ['completed', 'verified']);
+            });
+
+        if ($classification || $departmentId || $program || $yearLevel || $section) {
+            $overallManualTransferPaidQuery->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                if ($classification) {
+                    $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                }
+                if ($departmentId) {
+                    $sq->where('department_id', $departmentId);
+                }
+                if ($program) {
+                    $sq->where('program', $program);
+                }
+                if ($yearLevel) {
+                    $sq->where('year_level', $yearLevel);
+                }
+                if ($section) {
+                    $sq->where('section', $section);
+                }
+            });
+        }
+
+        if ($isSuperAccounting && $selectedAccountId !== 'all') {
+            $overallManualTransferPaidQuery->where(function ($q) use ($selectedAccountId) {
+                $q->where('processed_by', (int) $selectedAccountId)
+                    ->orWhere('accounting_approved_by', (int) $selectedAccountId);
+            });
+        }
+
+        $overallFeePaid += (float) $overallManualTransferPaidQuery->sum('transfer_fee_amount');
 
         $overallDocumentPaidQuery = DocumentRequest::whereIn('student_id', $studentIds)
             ->where('is_paid', true)
@@ -890,6 +985,51 @@ class AccountingDashboardController extends Controller
                     ->whereBetween('verified_at', [$periodStart, $periodEnd])
                     ->sum('amount');
 
+                $accountManualTransferTotal = (float) TransferRequest::query()
+                    ->whereIn('student_id', $studentIds)
+                    ->where('accounting_status', 'approved')
+                    ->where('transfer_fee_paid', true)
+                    ->where('transfer_fee_amount', '>', 0)
+                    ->whereDoesntHave('onlineTransactions', function ($q) {
+                        $q->whereIn('status', ['completed', 'verified']);
+                    })
+                    ->when($classification || $departmentId || $program || $yearLevel || $section, function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                        $q->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
+                            if ($classification) {
+                                $sq->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+                            }
+                            if ($departmentId) {
+                                $sq->where('department_id', $departmentId);
+                            }
+                            if ($program) {
+                                $sq->where('program', $program);
+                            }
+                            if ($yearLevel) {
+                                $sq->where('year_level', $yearLevel);
+                            }
+                            if ($section) {
+                                $sq->where('section', $section);
+                            }
+                        });
+                    })
+                    ->where(function ($q) use ($accountId) {
+                        $q->where('processed_by', $accountId)
+                            ->orWhere('accounting_approved_by', $accountId);
+                    })
+                    ->where(function ($q) use ($periodStart, $periodEnd) {
+                        $q->where(function ($inner) use ($periodStart, $periodEnd) {
+                            $inner->whereNotNull('processed_at')
+                                ->whereBetween('processed_at', [$periodStart, $periodEnd]);
+                        })->orWhere(function ($inner) use ($periodStart, $periodEnd) {
+                            $inner->whereNull('processed_at')
+                                ->whereNotNull('accounting_approved_at')
+                                ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
+                        });
+                    })
+                    ->sum('transfer_fee_amount');
+
+                $feeTotal += $accountManualTransferTotal;
+
                 $documentTotal = (float) DocumentRequest::whereIn('student_id', $studentIds)
                     ->where('is_paid', true)
                     ->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
@@ -940,7 +1080,14 @@ class AccountingDashboardController extends Controller
         while ($periodDay->lte($periodEndDay)) {
             $dayPayments = $payments->filter(fn($p) => Carbon::parse($p->payment_date)->isSameDay($periodDay));
             $dayTransfer = $transferTransactions->filter(fn($t) => $t->verified_at && Carbon::parse($t->verified_at)->isSameDay($periodDay));
-            $dayAmount   = (float) $dayPayments->sum('amount') + (float) $dayTransfer->sum('amount');
+            $dayManualTransfer = $manualTransferPayments->filter(function ($transferRequest) use ($periodDay) {
+                $eventAt = $transferRequest->processed_at ?: $transferRequest->accounting_approved_at;
+
+                return $eventAt && Carbon::parse($eventAt)->isSameDay($periodDay);
+            });
+            $dayAmount   = (float) $dayPayments->sum('amount')
+                + (float) $dayTransfer->sum('amount')
+                + (float) $dayManualTransfer->sum('transfer_fee_amount');
             if ($dayAmount > 0) {
                 $avgHour = $dayPayments->avg(fn($p) => Carbon::parse($p->created_at)->hour);
                 $avgTime = $avgHour !== null
@@ -996,6 +1143,26 @@ class AccountingDashboardController extends Controller
                 'student_id'   => $transferTx->student_id,
                 'processed_by' => $transferTx->verifiedBy?->name ?? 'N/A',
                 'sort_at'      => $transferDateTime->timestamp,
+            ];
+        }
+        foreach ($manualTransferPayments->sortByDesc(function ($transferRequest) {
+            $eventAt = $transferRequest->processed_at ?: $transferRequest->accounting_approved_at ?: $transferRequest->updated_at;
+
+            return Carbon::parse($eventAt)->timestamp;
+        })->take(10) as $transferRequest) {
+            $eventAt = Carbon::parse($transferRequest->processed_at ?: $transferRequest->accounting_approved_at ?: $transferRequest->updated_at);
+            $transactions[] = [
+                'id'           => 'transfer-manual-' . $transferRequest->id,
+                'date'         => $eventAt->format('Y-m-d'),
+                'time'         => $eventAt->format('h:i A'),
+                'type'         => 'Transfer',
+                'or_number'    => $transferRequest->transfer_fee_or_number ?? ('TRF' . str_pad((string) $transferRequest->id, 3, '0', STR_PAD_LEFT)),
+                'mode'         => 'CASH',
+                'reference'    => 'Transfer Out Fee',
+                'amount'       => (float) $transferRequest->transfer_fee_amount,
+                'student_id'   => $transferRequest->student_id,
+                'processed_by' => $transferRequest->processedBy?->name ?? $transferRequest->accountingApprovedBy?->name ?? 'N/A',
+                'sort_at'      => $eventAt->timestamp,
             ];
         }
         foreach ($documents->take(10) as $doc) {
