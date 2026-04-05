@@ -446,19 +446,19 @@ function ActionCell({
     tab: string;
     onAction: (action: 'reactivate' | 'activate' | 'restore' | 'force-delete') => void;
 }) {
-    if (tab === 'dropped') {
-        return (
-            <Button
-                variant="outline"
-                size="sm"
-                className="gap-1 text-green-700 border-green-300 hover:bg-green-50 text-xs"
-                onClick={() => onAction('reactivate')}
-            >
-                <UserCheck className="h-3 w-3" />
-                Reactivate
-            </Button>
-        );
-    }
+    // if (tab === 'dropped') {
+    //     return (
+    //         <Button
+    //             variant="outline"
+    //             size="sm"
+    //             className="gap-1 text-green-700 border-green-300 hover:bg-green-50 text-xs"
+    //             onClick={() => onAction('reactivate')}
+    //         >
+    //             <UserCheck className="h-3 w-3" />
+    //             Reactivate
+    //         </Button>
+    //     );
+    // }
 
     if (tab === 'archived') {
         return (
