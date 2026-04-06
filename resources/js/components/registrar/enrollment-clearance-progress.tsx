@@ -215,7 +215,7 @@ export function EnrollmentClearanceProgress({ studentId, clearance, student, mod
             percentage: clearance?.official_enrollment ? 100 : 0,
             color: 'bg-red-600',
             key: 'official_enrollment',
-            canToggle: true,
+            canToggle: !clearance?.official_enrollment,
             blocked: !clearance?.official_enrollment && officialBlocked,
             blockedReason: 'Both registrar and accounting clearance must be completed first.',
         },
