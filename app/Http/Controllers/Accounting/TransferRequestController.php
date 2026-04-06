@@ -206,6 +206,14 @@ class TransferRequestController extends Controller
             return back()->with('error', 'Only approved transfer requests can be marked as paid.');
         }
 
+        if ($transferRequest->transfer_fee_paid) {
+            return back()->with('error', 'Transfer out fee is already paid and final.');
+        }
+
+        if ((float) $transferRequest->transfer_fee_amount <= 0) {
+            return back()->with('error', 'Transfer out fee amount must be greater than zero before marking as paid.');
+        }
+
         $validated = $request->validate([
             'or_number' => 'required|string|max:100',
         ]);
