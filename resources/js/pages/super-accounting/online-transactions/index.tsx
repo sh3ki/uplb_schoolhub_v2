@@ -53,6 +53,9 @@ interface Student {
     full_name: string;
     lrn: string;
     email?: string;
+    department?: string | null;
+    year_level?: string | null;
+    section?: string | null;
 }
 
 interface OnlineTransaction {
@@ -73,6 +76,7 @@ interface OnlineTransaction {
     refunded_at?: string;
     failure_reason?: string;
     remarks?: string;
+    or_number?: string | null;
     payment_context?: 'tuition' | 'transfer_out_fee';
     created_at: string;
     student: Student;
@@ -509,6 +513,10 @@ export default function OnlineTransactionsIndex({
                                 <div>
                                     <p className="text-muted-foreground">Provider Reference</p>
                                     <p className="font-mono">{selectedTransaction.provider_reference || '-'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-muted-foreground">OR Number</p>
+                                    <p className="font-mono font-medium">{selectedTransaction.or_number || '-'}</p>
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground">Student</p>
