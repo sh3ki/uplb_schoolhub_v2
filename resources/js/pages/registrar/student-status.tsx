@@ -184,9 +184,9 @@ export default function StudentStatusPage({
     ];
 
     const tabDescriptions: Record<string, string> = {
-        dropped:     'Reactivate to allow them to re-enroll.',
+        dropped:     'Dropped student records.',
         archived:    'Restore to reinstate or permanently delete.',
-        deactivated: 'Activate to restore login access.',
+        deactivated: 'Deactivated student records.',
     };
 
     return (
@@ -446,19 +446,9 @@ function ActionCell({
     tab: string;
     onAction: (action: 'reactivate' | 'activate' | 'restore' | 'force-delete') => void;
 }) {
-    // if (tab === 'dropped') {
-    //     return (
-    //         <Button
-    //             variant="outline"
-    //             size="sm"
-    //             className="gap-1 text-green-700 border-green-300 hover:bg-green-50 text-xs"
-    //             onClick={() => onAction('reactivate')}
-    //         >
-    //             <UserCheck className="h-3 w-3" />
-    //             Reactivate
-    //         </Button>
-    //     );
-    // }
+    if (tab === 'dropped' || tab === 'deactivated') {
+        return <span className="text-xs text-muted-foreground">No actions</span>;
+    }
 
     if (tab === 'archived') {
         return (
@@ -485,16 +475,5 @@ function ActionCell({
         );
     }
 
-    // deactivated
-    return (
-        <Button
-            variant="outline"
-            size="sm"
-            className="gap-1 text-green-700 border-green-300 hover:bg-green-50 text-xs"
-            onClick={() => onAction('activate')}
-        >
-            <UserCheck className="h-3 w-3" />
-            Activate
-        </Button>
-    );
+    return <span className="text-xs text-muted-foreground">No actions</span>;
 }
