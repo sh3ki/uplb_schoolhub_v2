@@ -122,7 +122,7 @@ class TransferRequest extends Model
         int $userId,
         ?string $remarks = null,
         float $transferFeeAmount = 0,
-        bool $transferFeePaid = false,
+        bool $transferFeePaid = true,
         ?string $transferFeeOrNumber = null
     ): void
     {
@@ -143,12 +143,11 @@ class TransferRequest extends Model
         ]);
     }
 
-    public function markTransferFeePaid(int $userId, string $orNumber, ?float $transferFeeAmount = null): void
+    public function markTransferFeePaid(int $userId, string $orNumber): void
     {
         $this->update([
             'transfer_fee_paid' => true,
             'transfer_fee_or_number' => $orNumber,
-            'transfer_fee_amount' => $transferFeeAmount !== null ? max(0, $transferFeeAmount) : $this->transfer_fee_amount,
             'processed_by' => $userId,
             'processed_at' => now(),
         ]);
