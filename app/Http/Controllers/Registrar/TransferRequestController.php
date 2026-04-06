@@ -324,8 +324,7 @@ class TransferRequestController extends Controller
                 $autoOrNumber = $transferRequest->transfer_fee_or_number ?: ('TRF-AUTO-' . now()->format('YmdHis') . '-' . $transferRequest->id);
                 $transferRequest->markTransferFeePaid(
                     (int) Auth::id(),
-                    $autoOrNumber,
-                    (float) $transferRequest->transfer_fee_amount
+                    $autoOrNumber
                 );
             }
 
