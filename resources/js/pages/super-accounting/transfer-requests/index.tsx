@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -111,7 +112,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     const [rejectOpen, setRejectOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
-    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', or_number: '' });
+    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: true, or_number: '' });
     const rejectForm = useForm({ accounting_remarks: '' });
 
     const onTab = (value: string) => {
@@ -335,8 +336,24 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
-                            <Label>OR Number</Label>
-                            <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
+                            <div className="flex items-center gap-2">
+                                <Checkbox
+                                    id="mark_paid"
+                                    checked={approveForm.data.mark_as_paid}
+                                    onCheckedChange={(checked) => approveForm.setData('mark_as_paid', checked === true)}
+                                />
+                                <Label htmlFor="mark_paid">Mark transfer fee as paid now (physical cash payment)</Label>
+                            </div>
+                            {approveForm.data.mark_as_paid ? (
+                                <div className="space-y-2">
+                                    <Label>OR Number</Label>
+                                    <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">
+                                    Student must settle transfer fee via online payment. Super-accounting verification will be required before registrar finalization.
+                                </p>
+                            )}
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setApproveOpen(false)}>Cancel</Button>
@@ -344,7 +361,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 if (!selected) return;
 
                                 const fee = Number(approveForm.data.transfer_fee_amount || 0);
-                                if (fee > 0 && !approveForm.data.or_number.trim()) {
+                                if (approveForm.data.mark_as_paid && fee > 0 && !approveForm.data.or_number.trim()) {
                                     alert('OR Number is required when marking transfer fee as paid.');
                                     return;
                                 }
