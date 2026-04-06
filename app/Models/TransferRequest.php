@@ -145,6 +145,10 @@ class TransferRequest extends Model
 
     public function markTransferFeePaid(int $userId, string $orNumber): void
     {
+        if ($this->transfer_fee_paid) {
+            return;
+        }
+
         $this->update([
             'transfer_fee_paid' => true,
             'transfer_fee_or_number' => $orNumber,
