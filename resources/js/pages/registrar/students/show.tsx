@@ -188,6 +188,7 @@ interface Student {
     program: string;
     year_level: string;
     section: string | null;
+    is_active?: boolean;
     enrollment_status: string;
     requirements_status: string;
     guardian_name: string;
@@ -227,6 +228,12 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
     const [showEnrollmentHistoryModal, setShowEnrollmentHistoryModal] = useState(false);
     const [showReEnrollDialog, setShowReEnrollDialog] = useState(false);
     const isDropped = student.enrollment_status === 'dropped';
+    const isDeactivated = student.is_active === false && !isDropped;
+    const profileStateClass = isDropped
+        ? 'border-red-300 bg-red-50'
+        : isDeactivated
+            ? 'border-slate-300 bg-slate-50'
+            : '';
     const [activeTab, setActiveTab] = useState('requirements');
     const [histSyFilter, setHistSyFilter] = useState<string>('all');
     const [studentNotesText, setStudentNotesText] = useState(student.remarks ?? '');
@@ -435,6 +442,20 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                 <RefreshCcw className="mr-2 h-4 w-4" />
                                 Re-Enroll
                             </Button>
+                        ) : isDeactivated ? (
+                            <Button
+                                variant="outline"
+                                className="border-slate-400 text-slate-700 hover:bg-slate-100"
+                                onClick={() => {
+                                    router.post(`/registrar/students/${student.id}/activate`, {}, {
+                                        onSuccess: () => toast.success('Student activated. They can now re-register for enrollment.'),
+                                        onError: () => toast.error('Failed to activate student.'),
+                                    });
+                                }}
+                            >
+                                <RotateCcw className="mr-2 h-4 w-4" />
+                                Activate Student
+                            </Button>
                         ) : (
                             <Button variant="outline" onClick={handleDropStudent}>
                                 <UserX className="mr-2 h-4 w-4" />
@@ -459,28 +480,30 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                     <Archive className="mr-2 h-4 w-4" />
                                     Archive Student
                                 </Button>
-                                <Button
-                                    variant="outline"
-                                    className="border-yellow-400 text-yellow-700 hover:bg-yellow-50"
-                                    onClick={() => {
-                                        if (window.confirm(`Deactivate ${fullName}? This will reset their enrollment to zero. They must re-register to continue.`)) {
-                                            router.post(`/registrar/students/${student.id}/deactivate`, {}, {
-                                                onSuccess: () => toast.success('Student deactivated. They must re-register to enroll again.'),
-                                                onError: () => toast.error('Failed to deactivate student.'),
-                                            });
-                                        }
-                                    }}
-                                >
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    Deactivate
-                                </Button>
+                                {!isDeactivated && (
+                                    <Button
+                                        variant="outline"
+                                        className="border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+                                        onClick={() => {
+                                            if (window.confirm(`Deactivate ${fullName}? This will reset their enrollment to zero. They must re-register to continue.`)) {
+                                                router.post(`/registrar/students/${student.id}/deactivate`, {}, {
+                                                    onSuccess: () => toast.success('Student deactivated. They must re-register to enroll again.'),
+                                                    onError: () => toast.error('Failed to deactivate student.'),
+                                                });
+                                            }
+                                        }}
+                                    >
+                                        <UserX className="mr-2 h-4 w-4" />
+                                        Deactivate
+                                    </Button>
+                                )}
                             </>
                         )}
                     </div>
                 </div>
 
                 {/* Student Profile Header */}
-                <Card className={student.enrollment_status === 'dropped' ? 'border-red-300 bg-red-50' : ''}>
+                <Card className={profileStateClass}>
                     <CardContent className="pt-6">
                         <div className="flex items-start space-x-6">
                             <Avatar className="h-24 w-24">
@@ -488,6 +511,11 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                 <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
+                                {(isDropped || isDeactivated) && (
+                                    <div className={`mb-3 inline-flex items-center rounded-md border px-3 py-1 text-sm font-medium ${isDropped ? 'border-red-300 bg-red-100 text-red-800' : 'border-slate-300 bg-slate-100 text-slate-700'}`}>
+                                        {isDropped ? 'Dropped Student Record' : 'Deactivated Student Record'}
+                                    </div>
+                                )}
                                 <h1 className="text-3xl font-bold">{fullName}</h1>
                                 <div className="mt-2 flex items-center space-x-4 text-sm text-muted-foreground">
                                     <span>Student No.: {student.lrn}</span>
