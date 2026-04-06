@@ -748,7 +748,12 @@ class AccountingDashboardController extends Controller
         $payments = $paymentsQuery->get();
 
         $transferTransactionsQuery = OnlineTransaction::query()
-            ->with('verifiedBy:id,name')
+            ->with([
+                'verifiedBy:id,name',
+                'student:id,first_name,last_name,middle_name,suffix,lrn,department_id,year_level,section',
+                'student.department:id,name',
+                'transferRequest:id,transfer_fee_or_number',
+            ])
             ->whereBetween('verified_at', [$periodStart, $periodEnd]);
         $this->applyTransferFeeTransactionScope($transferTransactionsQuery);
         $this->applyTransferFeeSchoolYearFilter($transferTransactionsQuery, $selectedSchoolYear);
@@ -780,7 +785,12 @@ class AccountingDashboardController extends Controller
         $transferTransactions = $transferTransactionsQuery->get();
 
         $manualTransferPaymentsQuery = TransferRequest::query()
-            ->with(['processedBy:id,name', 'accountingApprovedBy:id,name'])
+            ->with([
+                'processedBy:id,name',
+                'accountingApprovedBy:id,name',
+                'student:id,first_name,last_name,middle_name,suffix,lrn,department_id,year_level,section',
+                'student.department:id,name',
+            ])
             ->whereIn('student_id', $studentIds)
             ->where('accounting_status', 'approved')
             ->where('transfer_fee_paid', true)
@@ -1176,16 +1186,29 @@ class AccountingDashboardController extends Controller
         }
         foreach ($transferTransactions->sortByDesc('verified_at')->take(10) as $transferTx) {
             $transferDateTime = Carbon::parse($transferTx->verified_at ?? $transferTx->transaction_date ?? $transferTx->created_at);
+            $resolvedTransferOrNumber = trim((string) ($transferTx->transferRequest?->transfer_fee_or_number ?? ''));
+            if ($resolvedTransferOrNumber === '' && preg_match('/\[OR:([^\]]+)\]/i', (string) ($transferTx->remarks ?? ''), $orMatches) === 1) {
+                $resolvedTransferOrNumber = trim((string) ($orMatches[1] ?? ''));
+            }
+            if ($resolvedTransferOrNumber === '') {
+                $resolvedTransferOrNumber = (string) ($transferTx->transaction_id ?? 'N/A');
+            }
+
             $transactions[] = [
                 'id'           => 'transfer-' . $transferTx->id,
                 'date'         => $transferDateTime->format('Y-m-d'),
                 'time'         => $transferDateTime->format('h:i A'),
                 'type'         => 'Transfer',
-                'or_number'    => $transferTx->transaction_id,
+                'or_number'    => $resolvedTransferOrNumber,
                 'mode'         => strtoupper((string) ($transferTx->payment_method ?? 'ONLINE')),
                 'reference'    => 'Transfer Out Fee',
                 'amount'       => (float) $transferTx->amount,
                 'student_id'   => $transferTx->student_id,
+                'student_name' => $transferTx->student?->full_name,
+                'student_lrn' => $transferTx->student?->lrn,
+                'student_department' => $transferTx->student?->department?->name,
+                'student_year_level' => $transferTx->student?->year_level,
+                'student_section' => $transferTx->student?->section,
                 'processed_by' => $transferTx->verifiedBy?->name ?? 'N/A',
                 'sort_at'      => $transferDateTime->timestamp,
             ];
@@ -1206,6 +1229,11 @@ class AccountingDashboardController extends Controller
                 'reference'    => 'Transfer Out Fee',
                 'amount'       => (float) $transferRequest->transfer_fee_amount,
                 'student_id'   => $transferRequest->student_id,
+                'student_name' => $transferRequest->student?->full_name,
+                'student_lrn' => $transferRequest->student?->lrn,
+                'student_department' => $transferRequest->student?->department?->name,
+                'student_year_level' => $transferRequest->student?->year_level,
+                'student_section' => $transferRequest->student?->section,
                 'processed_by' => $transferRequest->processedBy?->name ?? $transferRequest->accountingApprovedBy?->name ?? 'N/A',
                 'sort_at'      => $eventAt->timestamp,
             ];
