@@ -287,8 +287,8 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                         <div className="text-xs space-y-1">
                                                             <div>Paid Online: <span className="font-semibold">P{item.transfer_online_paid_amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
                                                             <div>Balance Due: <span className={`font-semibold ${item.transfer_balance_due > 0 ? 'text-amber-700' : 'text-green-700'}`}>P{item.transfer_balance_due.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
-                                                            <Badge className={item.transfer_balance_due <= 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>
-                                                                {item.transfer_balance_due <= 0 ? 'Settled' : 'Awaiting Full Payment'}
+                                                            <Badge className={(item.transfer_fee_paid || item.transfer_balance_due <= 0) ? 'bg-green-100 text-green-700 border-green-200' : 'bg-amber-100 text-amber-700 border-amber-200'}>
+                                                                {(item.transfer_fee_paid || item.transfer_balance_due <= 0) ? 'Settled' : 'Awaiting Full Payment'}
                                                             </Badge>
                                                         </div>
                                                     ) : (
@@ -301,9 +301,9 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); approveForm.reset(); setApproveOpen(true); }}><ThumbsUp className="h-4 w-4 text-green-600" /></Button>
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); rejectForm.reset(); setRejectOpen(true); }}><ThumbsDown className="h-4 w-4 text-red-600" /></Button>
                                                         </div>
-                                                    ) : item.accounting_status === 'approved' && item.student.is_active && (item.transfer_fee_amount <= 0 || item.transfer_balance_due <= 0) ? (
+                                                    ) : item.accounting_status === 'approved' && item.student.is_active && (item.transfer_fee_amount <= 0 || item.transfer_fee_paid || item.transfer_balance_due <= 0) ? (
                                                         <Button size="sm" onClick={() => finalize(item.id)}>Finalize</Button>
-                                                    ) : item.accounting_status === 'approved' && item.student.is_active && item.transfer_fee_amount > 0 && item.transfer_balance_due > 0 ? (
+                                                    ) : item.accounting_status === 'approved' && item.student.is_active && item.transfer_fee_amount > 0 && !item.transfer_fee_paid && item.transfer_balance_due > 0 ? (
                                                         <Button size="sm" variant="outline" disabled>Awaiting Fee Payment</Button>
                                                     // ) : !item.student.is_active ? (
                                                     //     <Button size="sm" variant="outline" onClick={() => reactivate(item.student.id)}>Reactivate</Button>
