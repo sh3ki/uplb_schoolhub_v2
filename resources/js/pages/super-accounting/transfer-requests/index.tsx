@@ -6,7 +6,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -108,13 +107,12 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
     const [search, setSearch] = useState(filters.search || '');
     const [selected, setSelected] = useState<RequestItem | null>(null);
     const [approveOpen, setApproveOpen] = useState(false);
+    const [confirmProcessOpen, setConfirmProcessOpen] = useState(false);
     const [rejectOpen, setRejectOpen] = useState(false);
-    const [markPaidOpen, setMarkPaidOpen] = useState(false);
     const [detailsOpen, setDetailsOpen] = useState(false);
 
-    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', mark_as_paid: true, or_number: '' });
+    const approveForm = useForm({ accounting_remarks: '', transfer_fee_amount: '', or_number: '' });
     const rejectForm = useForm({ accounting_remarks: '' });
-    const markPaidForm = useForm({ or_number: '', transfer_fee_amount: '' });
 
     const onTab = (value: string) => {
         setActiveTab(value);
@@ -266,9 +264,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                                             <Button size="sm" variant="outline" onClick={() => { setSelected(item); rejectForm.reset(); setRejectOpen(true); }}><ThumbsDown className="h-4 w-4 text-red-600" /></Button>
                                                         </div>
                                                     ) : item.accounting_status === 'approved' && item.transfer_fee_amount > 0 && item.transfer_balance_due > 0 ? (
-                                                        <Button size="sm" variant="outline" onClick={() => { setSelected(item); markPaidForm.reset(); setMarkPaidOpen(true); }}>
-                                                            Mark Paid
-                                                        </Button>
+                                                        <span className="text-xs text-amber-700">Awaiting full settlement</span>
                                                     ) : (
                                                         <span className="text-xs text-muted-foreground">Processed</span>
                                                     )}
@@ -324,7 +320,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 <div><strong>Registrar remark:</strong> {selected.registrar_remarks || '—'}</div>
                             </div>
                         )}
-                        {/* <div className="space-y-2">
+                        <div className="space-y-2">
                             <Label>Transfer Out Fee Amount</Label>
                             <Input
                                 type="number"
@@ -333,27 +329,14 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 value={approveForm.data.transfer_fee_amount}
                                 onChange={(e) => approveForm.setData('transfer_fee_amount', e.target.value)}
                             />
-                        </div> */}
+                        </div>
                         <div className="space-y-2">
                             <Label>Super-Accounting Remarks (Optional)</Label>
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                                <Checkbox id="mark_paid" checked={approveForm.data.mark_as_paid} onCheckedChange={(checked) => approveForm.setData('mark_as_paid', checked === true)} />
-                                <Label htmlFor="mark_paid">Mark transfer fee as paid now</Label>
-                            </div>
-                            {!approveForm.data.mark_as_paid && (
-                                <p className="text-xs text-muted-foreground">
-                                    Registrar cannot finalize while transfer fee remains unpaid.
-                                </p>
-                            )}
-                            {approveForm.data.mark_as_paid && (
-                                <div className="space-y-2">
-                                    <Label>OR Number</Label>
-                                    <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
-                                </div>
-                            )}
+                            <Label>OR Number</Label>
+                            <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
                         </div>
                         <DialogFooter>
                             <Button variant="outline" onClick={() => setApproveOpen(false)}>Cancel</Button>
@@ -361,15 +344,36 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 if (!selected) return;
 
                                 const fee = Number(approveForm.data.transfer_fee_amount || 0);
-                                if (approveForm.data.mark_as_paid && fee > 0 && !approveForm.data.or_number.trim()) {
+                                if (fee > 0 && !approveForm.data.or_number.trim()) {
                                     alert('OR Number is required when marking transfer fee as paid.');
                                     return;
                                 }
+                                setConfirmProcessOpen(true);
+                            }}>Approve</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+                <Dialog open={confirmProcessOpen} onOpenChange={setConfirmProcessOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Confirm Payment Processing</DialogTitle>
+                            <DialogDescription>
+                                Please note that once the payment has been processed, it is final and cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setConfirmProcessOpen(false)}>Cancel</Button>
+                            <Button onClick={() => {
+                                if (!selected) return;
 
                                 approveForm.post(`/super-accounting/transfer-requests/${selected.id}/approve`, {
-                                    onSuccess: () => setApproveOpen(false),
+                                    onSuccess: () => {
+                                        setConfirmProcessOpen(false);
+                                        setApproveOpen(false);
+                                    },
                                 });
-                            }}>Approve</Button>
+                            }}>Save</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -390,25 +394,6 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                     </DialogContent>
                 </Dialog>
 
-                <Dialog open={markPaidOpen} onOpenChange={setMarkPaidOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Mark Transfer Fee as Paid</DialogTitle>
-                        </DialogHeader>
-                        <div className="space-y-2">
-                            <Label>OR Number</Label>
-                            <Input value={markPaidForm.data.or_number} onChange={(e) => markPaidForm.setData('or_number', e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Transfer Fee Amount (Optional Override)</Label>
-                            <Input type="number" min="0" step="0.01" value={markPaidForm.data.transfer_fee_amount} onChange={(e) => markPaidForm.setData('transfer_fee_amount', e.target.value)} />
-                        </div>
-                        <DialogFooter>
-                            <Button variant="outline" onClick={() => setMarkPaidOpen(false)}>Cancel</Button>
-                            <Button onClick={() => selected && markPaidForm.post(`/super-accounting/transfer-requests/${selected.id}/mark-paid`, { onSuccess: () => setMarkPaidOpen(false) })}>Save</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         </SuperAccountingLayout>
     );
