@@ -26,7 +26,13 @@ class OnlineTransactionController extends Controller
     {
         $this->reconcileFinalizedTransferTransactions();
 
-        $query = OnlineTransaction::with(['student', 'payment', 'verifiedBy']);
+        $query = OnlineTransaction::with([
+            'student:id,first_name,last_name,middle_name,suffix,lrn,email,department_id,year_level,section',
+            'student.department:id,name',
+            'payment:id,or_number',
+            'verifiedBy:id,name',
+            'transferRequest:id,transfer_fee_or_number',
+        ]);
 
         // Finalized transfer requests should not remain in manual verification queue.
         $query->where(function ($q) {
@@ -98,7 +104,15 @@ class OnlineTransactionController extends Controller
                 'refunded_at' => null,
                 'failure_reason' => null,
                 'remarks' => $transaction->remarks,
-                'or_number' => $transaction->payment?->or_number,
+                'or_number' => (function () use ($transaction) {
+                    $resolved = trim((string) (
+                        $transaction->payment?->or_number
+                        ?: $transaction->transferRequest?->transfer_fee_or_number
+                        ?: $this->extractTaggedOrNumber((string) ($transaction->remarks ?? ''))
+                    ));
+
+                    return $resolved !== '' ? $resolved : null;
+                })(),
                 'payment_context' => $transaction->payment_context ?? 'tuition',
                 'created_at' => $transaction->created_at,
                 'student' => $transaction->student ? [
@@ -106,6 +120,9 @@ class OnlineTransactionController extends Controller
                     'full_name' => $transaction->student->full_name,
                     'lrn' => $transaction->student->lrn,
                     'email' => $transaction->student->email ?? null,
+                    'department' => $transaction->student->department?->name,
+                    'year_level' => $transaction->student->year_level,
+                    'section' => $transaction->student->section,
                 ] : null,
                 'verified_by' => $transaction->verifiedBy ? ['name' => $transaction->verifiedBy->name] : null,
             ];
@@ -225,7 +242,7 @@ class OnlineTransactionController extends Controller
                 'status' => 'completed',
                 'verified_at' => now(),
                 'verified_by' => Auth::id(),
-                'remarks' => trim((string) (($transaction->remarks ?? '') . ' [VerifiedAs: transfer_out_fee]')),
+                'remarks' => trim((string) (($transaction->remarks ?? '') . ' [VerifiedAs: transfer_out_fee] [OR:' . $orNumber . ']')),
             ]);
 
             return redirect()->back()->with('success', 'Transfer out online payment verified and transfer request marked paid.');
@@ -316,6 +333,16 @@ class OnlineTransactionController extends Controller
         }
 
         return trim((string) $fallbackSchoolYear);
+    }
+
+    private function extractTaggedOrNumber(string $remarks): ?string
+    {
+        if (preg_match('/\[OR:([^\]]+)\]/i', $remarks, $matches) === 1) {
+            $tagged = trim((string) ($matches[1] ?? ''));
+            return $tagged !== '' ? $tagged : null;
+        }
+
+        return null;
     }
 
     /**
