@@ -52,6 +52,13 @@ class OnlineTransactionController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('transaction_id', 'like', "%{$search}%")
                   ->orWhere('reference_number', 'like', "%{$search}%")
+                  ->orWhereHas('payment', function ($paymentQuery) use ($search) {
+                      $paymentQuery->where('or_number', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('transferRequest', function ($transferQuery) use ($search) {
+                      $transferQuery->where('transfer_fee_or_number', 'like', "%{$search}%");
+                  })
+                  ->orWhere('remarks', 'like', "%[OR:%{$search}%]%")
                   ->orWhereHas('student', function ($sq) use ($search) {
                       $sq->where('first_name', 'like', "%{$search}%")
                         ->orWhere('last_name', 'like', "%{$search}%")
