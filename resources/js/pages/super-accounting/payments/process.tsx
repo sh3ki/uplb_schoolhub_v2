@@ -1831,8 +1831,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             <TableCell className="max-w-[260px]">
                                                                 {(row.reason || row.notes) ? (
                                                                     <div className="text-xs space-y-1">
-                                                                        {row.reason && <p><span className="font-medium">Reason:</span> {row.reason}</p>}
-                                                                        {row.notes && <p className="text-muted-foreground"><span className="font-medium">Notes:</span> {row.notes}</p>}
+                                                                        {row.reason && <p><span className="font-medium"></span> {row.reason}</p>}
+                                                                        {row.notes && <p className="text-muted-foreground"><span className="font-medium"></span> {row.notes}</p>}
                                                                     </div>
                                                                 ) : (
                                                                     <span className="text-xs text-muted-foreground">-</span>
