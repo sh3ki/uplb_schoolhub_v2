@@ -735,7 +735,7 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                     <div>
                                         <dt className="text-sm font-medium text-muted-foreground">Enrollment Status</dt>
                                         <dd className="mt-1">
-                                            <Badge>{student.enrollment_status}</Badge>
+                                            <Badge>{isDeactivated ? 'deactivated' : student.enrollment_status}</Badge>
                                         </dd>
                                     </div>
                                     {student.remarks && (
