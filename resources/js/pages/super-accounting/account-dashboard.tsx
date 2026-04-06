@@ -58,6 +58,11 @@ interface Transaction {
     amount: number;
     processed_by?: string | null;
     student_id?: number;
+    student_name?: string | null;
+    student_lrn?: string | null;
+    student_department?: string | null;
+    student_year_level?: string | null;
+    student_section?: string | null;
 }
 
 interface Stats {
@@ -586,7 +591,12 @@ export default function AccountDashboard({
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between"><span className="text-muted-foreground">Date</span><span className="font-medium">{selectedTransferTx.date}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Time</span><span className="font-medium">{selectedTransferTx.time}</span></div>
-                                <div className="flex justify-between"><span className="text-muted-foreground">Reference No.</span><span className="font-mono">{selectedTransferTx.or_number || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">OR Number</span><span className="font-mono">{selectedTransferTx.or_number || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Student Name</span><span className="font-medium">{selectedTransferTx.student_name || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">LRN</span><span className="font-medium">{selectedTransferTx.student_lrn || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Department</span><span className="font-medium">{selectedTransferTx.student_department || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Year Level</span><span className="font-medium">{selectedTransferTx.student_year_level || 'N/A'}</span></div>
+                                <div className="flex justify-between"><span className="text-muted-foreground">Section</span><span className="font-medium">{selectedTransferTx.student_section || 'N/A'}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Payment Mode</span><span className="font-medium">{selectedTransferTx.mode || 'N/A'}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Amount</span><span className="font-semibold text-violet-700">{formatCurrency(selectedTransferTx.amount)}</span></div>
                                 <div className="flex justify-between"><span className="text-muted-foreground">Processed By</span><span className="font-medium">{selectedTransferTx.processed_by || 'N/A'}</span></div>
