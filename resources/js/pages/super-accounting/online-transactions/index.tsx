@@ -317,7 +317,7 @@ export default function OnlineTransactionsIndex({
                             setSearch(value);
                             if (value === '') handleFilter();
                         }}
-                        placeholder="Search by student, reference..."
+                        placeholder="Search by student, reference, OR number..."
                     />
                     <FilterDropdown
                         label="Provider"
