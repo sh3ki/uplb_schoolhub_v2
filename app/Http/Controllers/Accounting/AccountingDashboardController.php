@@ -118,9 +118,41 @@ class AccountingDashboardController extends Controller
         }
 
         $totalStudents = $eligibleStudentIds->count();
-        // Keep overview KPIs aligned to student-fee accounts used by projected revenue/outstanding.
-        // Transaction-wide totals (including documents/drops) belong to account-dashboard pages.
-        $allAccountsProcessedTotal = (float) $totalCollected;
+        // Keep overview KPI inclusive of historical collected payments, including transferred-out records.
+        $tuitionCollectedQuery = StudentPayment::query();
+        if ($selectedSchoolYear !== 'all') {
+            $tuitionCollectedQuery->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear));
+        }
+
+        $transferCollectedQuery = OnlineTransaction::query();
+        $this->applyTransferFeeTransactionScope($transferCollectedQuery);
+        $this->applyTransferFeeSchoolYearFilter($transferCollectedQuery, $selectedSchoolYear);
+
+        $manualTransferCollectedQuery = TransferRequest::query()
+            ->where('accounting_status', 'approved')
+            ->where('transfer_fee_paid', true)
+            ->where('transfer_fee_amount', '>', 0)
+            ->whereDoesntHave('onlineTransactions', function ($q) {
+                $q->whereIn('status', ['completed', 'verified']);
+            });
+
+        if ($selectedSchoolYear !== 'all') {
+            $manualTransferCollectedQuery->where(function ($q) use ($selectedSchoolYear) {
+                $q->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)])
+                    ->orWhere(function ($fallbackScope) use ($selectedSchoolYear) {
+                        $fallbackScope->where(function ($nullYearScope) {
+                            $nullYearScope->whereNull('school_year')
+                                ->orWhere('school_year', '');
+                        })->whereHas('student', function ($studentScope) use ($selectedSchoolYear) {
+                            $studentScope->whereRaw('TRIM(school_year) = ?', [trim((string) $selectedSchoolYear)]);
+                        });
+                    });
+            });
+        }
+
+        $allAccountsProcessedTotal = (float) $tuitionCollectedQuery->sum('amount')
+            + (float) $transferCollectedQuery->sum('amount')
+            + (float) $manualTransferCollectedQuery->sum('transfer_fee_amount');
         
         $stats = [
             'total_students' => $totalStudents,
@@ -346,9 +378,7 @@ class AccountingDashboardController extends Controller
         );
 
         // Build scoped student IDs
-        $studentQ = Student::select('id')
-            ->withoutDropped()
-            ->withoutTransferredOut();
+        $studentQ = Student::select('id');
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -357,6 +387,23 @@ class AccountingDashboardController extends Controller
         if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
         if ($section)      $studentQ->where('section', $section);
         $filteredIds = $studentQ->pluck('id');
+
+        // Financial aggregates should include historical payments even for students who are now dropped/transferred out.
+        $financialStudentQ = Student::select('id');
+        if ($classification) {
+            $financialStudentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
+        }
+        if ($departmentId) $financialStudentQ->where('department_id', $departmentId);
+        if ($program)      $financialStudentQ->where('program', $program);
+        if ($yearLevel)    $financialStudentQ->where('year_level', $yearLevel);
+        if ($section)      $financialStudentQ->where('section', $section);
+        if ($selectedSchoolYear !== 'all') {
+            $financialStudentQ->where(function ($q) use ($selectedSchoolYear) {
+                $q->where('school_year', $selectedSchoolYear)
+                    ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
+            });
+        }
+        $financialStudentIds = $financialStudentQ->pluck('id');
 
         $currentSchoolYear = \App\Models\AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
@@ -396,11 +443,11 @@ class AccountingDashboardController extends Controller
         // Get stats scoped to filtered students
         $totalStudents       = $filteredIds->count();
         // Keep simplified dashboard cards on the same fee-ledger basis as receivables/balances.
-        $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
+        $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $financialStudentIds)
             ->whereHas('studentFee', fn($q) => $q->where('school_year', $currentSchoolYear))
             ->sum('amount');
         if ($selectedSchoolYear !== 'all') {
-            $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $filteredIds)
+            $totalCollectedAllAccounts = (float) StudentPayment::whereIn('student_id', $financialStudentIds)
                 ->whereHas('studentFee', fn($q) => $q->where('school_year', $selectedSchoolYear))
                 ->sum('amount');
         }
@@ -495,15 +542,15 @@ class AccountingDashboardController extends Controller
         $dailyIncome = [];
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $date = Carbon::create($selectedYear, $selectedMonth, $day);
-            $dayPayments = StudentPayment::whereIn('student_id', $filteredIds)->whereDate('payment_date', $date)->get();
+            $dayPayments = StudentPayment::whereIn('student_id', $financialStudentIds)->whereDate('payment_date', $date)->get();
             $dayDocuments = DocumentRequest::query()
-                ->whereIn('student_id', $filteredIds)
+                ->whereIn('student_id', $financialStudentIds)
                 ->where('is_paid', true)
                 ->where('accounting_status', 'approved')
                 ->whereDate('accounting_approved_at', $date)
                 ->get();
             $dayDrops = DropRequest::query()
-                ->whereIn('student_id', $filteredIds)
+                ->whereIn('student_id', $financialStudentIds)
                 ->where('is_paid', true)
                 ->where('accounting_status', 'approved')
                 ->whereDate('accounting_approved_at', $date)
@@ -671,9 +718,7 @@ class AccountingDashboardController extends Controller
         }
 
         // Build scoped student IDs
-        $studentQ = Student::select('id')
-            ->withoutDropped()
-            ->withoutTransferredOut();
+        $studentQ = Student::select('id');
         if ($classification) {
             $studentQ->whereHas('department', fn($q) => $q->where('classification', $classification));
         }
@@ -1397,7 +1442,17 @@ class AccountingDashboardController extends Controller
 
         $query->where(function ($scope) use ($normalizedSchoolYear) {
             $scope->whereHas('transferRequest', function ($transferQuery) use ($normalizedSchoolYear) {
-                $transferQuery->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+                $transferQuery->where(function ($transferYearScope) use ($normalizedSchoolYear) {
+                    $transferYearScope->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear])
+                        ->orWhere(function ($fallbackYearScope) use ($normalizedSchoolYear) {
+                            $fallbackYearScope->where(function ($nullYearScope) {
+                                $nullYearScope->whereNull('school_year')
+                                    ->orWhere('school_year', '');
+                            })->whereHas('student', function ($studentQuery) use ($normalizedSchoolYear) {
+                                $studentQuery->whereRaw('TRIM(school_year) = ?', [$normalizedSchoolYear]);
+                            });
+                        });
+                });
             })->orWhere(function ($fallbackQuery) use ($normalizedSchoolYear) {
                 $fallbackQuery->whereNull('transfer_request_id')
                     ->where(function ($legacyScope) use ($normalizedSchoolYear) {
