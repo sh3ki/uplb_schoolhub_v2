@@ -50,19 +50,25 @@ class StudentController extends Controller
             ->with(['yearLevel:id,name', 'department:id,name', 'strand:id,name,code'])
             ->get(['id', 'name', 'year_level_id', 'department_id', 'strand_id', 'code', 'capacity', 'room_number']);
 
+        $activeStudentsBase = Student::query()
+            ->whereNull('deleted_at')
+            ->where('is_active', true)
+            ->withoutDropped()
+            ->withoutTransferredOut();
+
         // ── Stats (always computed) ───────────────────────────────────────────────
         $stats = [
-            'allStudents'        => Student::count(),
-            'officiallyEnrolled' => Student::where('enrollment_status', 'enrolled')->count(),
-            'notEnrolled'        => Student::whereIn('enrollment_status', ['not-enrolled', 'pending-enrollment'])->count(),
-            'registrarPending'   => Student::where('enrollment_status', 'pending-registrar')->count(),
-            'accountingPending'  => Student::where('enrollment_status', 'pending-accounting')->count(),
-            'pendingEnrollment'  => Student::where('enrollment_status', 'pending-enrollment')->count(),
+            'allStudents'        => (clone $activeStudentsBase)->count(),
+            'officiallyEnrolled' => (clone $activeStudentsBase)->where('enrollment_status', 'enrolled')->count(),
+            'notEnrolled'        => (clone $activeStudentsBase)->whereIn('enrollment_status', ['not-enrolled', 'pending-enrollment'])->count(),
+            'registrarPending'   => (clone $activeStudentsBase)->where('enrollment_status', 'pending-registrar')->count(),
+            'accountingPending'  => (clone $activeStudentsBase)->where('enrollment_status', 'pending-accounting')->count(),
+            'pendingEnrollment'  => (clone $activeStudentsBase)->where('enrollment_status', 'pending-enrollment')->count(),
             'documentsRegistrarPending' => DocumentRequest::query()->where('registrar_status', 'pending')->count(),
-            'graduated'          => Student::where('enrollment_status', 'graduated')->count(),
-            'dropped'            => Student::where('enrollment_status', 'dropped')->count(),
+            'graduated'          => Student::whereNull('deleted_at')->where('enrollment_status', 'graduated')->count(),
+            'dropped'            => Student::whereNull('deleted_at')->where('enrollment_status', 'dropped')->count(),
             'archived'           => Student::onlyTrashed()->count(),
-            'deactivated'        => Student::whereNull('deleted_at')->where('is_active', false)->count(),
+            'deactivated'        => Student::whereNull('deleted_at')->where('is_active', false)->withoutDropped()->count(),
         ];
 
         $programs    = Student::select('program')->distinct()->pluck('program');
@@ -771,6 +777,7 @@ class StudentController extends Controller
 
         $clearanceType = $validated['clearance_type'];
         $status = $validated['status'];
+        $isDropFlow = $student->enrollment_status === 'dropped';
 
         // Get or create enrollment clearance
         $clearance = EnrollmentClearance::firstOrCreate(['user_id' => $student->user->id]);
@@ -786,6 +793,15 @@ class StudentController extends Controller
             if (!($clearance->registrar_clearance && $clearance->accounting_clearance)) {
                 return redirect()->back()->withErrors(['status' => 'Both registrar and accounting clearance must be completed before official enrollment.']);
             }
+        }
+
+        if (
+            $isDropFlow &&
+            $clearanceType === 'official_enrollment' &&
+            $status === false &&
+            (bool) $clearance->official_enrollment
+        ) {
+            return redirect()->back()->withErrors(['status' => 'Official drop finalization is final and cannot be undone.']);
         }
 
         // Build update array dynamically
@@ -865,35 +881,51 @@ class StudentController extends Controller
         // Update enrollment status if all clearances are complete
         if ($clearance->fresh()->isFullyCleared()) {
             $clearance->update(['enrollment_status' => 'completed']);
-            $student->update(['enrollment_status' => 'enrolled']);
+            if ($isDropFlow) {
+                $student->update([
+                    'enrollment_status' => 'dropped',
+                    'is_active' => false,
+                ]);
+            } else {
+                $student->update(['enrollment_status' => 'enrolled']);
+            }
         } else {
             $clearance->update(['enrollment_status' => 'in_progress']);
-            // Advance/revert enrollment_status based on what has been cleared so far
-            if ($clearanceType === 'registrar_clearance' && $status) {
-                // Registrar just approved → move to pending-accounting
-                $student->update(['enrollment_status' => 'pending-accounting']);
-            } elseif ($clearanceType === 'registrar_clearance' && !$status) {
-                // Registrar clearance revoked → back to pending-registrar
-                $student->update(['enrollment_status' => 'pending-registrar']);
-            } elseif ($clearanceType === 'accounting_clearance' && $status) {
-                // Accounting cleared → move to pending-enrollment (awaiting official enrollment)
-                $student->update(['enrollment_status' => 'pending-enrollment']);
-            } elseif ($clearanceType === 'accounting_clearance' && !$status) {
-                // Accounting clearance revoked → back to pending-accounting
-                $student->update(['enrollment_status' => 'pending-accounting']);
-            } elseif ($clearanceType === 'official_enrollment' && !$status) {
-                // Official enrollment revoked → back to pending-enrollment (accounting still cleared)
-                $freshClearance = $clearance->fresh();
-                if ($freshClearance->accounting_clearance) {
-                    $student->update(['enrollment_status' => 'pending-enrollment']);
-                } elseif ($freshClearance->registrar_clearance) {
+            if ($isDropFlow) {
+                $student->update([
+                    'enrollment_status' => 'dropped',
+                    'is_active' => false,
+                ]);
+            } else {
+                // Advance/revert enrollment_status based on what has been cleared so far
+                if ($clearanceType === 'registrar_clearance' && $status) {
+                    // Registrar just approved → move to pending-accounting
                     $student->update(['enrollment_status' => 'pending-accounting']);
+                } elseif ($clearanceType === 'registrar_clearance' && !$status) {
+                    // Registrar clearance revoked → back to pending-registrar
+                    $student->update(['enrollment_status' => 'pending-registrar']);
+                } elseif ($clearanceType === 'accounting_clearance' && $status) {
+                    // Accounting cleared → move to pending-enrollment (awaiting official enrollment)
+                    $student->update(['enrollment_status' => 'pending-enrollment']);
+                } elseif ($clearanceType === 'accounting_clearance' && !$status) {
+                    // Accounting clearance revoked → back to pending-accounting
+                    $student->update(['enrollment_status' => 'pending-accounting']);
+                } elseif ($clearanceType === 'official_enrollment' && !$status) {
+                    // Official enrollment revoked → back to pending-enrollment (accounting still cleared)
+                    $freshClearance = $clearance->fresh();
+                    if ($freshClearance->accounting_clearance) {
+                        $student->update(['enrollment_status' => 'pending-enrollment']);
+                    } elseif ($freshClearance->registrar_clearance) {
+                        $student->update(['enrollment_status' => 'pending-accounting']);
+                    } else {
+                        $student->update(['enrollment_status' => 'not-enrolled']);
+                    }
                 } else {
-                    $student->update(['enrollment_status' => 'not-enrolled']);
+                    // Generic fallback: if student was previously enrolled, revert to not-enrolled
+                    if ($student->enrollment_status === 'enrolled') {
+                        $student->update(['enrollment_status' => 'not-enrolled']);
+                    }
                 }
-            } elseif ($student->enrollment_status === 'enrolled') {
-                // Generic fallback: if student was previously enrolled, revert to not-enrolled
-                $student->update(['enrollment_status' => 'not-enrolled']);
             }
         }
 
@@ -908,6 +940,7 @@ class StudentController extends Controller
     {
         $student->update([
             'enrollment_status' => 'dropped',
+            'is_active' => false,
         ]);
 
         // Create a DropRequest so the accounting team can process financial settlement
