@@ -324,7 +324,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 <div><strong>Registrar remark:</strong> {selected.registrar_remarks || '—'}</div>
                             </div>
                         )}
-                        <div className="space-y-2">
+                        {/* <div className="space-y-2">
                             <Label>Transfer Out Fee Amount</Label>
                             <Input
                                 type="number"
@@ -333,7 +333,7 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                                 value={approveForm.data.transfer_fee_amount}
                                 onChange={(e) => approveForm.setData('transfer_fee_amount', e.target.value)}
                             />
-                        </div>
+                        </div> */}
                         <div className="space-y-2">
                             <Label>Super-Accounting Remarks (Optional)</Label>
                             <Textarea value={approveForm.data.accounting_remarks} onChange={(e) => approveForm.setData('accounting_remarks', e.target.value)} rows={3} />
