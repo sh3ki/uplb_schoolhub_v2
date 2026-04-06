@@ -160,12 +160,11 @@ class TransferRequestController extends Controller
         $validated = $request->validate([
             'accounting_remarks' => 'nullable|string|max:1000',
             'transfer_fee_amount' => 'required|numeric|min:0|max:99999999.99',
-            'mark_as_paid' => 'nullable|boolean',
             'or_number' => 'nullable|string|max:100',
         ]);
 
         $transferFeeAmount = (float) $validated['transfer_fee_amount'];
-        $markAsPaid = (bool) ($validated['mark_as_paid'] ?? false);
+        $markAsPaid = true;
 
         if ($markAsPaid && $transferFeeAmount > 0 && empty($validated['or_number'])) {
             return back()->with('error', 'OR number is required when marking transfer fee as paid.');
@@ -209,13 +208,11 @@ class TransferRequestController extends Controller
 
         $validated = $request->validate([
             'or_number' => 'required|string|max:100',
-            'transfer_fee_amount' => 'nullable|numeric|min:0|max:99999999.99',
         ]);
 
         $transferRequest->markTransferFeePaid(
             Auth::id(),
-            $validated['or_number'],
-            array_key_exists('transfer_fee_amount', $validated) ? (float) $validated['transfer_fee_amount'] : null
+            $validated['or_number']
         );
 
         return back()->with('success', 'Transfer out fee marked as paid.');
