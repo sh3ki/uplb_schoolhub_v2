@@ -217,8 +217,7 @@ class OnlineTransactionController extends Controller
             $orNumber = $validated['or_number'] ?? ('TRF-OT-' . $transaction->transaction_id);
             $transferRequest->markTransferFeePaid(
                 (int) Auth::id(),
-                $orNumber,
-                (float) $transferRequest->transfer_fee_amount
+                $orNumber
             );
 
             $transaction->update([
