@@ -80,17 +80,16 @@ class StudentAccountController extends Controller
             'dropRequests' => fn($q) => $q->where('status', 'approved')->orderByDesc('accounting_approved_at'),
         ])
             ->whereNull('deleted_at')
-            ->where(function ($q) {
-                $q->where('is_active', false)
-                    ->orWhere('enrollment_status', 'dropped');
+            ->where('is_active', false)
+            ->where('enrollment_status', 'dropped')
+            ->whereDoesntHave('transferRequests', function ($transferQuery) {
+                $transferQuery->whereNotNull('finalized_at');
             })
             ->where(function ($q) {
-                $q->whereHas('transferRequests', function ($transferQuery) {
-                    $transferQuery->whereNotNull('finalized_at');
-                })->orWhereHas('dropRequests', function ($dropQuery) {
+                $q->whereHas('dropRequests', function ($dropQuery) {
                     $dropQuery->where('status', 'approved');
+                })->orWhere('enrollment_status', 'dropped');
                 });
-            });
 
         $applyFilters = function ($query) use ($request) {
             if ($search = $request->input('search')) {
@@ -910,7 +909,9 @@ class StudentAccountController extends Controller
                     });
                 })
                 ->orWhere('enrollment_status', 'pending-accounting');
-            });
+            })
+            ->withoutDropped()
+            ->withoutTransferredOut();
 
         if ($classification = $request->classification) {
             if ($classification !== 'all') {
