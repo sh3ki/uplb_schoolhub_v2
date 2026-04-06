@@ -70,8 +70,10 @@ class StudentController extends Controller
             'archived'           => Student::onlyTrashed()->count(),
             'deactivated'        => Student::whereNull('deleted_at')
                 ->where('is_active', false)
-                ->withoutDropped()
-                ->withoutTransferredOut()
+                ->where('enrollment_status', '!=', 'dropped')
+                ->whereDoesntHave('transferRequests', function ($q) {
+                    $q->whereNotNull('finalized_at');
+                })
                 ->count(),
         ];
 
@@ -95,8 +97,10 @@ class StudentController extends Controller
             } elseif ($tab === 'deactivated') {
                 $specialQuery = Student::whereNull('deleted_at')
                     ->where('is_active', false)
-                    ->withoutDropped()
-                    ->withoutTransferredOut()
+                    ->where('enrollment_status', '!=', 'dropped')
+                    ->whereDoesntHave('transferRequests', function ($q) {
+                        $q->whereNotNull('finalized_at');
+                    })
                     ->with(array_merge([
                         'department:id,name,classification',
                     ], $transferStatusRelation));
