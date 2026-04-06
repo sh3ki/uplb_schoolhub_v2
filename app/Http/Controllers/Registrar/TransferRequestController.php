@@ -106,7 +106,9 @@ class TransferRequestController extends Controller
             $onlinePaid = $linkedOnlinePaid + $fallbackOnlinePaid;
             $transferFeeAmount = (float) $r->transfer_fee_amount;
             $onlineBalanceDue = max(0, $transferFeeAmount - $onlinePaid);
-            $transferFeePaid = (bool) $r->transfer_fee_paid || ($transferFeeAmount > 0 && $onlineBalanceDue <= 0);
+            $transferFeePaid = (bool) $r->transfer_fee_paid
+                || !empty($r->transfer_fee_or_number)
+                || ($transferFeeAmount > 0 && $onlineBalanceDue <= 0);
             $transferBalanceDue = $transferFeePaid ? 0.0 : $onlineBalanceDue;
 
             return [
@@ -296,6 +298,7 @@ class TransferRequestController extends Controller
 
         $isTransferFeeSettled = (float) $transferRequest->transfer_fee_amount <= 0
             || (bool) $transferRequest->transfer_fee_paid
+            || !empty($transferRequest->transfer_fee_or_number)
             || $onlinePaidAmount >= (float) $transferRequest->transfer_fee_amount;
 
         if (! $isTransferFeeSettled) {
