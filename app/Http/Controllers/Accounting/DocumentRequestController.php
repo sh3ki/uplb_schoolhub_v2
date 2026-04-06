@@ -80,7 +80,10 @@ class DocumentRequestController extends Controller
         });
 
         // Get students for creating requests
-        $students = Student::orderBy('last_name')->orderBy('first_name')
+        $students = Student::whereNull('deleted_at')
+            ->withoutDropped()
+            ->withoutTransferredOut()
+            ->orderBy('last_name')->orderBy('first_name')
             ->get()
             ->map(function ($student) {
                 return [
