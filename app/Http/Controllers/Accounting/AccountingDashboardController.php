@@ -1383,7 +1383,10 @@ class AccountingDashboardController extends Controller
         if ($yearLevel)    $studentQ->where('year_level', $yearLevel);
         if ($section)      $studentQ->where('section', $section);
         if ($selectedSchoolYear !== 'all') {
-            $studentQ->where('school_year', $selectedSchoolYear);
+            $studentQ->where(function ($q) use ($selectedSchoolYear) {
+                $q->where('school_year', $selectedSchoolYear)
+                    ->orWhereHas('fees', fn($fq) => $fq->where('school_year', $selectedSchoolYear));
+            });
         }
         $studentIds = $studentQ->pluck('id');
 
