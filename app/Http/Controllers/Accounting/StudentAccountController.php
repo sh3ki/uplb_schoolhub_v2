@@ -224,7 +224,7 @@ class StudentAccountController extends Controller
         );
 
         // Calculate stats dynamically
-        $allStudentIds = Student::where(function ($q) {
+        $activeStatsQuery = Student::where(function ($q) {
             $q->whereHas('enrollmentClearance', function ($eq) {
                 $eq->where(function ($sq) {
                     $sq->where('registrar_clearance', true)
@@ -234,12 +234,27 @@ class StudentAccountController extends Controller
             ->orWhere('enrollment_status', 'pending-accounting');
         })
             ->withoutDropped()
-            ->withoutTransferredOut()
-            ->when($request->input('department_id'), fn($q, $departmentId) => $q->where('department_id', $departmentId))
-            ->when($request->input('classification'), function ($q, $classification) {
-                $q->whereHas('department', fn($dq) => $dq->where('classification', $classification));
+            ->withoutTransferredOut();
+
+        $deactivatedStatsQuery = Student::whereNull('deleted_at')
+            ->where('is_active', false)
+            ->where('enrollment_status', 'dropped')
+            ->whereDoesntHave('transferRequests', function ($transferQuery) {
+                $transferQuery->whereNotNull('finalized_at');
             })
-            ->pluck('id');
+            ->where(function ($q) {
+                $q->whereHas('dropRequests', function ($dropQuery) {
+                    $dropQuery->where('status', 'approved');
+                })->orWhere('enrollment_status', 'dropped');
+            });
+
+        $applyFilters($activeStatsQuery);
+        $applyFilters($deactivatedStatsQuery);
+
+        $allStudentIds = $activeStatsQuery->pluck('id')
+            ->merge($deactivatedStatsQuery->pluck('id'))
+            ->unique()
+            ->values();
 
         $stats = $this->calculateStats($allStudentIds, $selectedSchoolYear);
 
