@@ -56,7 +56,8 @@ type DropRequestType = {
     accounting_status: string;
     semester: string | null;
     school_year: string | null;
-    registrar_notes: string | null;
+    registrar_remarks: string | null;
+    accounting_remarks: string | null;
     processed_by: string | null;
     processed_at: string | null;
     created_at: string;
@@ -344,7 +345,7 @@ export default function DropRequestIndex({
                                         <TableHead>Reason</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead>Document Fees</TableHead>
-                                        <TableHead>Registrar Notes</TableHead>
+                                        <TableHead>Review Notes</TableHead>
                                         <TableHead>Processed</TableHead>
                                         <TableHead className="text-right">Actions</TableHead>
                                     </TableRow>
@@ -383,8 +384,22 @@ export default function DropRequestIndex({
                                                     <span className="text-xs text-muted-foreground">—</span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="max-w-[150px] truncate" title={req.registrar_notes || ''}>
-                                                {req.registrar_notes || '—'}
+                                            <TableCell className="max-w-[220px]" title={[req.registrar_remarks, req.accounting_remarks].filter(Boolean).join(' | ')}>
+                                                <div className="space-y-1 text-xs">
+                                                    {req.registrar_remarks && (
+                                                        <div className="truncate">
+                                                            <span className="font-medium">Registrar:</span> {req.registrar_remarks}
+                                                        </div>
+                                                    )}
+                                                    {req.accounting_remarks && (
+                                                        <div className="truncate">
+                                                            <span className="font-medium">Accounting:</span> {req.accounting_remarks}
+                                                        </div>
+                                                    )}
+                                                    {!req.registrar_remarks && !req.accounting_remarks && (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                             <TableCell>
                                                 {req.processed_at ? (
