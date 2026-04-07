@@ -335,8 +335,6 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                                 <TableHead>Program / Year</TableHead>
                                                 <TableHead>School Year</TableHead>
                                                 <TableHead>Reason</TableHead>
-                                                <TableHead>Fee Items</TableHead>
-                                                <TableHead className="text-right">Total Fee</TableHead>
                                                 <TableHead>Registrar</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
@@ -364,36 +362,22 @@ export default function DropApprovals({ requests, stats, tab, filters, available
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="text-sm">
-                                                                <div>{req.student.program || '—'}</div>
-                                                                <div className="text-muted-foreground">
-                                                                    {[req.student.year_level, req.student.section].filter(Boolean).join(' - ') || '—'}
-                                                                </div>
+                                                                {req.student.program && <div>{req.student.program}</div>}
+                                                                {([req.student.year_level, req.student.section].filter(Boolean).join(' - ')) && (
+                                                                    <div className="text-muted-foreground">
+                                                                        {[req.student.year_level, req.student.section].filter(Boolean).join(' - ')}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="text-sm">
-                                                                <div>{req.school_year || '—'}</div>
-                                                                <div className="text-muted-foreground">{req.semester || '—'}</div>
+                                                                {req.school_year && <div>{req.school_year}</div>}
+                                                                {req.semester && <div className="text-muted-foreground">{req.semester}</div>}
                                                             </div>
                                                         </TableCell>
                                                         <TableCell className="max-w-[150px]">
                                                             <p className="truncate text-sm" title={req.reason}>{req.reason}</p>
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {req.fee_items.length > 0 ? (
-                                                                <div className="space-y-0.5">
-                                                                    {req.fee_items.map((fi) => (
-                                                                        <div key={fi.id} className="text-xs">
-                                                                            {fi.name}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            ) : (
-                                                                <span className="text-sm text-muted-foreground">—</span>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="text-right font-medium">
-                                                            {req.fee_amount > 0 ? formatCurrency(req.fee_amount) : '—'}
                                                         </TableCell>
                                                         <TableCell>
                                                             <div className="text-xs">
