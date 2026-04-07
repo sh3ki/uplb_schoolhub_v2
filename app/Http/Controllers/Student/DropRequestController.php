@@ -35,7 +35,7 @@ class DropRequestController extends Controller
                     'accounting_status'=> $r->accounting_status,
                     'semester'         => $r->semester,
                     'school_year'      => $r->school_year,
-                    'registrar_notes'  => $r->registrar_notes,
+                    'registrar_remarks'=> $r->registrar_remarks ?: $r->registrar_notes,
                     'accounting_remarks'=> $r->accounting_remarks,
                     'fee_amount'       => (float) $r->fee_amount,
                     'is_paid'          => $r->is_paid,
