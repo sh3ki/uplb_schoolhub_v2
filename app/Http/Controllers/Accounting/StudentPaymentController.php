@@ -785,14 +785,38 @@ class StudentPaymentController extends Controller
                     return null;
                 }
 
+                $totalAmount = (float) ($new['total_amount']
+                    ?? $changes['total_amount']
+                    ?? $changes['new_total_amount']
+                    ?? 0);
+
+                $grantDiscount = (float) ($new['grant_discount']
+                    ?? $changes['grant_discount']
+                    ?? 0);
+
+                $totalPaid = (float) ($new['total_paid']
+                    ?? $changes['total_paid']
+                    ?? 0);
+
+                $derivedBalance = max(0.0, $totalAmount - $grantDiscount - $totalPaid);
+
+                $balance = (float) ($new['balance']
+                    ?? $changes['balance']
+                    ?? $changes['new_balance']
+                    ?? $derivedBalance);
+
+                $status = (string) ($new['status']
+                    ?? $changes['status']
+                    ?? ($balance <= 0 && $totalAmount > 0 ? 'paid' : ($totalPaid > 0 ? 'partial' : 'unpaid')));
+
                 return [
                     'id' => 'fee-edit-' . $log->id,
                     'school_year' => $schoolYear,
-                    'total_amount' => (float) ($new['total_amount'] ?? 0),
-                    'grant_discount' => (float) ($new['grant_discount'] ?? 0),
-                    'total_paid' => (float) ($new['total_paid'] ?? 0),
-                    'balance' => (float) ($new['balance'] ?? 0),
-                    'status' => (string) ($new['status'] ?? 'unpaid'),
+                    'total_amount' => $totalAmount,
+                    'grant_discount' => $grantDiscount,
+                    'total_paid' => $totalPaid,
+                    'balance' => $balance,
+                    'status' => $status,
                     'processed_by' => $processedBy,
                     'processed_at' => $processedAt,
                     'reason' => $reason,
