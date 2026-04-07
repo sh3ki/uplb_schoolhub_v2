@@ -771,7 +771,7 @@ class StudentPaymentController extends Controller
             ->with('performer:id,name')
             ->orderByDesc('created_at')
             ->get()
-            ->map(function ($log) {
+            ->map(function ($log) use ($student) {
                 $changes = is_array($log->changes) ? $log->changes : [];
                 $new = is_array($changes['new'] ?? null) ? $changes['new'] : null;
 
@@ -808,6 +808,22 @@ class StudentPaymentController extends Controller
                 $status = (string) ($new['status']
                     ?? $changes['status']
                     ?? ($balance <= 0 && $totalAmount > 0 ? 'paid' : ($totalPaid > 0 ? 'partial' : 'unpaid')));
+
+                if ($schoolYear !== '' && $totalAmount <= 0 && $totalPaid <= 0 && $balance <= 0) {
+                    $snapshotFee = StudentFee::where('student_id', $student->id)
+                        ->whereRaw('TRIM(school_year) = ?', [trim($schoolYear)])
+                        ->orderByDesc('processed_at')
+                        ->orderByDesc('id')
+                        ->first();
+
+                    if ($snapshotFee) {
+                        $totalAmount = (float) $snapshotFee->total_amount;
+                        $grantDiscount = (float) $snapshotFee->grant_discount;
+                        $totalPaid = (float) $snapshotFee->total_paid;
+                        $balance = (float) $snapshotFee->balance;
+                        $status = (string) ($snapshotFee->payment_status ?: $status);
+                    }
+                }
 
                 return [
                     'id' => 'fee-edit-' . $log->id,
