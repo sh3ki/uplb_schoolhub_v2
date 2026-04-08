@@ -1976,7 +1976,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <TableRow key={payment.id}>
                                                         <TableCell className="text-sm">
                                                             <div>{formatDate(payment.payment_date)}</div>
-                                                            <div className="text-xs text-muted-foreground">{payment.created_at}</div>
+                                                            <div className="text-xs text-muted-foreground">{formatTime(payment.created_at)}</div>
                                                         </TableCell>
                                                         <TableCell className="font-mono text-xs">{payment.or_number || '-'}</TableCell>
                                                         {selectedSchoolYear === 'all' && (
