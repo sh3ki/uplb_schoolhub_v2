@@ -369,16 +369,11 @@ class AccountingDashboardController extends Controller
         $currentSchoolYear = AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
         $availableSchoolYears = $this->getAvailableSchoolYears();
-        $requestedSchoolYear = trim((string) $request->input('school_year', ''));
-        if ($requestedSchoolYear === '' || strtolower($requestedSchoolYear) === 'all') {
-            $selectedSchoolYear = 'all';
-        } else {
-            $selectedSchoolYear = $this->resolveSelectedSchoolYear(
-                $requestedSchoolYear,
-                $currentSchoolYear,
-                $availableSchoolYears
-            );
-        }
+        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+            $request->get('school_year', $currentSchoolYear),
+            $currentSchoolYear,
+            $availableSchoolYears
+        );
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
@@ -700,11 +695,16 @@ class AccountingDashboardController extends Controller
         $currentSchoolYear = AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
         $availableSchoolYears = $this->getAvailableSchoolYears();
-        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
-            $request->get('school_year', $currentSchoolYear),
-            $currentSchoolYear,
-            $availableSchoolYears
-        );
+        $requestedSchoolYear = trim((string) $request->input('school_year', ''));
+        if ($requestedSchoolYear === '' || strtolower($requestedSchoolYear) === 'all') {
+            $selectedSchoolYear = 'all';
+        } else {
+            $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+                $requestedSchoolYear,
+                $currentSchoolYear,
+                $availableSchoolYears
+            );
+        }
 
         // Date range (fallback to current month)
         $dateFrom      = $request->get('date_from');
