@@ -129,12 +129,10 @@ class AccountingDashboardController extends Controller
         $this->applyTransferFeeSchoolYearFilter($transferCollectedQuery, $selectedSchoolYear);
 
         $manualTransferCollectedQuery = TransferRequest::query()
-            ->where('accounting_status', 'approved')
-            ->where('transfer_fee_paid', true)
-            ->where('transfer_fee_amount', '>', 0)
             ->whereDoesntHave('onlineTransactions', function ($q) {
                 $q->whereIn('status', ['completed', 'verified']);
             });
+        $this->applyManualTransferSettlementScope($manualTransferCollectedQuery);
 
         if ($selectedSchoolYear !== 'all') {
             $manualTransferCollectedQuery->where(function ($q) use ($selectedSchoolYear) {
@@ -371,11 +369,16 @@ class AccountingDashboardController extends Controller
         $currentSchoolYear = AppSetting::current()?->school_year
             ?? (date('Y') . '-' . (date('Y') + 1));
         $availableSchoolYears = $this->getAvailableSchoolYears();
-        $selectedSchoolYear = $this->resolveSelectedSchoolYear(
-            $request->get('school_year', $currentSchoolYear),
-            $currentSchoolYear,
-            $availableSchoolYears
-        );
+        $requestedSchoolYear = trim((string) $request->input('school_year', ''));
+        if ($requestedSchoolYear === '' || strtolower($requestedSchoolYear) === 'all') {
+            $selectedSchoolYear = 'all';
+        } else {
+            $selectedSchoolYear = $this->resolveSelectedSchoolYear(
+                $requestedSchoolYear,
+                $currentSchoolYear,
+                $availableSchoolYears
+            );
+        }
 
         // Build scoped student IDs
         $studentQ = Student::select('id');
@@ -792,9 +795,6 @@ class AccountingDashboardController extends Controller
                 'student.department:id,name',
             ])
             ->whereIn('student_id', $studentIds)
-            ->where('accounting_status', 'approved')
-            ->where('transfer_fee_paid', true)
-            ->where('transfer_fee_amount', '>', 0)
             ->whereDoesntHave('onlineTransactions', function ($q) {
                 $q->whereIn('status', ['completed', 'verified']);
             })
@@ -808,6 +808,7 @@ class AccountingDashboardController extends Controller
                         ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
                 });
             });
+        $this->applyManualTransferSettlementScope($manualTransferPaymentsQuery);
 
         if ($classification || $departmentId || $program || $yearLevel || $section) {
             $manualTransferPaymentsQuery->whereHas('student', function ($q) use ($classification, $departmentId, $program, $yearLevel, $section) {
@@ -861,10 +862,12 @@ class AccountingDashboardController extends Controller
             })
             ->get();
 
-        $dropRequests = DropRequest::whereIn('student_id', $studentIds)
-            ->where('accounting_status', 'approved')
-            ->where('is_paid', true)
-            ->where(function ($q) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
+        $dropRequests = DropRequest::query()
+            ->with(['processedBy:id,name', 'accountingApprovedBy:id,name'])
+            ->whereIn('student_id', $studentIds);
+        $this->applyDropCollectionScope($dropRequests);
+
+        $dropRequests = $dropRequests->where(function ($q) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
                 $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
                     if ($isSuperAccounting && $selectedAccountId !== 'all') {
                         $inner->where('accounting_approved_by', (int) $selectedAccountId);
@@ -928,12 +931,10 @@ class AccountingDashboardController extends Controller
 
         $overallManualTransferPaidQuery = TransferRequest::query()
             ->whereIn('student_id', $studentIds)
-            ->where('accounting_status', 'approved')
-            ->where('transfer_fee_paid', true)
-            ->where('transfer_fee_amount', '>', 0)
             ->whereDoesntHave('onlineTransactions', function ($q) {
                 $q->whereIn('status', ['completed', 'verified']);
             });
+        $this->applyManualTransferSettlementScope($overallManualTransferPaidQuery);
 
         if ($classification || $departmentId || $program || $yearLevel || $section) {
             $overallManualTransferPaidQuery->whereHas('student', function ($sq) use ($classification, $departmentId, $program, $yearLevel, $section) {
@@ -974,10 +975,11 @@ class AccountingDashboardController extends Controller
             });
         $overallDocumentPaid = (float) $overallDocumentPaidQuery->sum('fee');
 
-        $overallDropPaidQuery = DropRequest::whereIn('student_id', $studentIds)
-            ->where('accounting_status', 'approved')
-            ->where('is_paid', true)
-            ->where(function ($q) use ($accountId, $isSuperAccounting, $selectedAccountId) {
+        $overallDropPaidQuery = DropRequest::query()
+            ->whereIn('student_id', $studentIds);
+        $this->applyDropCollectionScope($overallDropPaidQuery);
+
+        $overallDropPaidQuery = $overallDropPaidQuery->where(function ($q) use ($accountId, $isSuperAccounting, $selectedAccountId) {
                 if ($isSuperAccounting && $selectedAccountId !== 'all') {
                     $q->where('accounting_approved_by', (int) $selectedAccountId)
                         ->orWhere('processed_by', (int) $selectedAccountId);
@@ -1040,11 +1042,8 @@ class AccountingDashboardController extends Controller
                     ->whereBetween('verified_at', [$periodStart, $periodEnd])
                     ->sum('amount');
 
-                $accountManualTransferTotal = (float) TransferRequest::query()
+                $accountManualTransferQuery = TransferRequest::query()
                     ->whereIn('student_id', $studentIds)
-                    ->where('accounting_status', 'approved')
-                    ->where('transfer_fee_paid', true)
-                    ->where('transfer_fee_amount', '>', 0)
                     ->whereDoesntHave('onlineTransactions', function ($q) {
                         $q->whereIn('status', ['completed', 'verified']);
                     })
@@ -1080,8 +1079,9 @@ class AccountingDashboardController extends Controller
                                 ->whereNotNull('accounting_approved_at')
                                 ->whereBetween('accounting_approved_at', [$periodStart, $periodEnd]);
                         });
-                    })
-                    ->sum('transfer_fee_amount');
+                    });
+                $this->applyManualTransferSettlementScope($accountManualTransferQuery);
+                $accountManualTransferTotal = (float) $accountManualTransferQuery->sum('transfer_fee_amount');
 
                 $feeTotal += $accountManualTransferTotal;
 
@@ -1099,10 +1099,11 @@ class AccountingDashboardController extends Controller
                     })
                     ->sum('fee');
 
-                $dropTotal = (float) DropRequest::whereIn('student_id', $studentIds)
-                    ->where('accounting_status', 'approved')
-                    ->where('is_paid', true)
-                    ->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
+                $accountDropQuery = DropRequest::query()
+                    ->whereIn('student_id', $studentIds);
+                $this->applyDropCollectionScope($accountDropQuery);
+
+                $dropTotal = (float) $accountDropQuery->where(function ($q) use ($accountId, $periodStart, $periodEnd) {
                         $q->where(function ($inner) use ($accountId, $periodStart, $periodEnd) {
                             $inner->where('accounting_approved_by', $accountId)
                                 ->whereNotNull('accounting_approved_at')
@@ -1255,7 +1256,7 @@ class AccountingDashboardController extends Controller
             ];
         }
         foreach ($dropRequests->take(10) as $drop) {
-            $dropDateTime = Carbon::parse($drop->accounting_approved_at);
+            $dropDateTime = Carbon::parse($drop->accounting_approved_at ?: $drop->processed_at ?: $drop->updated_at);
             $transactions[] = [
                 'id'           => 'drop-' . $drop->id,
                 'date'         => $dropDateTime->format('Y-m-d'),
@@ -1266,7 +1267,7 @@ class AccountingDashboardController extends Controller
                 'reference'    => 'Drop Request',
                 'amount'       => (float) $drop->fee_amount,
                 'student_id'   => $drop->student_id,
-                'processed_by' => 'N/A',
+                'processed_by' => $drop->processedBy?->name ?? $drop->accountingApprovedBy?->name ?? 'N/A',
                 'sort_at'      => $dropDateTime->timestamp,
             ];
         }
@@ -1493,6 +1494,30 @@ class AccountingDashboardController extends Controller
                     });
             });
         });
+    }
+
+    private function applyManualTransferSettlementScope($query): void
+    {
+        $query
+            ->where('accounting_status', 'approved')
+            ->where('transfer_fee_amount', '>', 0)
+            ->where(function ($scope) {
+                $scope->where('transfer_fee_paid', true)
+                    ->orWhere(function ($orScope) {
+                        $orScope->whereNotNull('transfer_fee_or_number')
+                            ->whereRaw("TRIM(transfer_fee_or_number) <> ''");
+                    });
+            });
+    }
+
+    private function applyDropCollectionScope($query): void
+    {
+        $query
+            ->where('accounting_status', 'approved')
+            ->where(function ($scope) {
+                $scope->where('is_paid', true)
+                    ->orWhere('fee_amount', '<=', 0);
+            });
     }
 
     private function resolveRefundDisplayOrNumber(?string $orNumber, float $amount, string $notes = ''): ?string
