@@ -743,19 +743,49 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             is_history: false,
         }));
 
-        const historyRows = feeEditRows
-            .filter((row) => selectedSchoolYear === 'all' || row.school_year === selectedSchoolYear)
-            .map((row) => ({ ...row, is_history: true }));
+        const coveredYears = new Set(
+            feeRows.map((row) => row.school_year.trim()).filter(Boolean)
+        );
 
-        return [...feeRows, ...historyRows].sort((a, b) => {
-            if (a.school_year === b.school_year && a.is_history !== b.is_history) {
-                return a.is_history ? 1 : -1;
-            }
+        // Fallback rows ensure every existing student-fee year remains editable,
+        // even if the dynamic fee resolver does not emit a canonical row.
+        const fallbackRows = normalizedPaymentOptions
+            .filter((fee) => selectedSchoolYear === 'all' || fee.school_year === selectedSchoolYear)
+            .filter((fee) => !coveredYears.has(fee.school_year.trim()))
+            .map((fee) => {
+                const paidForYear = payments
+                    .filter((payment) => payment.school_year === fee.school_year)
+                    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+
+                const normalizedPaid = Math.max(0, paidForYear);
+                const derivedStatus: FeeEditRow['status'] = fee.balance <= 0
+                    ? 'paid'
+                    : (normalizedPaid > 0 ? 'partial' : 'unpaid');
+
+                return {
+                    id: `fee-option-${fee.id}`,
+                    school_year: fee.school_year,
+                    total_amount: fee.total_amount,
+                    grant_discount: 0,
+                    total_paid: normalizedPaid,
+                    balance: fee.balance,
+                    status: derivedStatus,
+                    processed_by: '-',
+                    processed_at: '',
+                    reason: '',
+                    notes: '',
+                    is_history: false,
+                };
+            });
+
+        return [...feeRows, ...fallbackRows].sort((a, b) => {
+            const yearCompare = b.school_year.localeCompare(a.school_year);
+            if (yearCompare !== 0) return yearCompare;
             const aTime = new Date(a.processed_at || 0).getTime();
             const bTime = new Date(b.processed_at || 0).getTime();
             return bTime - aTime;
         });
-    }, [filteredFees, feeEditRows, selectedSchoolYear]);
+    }, [filteredFees, normalizedPaymentOptions, payments, selectedSchoolYear]);
 
     const schoolYearPerPage = 15;
     const schoolYearLastPage = Math.max(1, Math.ceil(schoolYearRows.length / schoolYearPerPage));
@@ -1802,10 +1832,33 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             </TableHeader>
                                             <TableBody>
                                                 {pagedSchoolYearRows.map((row) => {
-                                                    const linkedFee = !row.is_history
-                                                        ? (filteredFees.find((fee) => `fee-${fee.id}` === row.id)
-                                                            ?? filteredFees.find((fee) => fee.school_year === row.school_year))
-                                                        : null;
+                                                    const linkedFee = (
+                                                        filteredFees.find((fee) => `fee-${fee.id}` === row.id)
+                                                        ?? filteredFees.find((fee) => fee.school_year === row.school_year)
+                                                        ?? (() => {
+                                                            const fallback = normalizedPaymentOptions.find((fee) => fee.school_year === row.school_year);
+                                                            if (!fallback) return null;
+
+                                                            return {
+                                                                id: fallback.id,
+                                                                school_year: fallback.school_year,
+                                                                total_amount: fallback.total_amount,
+                                                                grant_discount: 0,
+                                                                total_paid: row.total_paid,
+                                                                balance: fallback.balance,
+                                                                status: row.status,
+                                                                is_overdue: row.status === 'overdue',
+                                                                due_date: null,
+                                                                categories: [],
+                                                                processed_by: row.processed_by || null,
+                                                                processed_at: row.processed_at || null,
+                                                                reason: row.reason || null,
+                                                                notes: row.notes || null,
+                                                                carried_forward_balance: 0,
+                                                                carried_forward_from: null,
+                                                            } as Fee;
+                                                        })()
+                                                    );
 
                                                     return (
                                                         <TableRow key={row.id} className={row.is_history ? 'bg-slate-50/70' : ''}>
@@ -1839,7 +1892,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                 )}
                                                             </TableCell>
                                                             <TableCell>
-                                                                {!row.is_history && linkedFee ? (
+                                                                {linkedFee ? (
                                                                     <div className="flex items-center gap-1">
                                                                         <Button
                                                                             size="sm"
@@ -1921,7 +1974,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <TableBody>
                                                 {syFilteredPayments.map((payment) => (
                                                     <TableRow key={payment.id}>
-                                                        <TableCell className="text-sm">{formatDate(payment.payment_date)}</TableCell>
+                                                        <TableCell className="text-sm">
+                                                            <div>{formatDate(payment.payment_date)}</div>
+                                                            <div className="text-xs text-muted-foreground">{payment.created_at}</div>
+                                                        </TableCell>
                                                         <TableCell className="font-mono text-xs">{payment.or_number || '-'}</TableCell>
                                                         {selectedSchoolYear === 'all' && (
                                                             <TableCell className="text-xs text-muted-foreground">{payment.school_year || '-'}</TableCell>
