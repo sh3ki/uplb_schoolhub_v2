@@ -369,13 +369,15 @@ class StudentPaymentController extends Controller
      */
     public function process(Request $request, Student $student): Response
     {
+        $requestedTab = strtolower((string) $request->input('tab', 'overview'));
+
         $isCurrentlyTransferredOut = !$student->is_active
             && $student->enrollment_status === 'dropped'
             && $student->transferRequests()
                 ->whereNotNull('finalized_at')
                 ->exists();
 
-        if ($isCurrentlyTransferredOut) {
+        if ($isCurrentlyTransferredOut && $requestedTab !== 'transactions') {
             abort(404);
         }
 
