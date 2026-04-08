@@ -82,9 +82,6 @@ class StudentAccountController extends Controller
             ->whereNull('deleted_at')
             ->where('is_active', false)
             ->where('enrollment_status', 'dropped')
-            ->whereDoesntHave('transferRequests', function ($transferQuery) {
-                $transferQuery->whereNotNull('finalized_at');
-            })
             ->where(function ($q) {
                 $q->whereHas('dropRequests', function ($dropQuery) {
                     $dropQuery->where('status', 'approved');
@@ -239,9 +236,6 @@ class StudentAccountController extends Controller
         $deactivatedStatsQuery = Student::whereNull('deleted_at')
             ->where('is_active', false)
             ->where('enrollment_status', 'dropped')
-            ->whereDoesntHave('transferRequests', function ($transferQuery) {
-                $transferQuery->whereNotNull('finalized_at');
-            })
             ->where(function ($q) {
                 $q->whereHas('dropRequests', function ($dropQuery) {
                     $dropQuery->where('status', 'approved');
