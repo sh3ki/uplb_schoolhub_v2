@@ -147,6 +147,7 @@ Route::prefix('owner')->name('owner.')->middleware(['auth', 'verified', 'role:ow
         'index', 'store', 'update', 'destroy'
     ]);
     Route::post('subjects/{subject}/assign-teachers', [\App\Http\Controllers\Owner\SubjectController::class, 'assignTeachers'])->name('subjects.assign-teachers');
+    Route::get('schedule', [\App\Http\Controllers\Owner\ScheduleController::class, 'index'])->name('schedule');
     Route::resource('schedules', \App\Http\Controllers\Owner\ScheduleController::class)->only([
         'index', 'store', 'update', 'destroy'
     ]);
@@ -282,6 +283,9 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::post('students/{student}/activate', [\App\Http\Controllers\StudentController::class, 'activateStudent'])->name('students.activate');
 
     Route::get('schedule', [App\Http\Controllers\Registrar\ScheduleController::class, 'index'])->name('schedule');
+    Route::post('schedule', [App\Http\Controllers\Registrar\ScheduleController::class, 'store'])->name('schedule.store');
+    Route::put('schedule/{schedule}', [App\Http\Controllers\Registrar\ScheduleController::class, 'update'])->name('schedule.update');
+    Route::delete('schedule/{schedule}', [App\Http\Controllers\Registrar\ScheduleController::class, 'destroy'])->name('schedule.destroy');
     Route::get('calendar', [App\Http\Controllers\Owner\CalendarController::class, 'index'])->name('calendar');
 
     // Drop Request Management
