@@ -6,6 +6,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements MustVerifyEmail
@@ -48,6 +49,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'username',
         'password',
+        'profile_photo_path',
         'role',
         'student_id',
         'teacher_id',
@@ -95,6 +97,10 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getProfilePhotoUrlAttribute(): ?string
     {
+        if (!empty($this->profile_photo_path)) {
+            return Storage::url($this->profile_photo_path);
+        }
+
         if ($this->student_id && $this->student) {
             return $this->student->student_photo_url;
         }
