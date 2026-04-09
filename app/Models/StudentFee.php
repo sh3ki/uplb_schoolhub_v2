@@ -28,6 +28,8 @@ class StudentFee extends Model
         'payment_status',
         'processed_by',
         'processed_at',
+        'reason',
+        'notes',
         'carried_forward_balance',
         'carried_forward_from',
     ];
