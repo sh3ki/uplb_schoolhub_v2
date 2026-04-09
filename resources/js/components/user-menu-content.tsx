@@ -22,6 +22,7 @@ function getSettingsUrl(role: string): string {
     const roleSettingsMap: Record<string, string> = {
         owner: '/owner/settings/profile',
         registrar: '/registrar/settings/profile',
+        'super-accounting': '/super-accounting/settings/profile',
         student: '/student/settings/profile',
         teacher: '/teacher/settings/profile',
         parent: '/parent/settings/profile',
