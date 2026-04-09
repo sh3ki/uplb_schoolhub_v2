@@ -904,18 +904,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <p className="text-sm text-red-500">{addSchoolYearForm.errors.reason}</p>
                                             )}
                                         </div>
-                                        <div className="grid gap-2">
-                                            <Label>Notes (optional)</Label>
-                                            <Textarea
-                                                value={addSchoolYearForm.data.notes}
-                                                onChange={(e) => addSchoolYearForm.setData('notes', e.target.value)}
-                                                placeholder="Additional context for this fee record..."
-                                                rows={2}
-                                            />
-                                            {addSchoolYearForm.errors.notes && (
-                                                <p className="text-sm text-red-500">{addSchoolYearForm.errors.notes}</p>
-                                            )}
-                                        </div>
                                         <div className="rounded-md border border-blue-200 bg-blue-50 p-3">
                                             <div className="flex items-center gap-2 text-blue-700">
                                                 <AlertTriangle className="h-4 w-4" />
