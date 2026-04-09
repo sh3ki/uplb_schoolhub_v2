@@ -275,7 +275,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold text-foreground">Schedules</h1>
-                        <p className="mt-1 text-sm text-muted-foreground">Upload and manage class schedules (PDF)</p>
+                        <p className="mt-1 text-sm text-muted-foreground">Upload and manage class schedules (PDF or image)</p>
                     </div>
                     <Button onClick={openCreateModal}>
                         <Plus className="mr-2 h-4 w-4" />
@@ -353,7 +353,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
                                                 </td>
                                                 <td className="p-3">
                                                     <div className="flex gap-2">
-                                                        <Button variant="ghost" size="icon" onClick={() => setViewingSchedule(schedule)} title="View PDF">
+                                                        <Button variant="ghost" size="icon" onClick={() => setViewingSchedule(schedule)} title="View file">
                                                             <Eye className="h-4 w-4" />
                                                         </Button>
                                                         <Button variant="ghost" size="icon" onClick={() => openEditModal(schedule)}>
@@ -462,17 +462,17 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
 
                         <div>
                             <Label htmlFor="file">
-                                PDF File {editingSchedule ? '(leave blank to keep current)' : '*'}
+                                Schedule File (PDF/Image) {editingSchedule ? '(leave blank to keep current)' : '*'}
                             </Label>
                             <Input
                                 id="file"
                                 type="file"
-                                accept=".pdf"
+                                accept=".pdf,.jpg,.jpeg,.png,.webp"
                                 ref={fileInputRef}
                                 onChange={(e) => setFile(e.target.files?.[0] || null)}
                                 required={!editingSchedule}
                             />
-                            <p className="mt-1 text-xs text-muted-foreground">Max 10MB, PDF only</p>
+                            <p className="mt-1 text-xs text-muted-foreground">Max 10MB, PDF/JPG/JPEG/PNG/WEBP</p>
                         </div>
 
                         <div className="flex items-center justify-between rounded-lg border p-4">
@@ -490,7 +490,7 @@ export default function SchedulesIndex({ schedules, departments, programs, yearL
                 </DialogContent>
             </Dialog>
 
-            {/* View PDF Modal */}
+            {/* View File Modal */}
             <PdfViewer
                 open={!!viewingSchedule}
                 onOpenChange={() => setViewingSchedule(null)}
