@@ -2,7 +2,7 @@ export type User = {
     id: number;
     name: string;
     email: string;
-    role: 'owner' | 'registrar' | 'accounting' | 'student' | 'teacher' | 'parent' | 'guidance' | 'librarian' | 'clinic' | 'canteen';
+    role: 'owner' | 'registrar' | 'accounting' | 'super-accounting' | 'student' | 'teacher' | 'parent' | 'guidance' | 'librarian' | 'clinic' | 'canteen';
     username?: string;
     student_id?: string | null;
     teacher_id?: number | null;
