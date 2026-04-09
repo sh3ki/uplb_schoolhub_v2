@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Registrar;
 
 use App\Http\Controllers\Controller;
-use App\Models\Schedule;
+use App\Models\AppSetting;
 use App\Models\Department;
+use App\Models\Program;
+use App\Models\Schedule;
+use App\Models\Section;
+use App\Models\Teacher;
+use App\Models\YearLevel;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class ScheduleController extends Controller
@@ -13,18 +19,26 @@ class ScheduleController extends Controller
     public function index(Request $request)
     {
         $classification = $request->input('classification', 'all');
-        
-        $query = Schedule::with(['department', 'program', 'yearLevel', 'section', 'teacher'])
-            ->where('is_active', true);
+        $appSettings = AppSetting::current();
+        $query = Schedule::with(['department', 'program', 'yearLevel', 'section', 'teacher']);
 
-        // Get departments based on classification
         $departmentsQuery = Department::query()->orderBy('name');
+        if (!$appSettings->has_k12) {
+            $departmentsQuery->where('classification', '!=', 'K-12');
+        }
+        if (!$appSettings->has_college) {
+            $departmentsQuery->where('classification', '!=', 'College');
+        }
         if ($classification !== 'all') {
             $departmentsQuery->where('classification', $classification);
-            $departmentIds = $departmentsQuery->pluck('id')->toArray();
+        }
+
+        $departments = $departmentsQuery->get();
+        $departmentIds = $departments->pluck('id')->toArray();
+
+        if (!empty($departmentIds)) {
             $query->whereIn('department_id', $departmentIds);
         }
-        $departments = $departmentsQuery->get();
 
         if ($request->filled('search')) {
             $search = $request->input('search');
@@ -35,12 +49,104 @@ class ScheduleController extends Controller
             $query->where('department_id', $request->input('department_id'));
         }
 
+        if ($request->filled('status') && $request->input('status') !== 'all') {
+            $query->where('is_active', $request->input('status') === 'active');
+        }
+
         $schedules = $query->orderBy('created_at', 'desc')->paginate(15)->withQueryString();
+
+        $programsQuery = Program::with('department')->whereIn('department_id', $departmentIds)->orderBy('name');
+        $yearLevelsQuery = YearLevel::with('department')->whereIn('department_id', $departmentIds)->orderBy('level_number');
+        $sectionsQuery = Section::with(['department', 'yearLevel'])->whereIn('department_id', $departmentIds)->orderBy('name');
+        $teachersQuery = Teacher::where('is_active', true)->whereIn('department_id', $departmentIds)->orderBy('last_name');
 
         return Inertia::render('registrar/schedule/index', [
             'schedules' => $schedules,
             'departments' => $departments,
-            'filters' => $request->only(['search', 'classification', 'department_id']),
+            'programs' => $programsQuery->get(),
+            'yearLevels' => $yearLevelsQuery->get(),
+            'sections' => $sectionsQuery->get(),
+            'teachers' => $teachersQuery->get(['id', 'first_name', 'last_name', 'suffix', 'department_id']),
+            'filters' => $request->only(['search', 'classification', 'department_id', 'status']),
         ]);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'department_id' => 'required|exists:departments,id',
+            'program_id' => 'nullable|exists:programs,id',
+            'year_level_id' => 'nullable|exists:year_levels,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'teacher_id' => 'nullable|exists:teachers,id',
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'is_active' => 'boolean',
+        ]);
+
+        $file = $request->file('file');
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        $filePath = $file->storeAs('schedules', $fileName, 'public');
+
+        Schedule::create([
+            'title' => $validated['title'],
+            'department_id' => $validated['department_id'],
+            'program_id' => $validated['program_id'] ?? null,
+            'year_level_id' => $validated['year_level_id'] ?? null,
+            'section_id' => $validated['section_id'] ?? null,
+            'teacher_id' => $validated['teacher_id'] ?? null,
+            'file_path' => $filePath,
+            'file_name' => $file->getClientOriginalName(),
+            'is_active' => $validated['is_active'] ?? true,
+        ]);
+
+        return redirect()->back()->with('success', 'Schedule uploaded successfully.');
+    }
+
+    public function update(Request $request, Schedule $schedule)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'department_id' => 'required|exists:departments,id',
+            'program_id' => 'nullable|exists:programs,id',
+            'year_level_id' => 'nullable|exists:year_levels,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'teacher_id' => 'nullable|exists:teachers,id',
+            'file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
+            'is_active' => 'boolean',
+        ]);
+
+        $data = [
+            'title' => $validated['title'],
+            'department_id' => $validated['department_id'],
+            'program_id' => $validated['program_id'] ?? null,
+            'year_level_id' => $validated['year_level_id'] ?? null,
+            'section_id' => $validated['section_id'] ?? null,
+            'teacher_id' => $validated['teacher_id'] ?? null,
+            'is_active' => $validated['is_active'] ?? $schedule->is_active,
+        ];
+
+        if ($request->hasFile('file')) {
+            Storage::disk('public')->delete($schedule->file_path);
+
+            $file = $request->file('file');
+            $fileName = time() . '_' . $file->getClientOriginalName();
+            $filePath = $file->storeAs('schedules', $fileName, 'public');
+
+            $data['file_path'] = $filePath;
+            $data['file_name'] = $file->getClientOriginalName();
+        }
+
+        $schedule->update($data);
+
+        return redirect()->back()->with('success', 'Schedule updated successfully.');
+    }
+
+    public function destroy(Schedule $schedule)
+    {
+        Storage::disk('public')->delete($schedule->file_path);
+        $schedule->delete();
+
+        return redirect()->back()->with('success', 'Schedule deleted successfully.');
     }
 }
