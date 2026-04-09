@@ -2055,7 +2055,9 @@ class StudentPaymentController extends Controller
             studentId: $student->id,
             action: "School year fee record added for {$validated['school_year']} — {$validated['reason']}",
             actionType: 'fee_add',
-            details: "Created StudentFee #{$fee->id} for {$validated['school_year']}: ₱" . number_format($validated['total_amount'], 2),
+            details: ($wasUpdatedExisting ? 'Updated' : 'Created')
+                . " StudentFee #{$fee->id} for {$validated['school_year']}: ₱"
+                . number_format($validated['total_amount'], 2),
             notes: null,
             changes: [
                 'school_year'  => $validated['school_year'],
