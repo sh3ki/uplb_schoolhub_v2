@@ -1994,7 +1994,6 @@ class StudentPaymentController extends Controller
             'school_year' => 'required|string|max:20',
             'total_amount' => 'required|numeric|min:0',
             'reason' => 'required|string|max:500',
-            'notes' => 'nullable|string|max:1000',
         ]);
 
         $validated['school_year'] = trim((string) $validated['school_year']);
@@ -2004,47 +2003,72 @@ class StudentPaymentController extends Controller
             ->where('school_year', $validated['school_year'])
             ->first();
 
-        if ($existing) {
-            return redirect()->back()->with('error', "A fee record for school year {$validated['school_year']} already exists.");
-        }
+        $wasUpdatedExisting = false;
 
-        $fee = StudentFee::create([
-            'student_id'    => $student->id,
-            'school_year'   => $validated['school_year'],
-            'registration_fee' => 0,
-            'tuition_fee' => 0,
-            'misc_fee' => 0,
-            'books_fee' => 0,
-            'other_fees' => (float) $validated['total_amount'],
-            'total_amount'  => (float) $validated['total_amount'],
-            'total_paid'    => 0,
-            'balance'       => (float) $validated['total_amount'],
-            'grant_discount' => 0,
-            'payment_status' => 'unpaid',
-            'processed_by' => $request->user()->id,
-            'processed_at' => now(),
-            'reason' => $validated['reason'],
-            'notes' => $validated['notes'] ?? null,
-        ]);
+        if ($existing) {
+            if ((float) $existing->total_paid > 0) {
+                return redirect()->back()->with('error', "A fee record for school year {$validated['school_year']} already exists and already has payments.");
+            }
+
+            $existing->registration_fee = 0;
+            $existing->tuition_fee = 0;
+            $existing->misc_fee = 0;
+            $existing->books_fee = 0;
+            $existing->other_fees = (float) $validated['total_amount'];
+            $existing->setAttribute('total_amount', (float) $validated['total_amount']);
+            $existing->setAttribute('total_paid', 0.0);
+            $existing->setAttribute('grant_discount', 0.0);
+            $existing->setAttribute('balance', (float) $validated['total_amount']);
+            $existing->payment_status = 'unpaid';
+            $existing->processed_by = $request->user()->id;
+            $existing->processed_at = now();
+            $existing->reason = $validated['reason'];
+            $existing->notes = null;
+            $existing->save();
+
+            $fee = $existing;
+            $wasUpdatedExisting = true;
+        } else {
+            $fee = StudentFee::create([
+                'student_id'    => $student->id,
+                'school_year'   => $validated['school_year'],
+                'registration_fee' => 0,
+                'tuition_fee' => 0,
+                'misc_fee' => 0,
+                'books_fee' => 0,
+                'other_fees' => (float) $validated['total_amount'],
+                'total_amount'  => (float) $validated['total_amount'],
+                'total_paid'    => 0,
+                'balance'       => (float) $validated['total_amount'],
+                'grant_discount' => 0,
+                'payment_status' => 'unpaid',
+                'processed_by' => $request->user()->id,
+                'processed_at' => now(),
+                'reason' => $validated['reason'],
+                'notes' => null,
+            ]);
+        }
 
         StudentActionLog::log(
             studentId: $student->id,
             action: "School year fee record added for {$validated['school_year']} — {$validated['reason']}",
             actionType: 'fee_add',
             details: "Created StudentFee #{$fee->id} for {$validated['school_year']}: ₱" . number_format($validated['total_amount'], 2),
-            notes: $validated['notes'] ?? null,
+            notes: null,
             changes: [
                 'school_year'  => $validated['school_year'],
                 'total_amount' => (float) $validated['total_amount'],
                 'processed_by' => $request->user()->name,
                 'processed_at' => now()->format('Y-m-d H:i:s'),
                 'reason'       => $validated['reason'],
-                'notes'        => $validated['notes'] ?? null,
+                'notes'        => null,
             ],
             performedBy: $request->user()->id,
         );
 
-        return redirect()->back()->with('success', "Fee record for {$validated['school_year']} created.");
+        return redirect()->back()->with('success', $wasUpdatedExisting
+            ? "Fee record for {$validated['school_year']} updated."
+            : "Fee record for {$validated['school_year']} created.");
     }
 
     /**
@@ -2131,7 +2155,6 @@ class StudentPaymentController extends Controller
                 'grant_discount' => 'required|numeric|min:0',
                 'status' => 'required|in:unpaid,partial,paid,overdue',
                 'reason' => 'required|string|max:500',
-                'notes' => 'nullable|string|max:1000',
             ]);
 
             $validated['school_year'] = trim((string) $validated['school_year']);
@@ -2173,7 +2196,7 @@ class StudentPaymentController extends Controller
             $fee->processed_by = $request->user()->id;
             $fee->processed_at = now();
             $fee->reason = $validated['reason'];
-            $fee->notes = $validated['notes'] ?? null;
+            $fee->notes = null;
 
             try {
                 $fee->save();
@@ -2192,7 +2215,7 @@ class StudentPaymentController extends Controller
                 action: "Fee record edited for {$fee->school_year} — {$validated['reason']}",
                 actionType: 'fee_edit',
                 details: "Updated {$fee->school_year} fee details in School Year tab.",
-                notes: $validated['notes'] ?? null,
+                notes: null,
                 changes: [
                     'old' => $oldData,
                     'new' => [
@@ -2205,10 +2228,10 @@ class StudentPaymentController extends Controller
                         'processed_by' => $request->user()->name,
                         'processed_at' => $fee->processed_at?->toDateTimeString(),
                         'reason' => $fee->reason,
-                        'notes' => $fee->notes,
+                        'notes' => null,
                     ],
                     'reason' => $validated['reason'],
-                    'notes' => $validated['notes'] ?? null,
+                    'notes' => null,
                 ],
                 performedBy: $request->user()->id,
             );
