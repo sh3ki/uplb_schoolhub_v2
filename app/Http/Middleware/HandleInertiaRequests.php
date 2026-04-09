@@ -84,6 +84,12 @@ class HandleInertiaRequests extends Middleware
                     'student' => $studentData,
                 ] : null,
             ],
+            'flash' => [
+                'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
+                'warning' => fn () => $request->session()->get('warning'),
+                'info' => fn () => $request->session()->get('info'),
+            ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'announcementCount' => $this->getAnnouncementCount($user),
             'pendingDocumentCount' => $this->getPendingDocumentCount($user),
