@@ -1203,6 +1203,8 @@ class StudentPaymentController extends Controller
             'categories' => $itemsByCategory,
             'processed_by' => $studentFee?->processedBy?->name,
             'processed_at' => ($studentFee?->processed_at ?: $studentFee?->updated_at)?->format('Y-m-d H:i:s'),
+            'reason' => $studentFee?->reason,
+            'notes' => $studentFee?->notes,
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -1301,9 +1303,9 @@ class StudentPaymentController extends Controller
         if ((float) $studentFee->grant_discount !== (float) $grantDiscount
             || (float) $studentFee->total_paid !== (float) $totalPaid
             || (float) $studentFee->balance !== (float) $balance) {
-            $studentFee->grant_discount = $grantDiscount;
-            $studentFee->total_paid = $totalPaid;
-            $studentFee->balance = $balance;
+            $studentFee->setAttribute('grant_discount', (float) $grantDiscount);
+            $studentFee->setAttribute('total_paid', (float) $totalPaid);
+            $studentFee->setAttribute('balance', (float) $balance);
             $studentFee->save();
         }
 
@@ -1320,6 +1322,8 @@ class StudentPaymentController extends Controller
             'categories' => $this->buildFeeCategoriesForStudentYear($student, (string) $studentFee->school_year),
             'processed_by' => $studentFee->processedBy?->name,
             'processed_at' => ($studentFee->processed_at ?: $studentFee->updated_at)?->format('Y-m-d H:i:s'),
+            'reason' => $studentFee->reason,
+            'notes' => $studentFee->notes,
             'carried_forward_balance' => (float) ($studentFee->carried_forward_balance ?? 0),
             'carried_forward_from' => $studentFee->carried_forward_from ?? null,
         ];
@@ -2019,6 +2023,8 @@ class StudentPaymentController extends Controller
             'payment_status' => 'unpaid',
             'processed_by' => $request->user()->id,
             'processed_at' => now(),
+            'reason' => $validated['reason'],
+            'notes' => $validated['notes'] ?? null,
         ]);
 
         StudentActionLog::log(
@@ -2125,6 +2131,7 @@ class StudentPaymentController extends Controller
                 'grant_discount' => 'required|numeric|min:0',
                 'status' => 'required|in:unpaid,partial,paid,overdue',
                 'reason' => 'required|string|max:500',
+                'notes' => 'nullable|string|max:1000',
             ]);
 
             $validated['school_year'] = trim((string) $validated['school_year']);
@@ -2136,11 +2143,13 @@ class StudentPaymentController extends Controller
                 'total_paid' => (float) $fee->total_paid,
                 'balance' => (float) $fee->balance,
                 'status' => (string) ($fee->payment_status ?? 'unpaid'),
+                'reason' => $fee->reason,
+                'notes' => $fee->notes,
             ];
 
             $fee->school_year = $validated['school_year'];
-            $fee->total_amount = number_format((float) $validated['total_amount'], 2, '.', '');
-            $fee->grant_discount = number_format((float) $validated['grant_discount'], 2, '.', '');
+            $fee->setAttribute('total_amount', (float) $validated['total_amount']);
+            $fee->setAttribute('grant_discount', (float) $validated['grant_discount']);
 
             $freshTotalPaid = (float) $fee->payments()->sum('amount')
                 + $this->getUnlinkedOnlineTransactionAmount($student, $validated['school_year']);
@@ -2157,12 +2166,14 @@ class StudentPaymentController extends Controller
                 $resolvedStatus = 'unpaid';
             }
 
-            $fee->total_paid = number_format($freshTotalPaid, 2, '.', '');
-            $fee->balance = number_format($freshBalance, 2, '.', '');
+            $fee->setAttribute('total_paid', (float) $freshTotalPaid);
+            $fee->setAttribute('balance', (float) $freshBalance);
             $fee->payment_status = $resolvedStatus;
             $fee->is_overdue = $resolvedStatus === 'overdue';
             $fee->processed_by = $request->user()->id;
             $fee->processed_at = now();
+            $fee->reason = $validated['reason'];
+            $fee->notes = $validated['notes'] ?? null;
 
             try {
                 $fee->save();
@@ -2181,7 +2192,7 @@ class StudentPaymentController extends Controller
                 action: "Fee record edited for {$fee->school_year} — {$validated['reason']}",
                 actionType: 'fee_edit',
                 details: "Updated {$fee->school_year} fee details in School Year tab.",
-                notes: null,
+                notes: $validated['notes'] ?? null,
                 changes: [
                     'old' => $oldData,
                     'new' => [
@@ -2193,8 +2204,11 @@ class StudentPaymentController extends Controller
                         'status' => (string) $resolvedStatus,
                         'processed_by' => $request->user()->name,
                         'processed_at' => $fee->processed_at?->toDateTimeString(),
+                        'reason' => $fee->reason,
+                        'notes' => $fee->notes,
                     ],
                     'reason' => $validated['reason'],
+                    'notes' => $validated['notes'] ?? null,
                 ],
                 performedBy: $request->user()->id,
             );
