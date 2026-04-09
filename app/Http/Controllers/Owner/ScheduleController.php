@@ -77,7 +77,7 @@ class ScheduleController extends Controller
             'year_level_id' => 'nullable|exists:year_levels,id',
             'section_id' => 'nullable|exists:sections,id',
             'teacher_id' => 'nullable|exists:teachers,id',
-            'file' => 'required|file|mimes:pdf|max:10240', // 10MB max
+            'file' => 'required|file|mimes:pdf,jpg,jpeg,png,webp|max:10240', // 10MB max
             'is_active' => 'boolean',
         ]);
 
@@ -110,7 +110,7 @@ class ScheduleController extends Controller
             'year_level_id' => 'nullable|exists:year_levels,id',
             'section_id' => 'nullable|exists:sections,id',
             'teacher_id' => 'nullable|exists:teachers,id',
-            'file' => 'nullable|file|mimes:pdf|max:10240',
+            'file' => 'nullable|file|mimes:pdf,jpg,jpeg,png,webp|max:10240',
             'is_active' => 'boolean',
         ]);
 
