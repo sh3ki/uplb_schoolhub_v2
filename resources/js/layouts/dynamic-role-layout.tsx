@@ -9,6 +9,7 @@ import OwnerLayout from '@/layouts/owner/owner-layout';
 import ParentLayout from '@/layouts/parent/parent-layout';
 import RegistrarLayout from '@/layouts/registrar/registrar-layout';
 import StudentLayout from '@/layouts/student/student-layout';
+import SuperAccountingLayout from '@/layouts/super-accounting/super-accounting-layout';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import type { AppLayoutProps, SharedData } from '@/types';
 
@@ -18,6 +19,7 @@ const layoutMap: Record<string, LayoutComponent> = {
     owner: OwnerLayout,
     registrar: RegistrarLayout,
     accounting: AccountingLayout,
+    'super-accounting': SuperAccountingLayout,
     student: StudentLayout,
     teacher: TeacherLayout,
     parent: ParentLayout,
@@ -31,6 +33,7 @@ const roleDisplayNames: Record<string, string> = {
     owner: 'Owner',
     registrar: 'Registrar',
     accounting: 'Accounting',
+    'super-accounting': 'Super Accounting',
     student: 'Student',
     teacher: 'Teacher',
     parent: 'Parent',
@@ -56,8 +59,8 @@ export default function DynamicRoleLayout({ children, settingsPage }: DynamicRol
         { title: settingsPage, href: `/${role}/settings/${settingsPage.toLowerCase().replace(' ', '-')}` },
     ];
 
-    // Accounting layout doesn't accept breadcrumbs prop
-    if (role === 'accounting') {
+    // Some role layouts do not accept breadcrumbs prop.
+    if (role === 'accounting' || role === 'super-accounting') {
         return (
             <Layout>
                 {children}
