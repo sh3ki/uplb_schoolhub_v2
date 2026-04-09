@@ -74,11 +74,11 @@ export function OwnerSidebar() {
         //     href: '/owner/subjects',
         //     icon: BookOpen,
         // },
-        // {
-        //     title: 'Schedules',
-        //     href: '/owner/schedules',
-        //     icon: Calendar,
-        // },
+        {
+            title: 'Schedules',
+            href: '/owner/schedule',
+            icon: Calendar,
+        },
         {
             title: 'User Management',
             href: '/owner/users',
