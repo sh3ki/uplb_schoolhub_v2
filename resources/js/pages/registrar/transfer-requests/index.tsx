@@ -224,8 +224,8 @@ export default function RegistrarTransferRequests({ requests, stats, tab, filter
                                                     </div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="text-sm">{item.student.program || '—'}</div>
-                                                    <div className="text-xs text-muted-foreground">{[item.student.year_level, item.student.section].filter(Boolean).join(' - ') || '—'}</div>
+                                                    <div className="text-sm">{item.student.program || 'Not set'}</div>
+                                                    <div className="text-xs text-muted-foreground">{[item.student.year_level, item.student.section].filter(Boolean).join(' - ') || 'Not set'}</div>
                                                 </TableCell>
                                                 <TableCell className="max-w-[280px] truncate" title={item.reason}>{item.reason}</TableCell>
                                                 <TableCell>{statusBadge(item.registrar_status)}</TableCell>
