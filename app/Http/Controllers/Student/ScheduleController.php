@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\Schedule;
 use App\Models\Program;
+use App\Models\Section;
 use App\Models\YearLevel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,6 +17,8 @@ class ScheduleController extends Controller
     {
         $user = Auth::user();
         $student = $user->student;
+        $program = null;
+        $yearLevel = null;
         
         $query = Schedule::with(['department', 'program', 'yearLevel', 'section', 'teacher'])
             ->where('is_active', true);
@@ -41,6 +44,22 @@ class ScheduleController extends Controller
                 $query->where(function($q) use ($yearLevel) {
                     $q->whereNull('year_level_id')
                         ->orWhere('year_level_id', $yearLevel->id);
+                });
+            }
+        }
+
+        // Filter by student's section when available.
+        if ($student && $student->section) {
+            $section = Section::query()
+                ->where('name', $student->section)
+                ->when($program, fn ($q) => $q->where('department_id', $program->department_id))
+                ->when($yearLevel, fn ($q) => $q->where('year_level_id', $yearLevel->id))
+                ->first();
+
+            if ($section) {
+                $query->where(function ($q) use ($section) {
+                    $q->whereNull('section_id')
+                        ->orWhere('section_id', $section->id);
                 });
             }
         }
