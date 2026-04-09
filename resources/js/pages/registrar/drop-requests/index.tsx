@@ -420,7 +420,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                             <TableHead>Program / Year</TableHead>
                                             <TableHead>School Year</TableHead>
                                             <TableHead>Reason</TableHead>
-                                            <TableHead>Fee</TableHead>
+                                            {/* <TableHead>Fee</TableHead> */}
                                             <TableHead>Status</TableHead>
                                             <TableHead>Submitted</TableHead>
                                             {activeTab !== 'pending' && <TableHead>Processed</TableHead>}
@@ -471,7 +471,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                                             {req.reason}
                                                         </p>
                                                     </TableCell>
-                                                    <TableCell>
+                                                    {/* <TableCell>
                                                         {req.fee_amount > 0 ? (
                                                             <span className="text-sm font-medium">
                                                                 {formatCurrency(req.fee_amount)}
@@ -479,7 +479,7 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                                         ) : (
                                                             <span className="text-sm text-muted-foreground">&mdash;</span>
                                                         )}
-                                                    </TableCell>
+                                                    </TableCell> */}
                                                     <TableCell>
                                                         <DropFlowBadge req={req} />
                                                     </TableCell>
