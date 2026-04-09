@@ -2007,7 +2007,9 @@ class StudentPaymentController extends Controller
 
         if ($existing) {
             if ((float) $existing->total_paid > 0) {
-                return redirect()->back()->with('error', "A fee record for school year {$validated['school_year']} already exists and already has payments.");
+                return redirect()->back()->withErrors([
+                    'school_year' => "A fee record for school year {$validated['school_year']} already exists and already has payments.",
+                ])->withInput();
             }
 
             $existing->registration_fee = 0;
