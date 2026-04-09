@@ -61,7 +61,7 @@ class RoleSettingsController extends Controller
 
         $user->save();
 
-        return back();
+        return back()->with('success', 'Profile updated successfully.');
     }
 
     /**
