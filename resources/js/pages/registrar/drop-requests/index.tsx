@@ -454,9 +454,9 @@ export default function DropRequestsIndex({ requests, stats, tab, filters, dropF
                                                     </TableCell>
                                                     <TableCell>
                                                         <div className="text-sm">
-                                                            <div>{req.student.program || '—'}</div>
+                                                            <div>{req.student.program || 'Not set'}</div>
                                                             <div className="text-muted-foreground">
-                                                                {[req.student.year_level, req.student.section].filter(Boolean).join(' - ') || '—'}
+                                                                {[req.student.year_level, req.student.section].filter(Boolean).join(' - ') || 'Not set'}
                                                             </div>
                                                         </div>
                                                     </TableCell>
