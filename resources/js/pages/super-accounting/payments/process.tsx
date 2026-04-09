@@ -475,7 +475,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         school_year: '',
         total_amount: '',
         reason: '',
-        notes: '',
     });
 
     const handleAddSchoolYearSubmit = (e: React.FormEvent) => {
@@ -501,7 +500,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         balance: '',
         status: 'unpaid',
         reason: '',
-        notes: '',
     });
 
     const openEditFeeDialog = (fee: Fee) => {
@@ -514,7 +512,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             balance: fee.balance.toString(),
             status: fee.status,
             reason: fee.reason || '',
-            notes: fee.notes || '',
         });
         setIsEditFeeDialogOpen(true);
     };
@@ -1885,9 +1882,8 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                             </TableCell>
                                                             <TableCell className="max-w-[260px]">
                                                                 {(row.reason || row.notes) ? (
-                                                                    <div className="text-xs space-y-1">
-                                                                        {row.reason && <p><span className="font-medium">Reason:</span> {row.reason}</p>}
-                                                                        {row.notes && <p className="text-muted-foreground"><span className="font-medium">Notes:</span> {row.notes}</p>}
+                                                                    <div className="text-xs">
+                                                                        <p>{row.reason || row.notes}</p>
                                                                     </div>
                                                                 ) : (
                                                                     <span className="text-xs text-muted-foreground">-</span>
@@ -2258,18 +2254,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                                 )}
                                                             </div>
                                                         </div>
-                                                        <div className="grid gap-2">
-                                                            <Label>Reason</Label>
-                                                            <Textarea
-                                                                value={promissoryForm.data.reason}
-                                                                onChange={(e) => promissoryForm.setData('reason', e.target.value)}
-                                                                placeholder="Reason for promissory note..."
-                                                                rows={3}
-                                                            />
-                                                            {promissoryForm.errors.reason && (
-                                                                <p className="text-sm text-red-500">{promissoryForm.errors.reason}</p>
-                                                            )}
-                                                        </div>
                                                     </div>
                                                     <DialogFooter>
                                                         <Button type="button" variant="outline" onClick={() => setIsPromissoryDialogOpen(false)}>
@@ -2591,18 +2575,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 />
                                 {editFeeForm.errors.reason && (
                                     <p className="text-sm text-red-500">{editFeeForm.errors.reason}</p>
-                                )}
-                            </div>
-                            <div className="grid gap-2">
-                                <Label>Notes (optional)</Label>
-                                <Textarea
-                                    value={editFeeForm.data.notes}
-                                    onChange={(e) => editFeeForm.setData('notes', e.target.value)}
-                                    placeholder="Additional context for this adjustment"
-                                    rows={2}
-                                />
-                                {editFeeForm.errors.notes && (
-                                    <p className="text-sm text-red-500">{editFeeForm.errors.notes}</p>
                                 )}
                             </div>
                             <div className="rounded-md border border-amber-200 bg-amber-50 p-3">
