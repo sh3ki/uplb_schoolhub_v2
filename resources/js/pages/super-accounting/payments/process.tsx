@@ -728,7 +728,32 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
         : fees.filter(f => f.school_year === selectedSchoolYear);
 
     const schoolYearRows = useMemo(() => {
+        const latestFeeAuditBySchoolYear = feeEditRows
+            .filter((row) => row.school_year?.trim())
+            .slice()
+            .sort((a, b) => {
+                const aTime = new Date(a.processed_at || 0).getTime();
+                const bTime = new Date(b.processed_at || 0).getTime();
+                return bTime - aTime;
+            })
+            .reduce<Record<string, FeeEditRow>>((acc, row) => {
+                const key = row.school_year.trim();
+                if (!acc[key]) {
+                    acc[key] = row;
+                }
+                return acc;
+            }, {});
+
         const feeRows = filteredFees.map((fee) => ({
+            ...(() => {
+                const audit = latestFeeAuditBySchoolYear[fee.school_year.trim()];
+                return {
+                    processed_by: fee.processed_by || audit?.processed_by || '-',
+                    processed_at: fee.processed_at || audit?.processed_at || '',
+                    reason: fee.reason || audit?.reason || '',
+                    notes: fee.notes || audit?.notes || '',
+                };
+            })(),
             id: `fee-${fee.id}`,
             school_year: fee.school_year,
             total_amount: fee.total_amount,
@@ -736,10 +761,6 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             total_paid: fee.total_paid,
             balance: fee.balance,
             status: fee.status,
-            processed_by: fee.processed_by || '-',
-            processed_at: fee.processed_at || '',
-            reason: fee.reason || '',
-            notes: fee.notes || '',
             is_history: false,
         }));
 
@@ -753,6 +774,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             .filter((fee) => selectedSchoolYear === 'all' || fee.school_year === selectedSchoolYear)
             .filter((fee) => !coveredYears.has(fee.school_year.trim()))
             .map((fee) => {
+                const audit = latestFeeAuditBySchoolYear[fee.school_year.trim()];
                 const paidForYear = payments
                     .filter((payment) => payment.school_year === fee.school_year)
                     .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
@@ -770,10 +792,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                     total_paid: normalizedPaid,
                     balance: fee.balance,
                     status: derivedStatus,
-                    processed_by: '-',
-                    processed_at: '',
-                    reason: '',
-                    notes: '',
+                    processed_by: audit?.processed_by || '-',
+                    processed_at: audit?.processed_at || '',
+                    reason: audit?.reason || '',
+                    notes: audit?.notes || '',
                     is_history: false,
                 };
             });
@@ -785,7 +807,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
             const bTime = new Date(b.processed_at || 0).getTime();
             return bTime - aTime;
         });
-    }, [filteredFees, normalizedPaymentOptions, payments, selectedSchoolYear]);
+    }, [feeEditRows, filteredFees, normalizedPaymentOptions, payments, selectedSchoolYear]);
 
     const schoolYearPerPage = 15;
     const schoolYearLastPage = Math.max(1, Math.ceil(schoolYearRows.length / schoolYearPerPage));
@@ -815,6 +837,109 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const syFilteredPayments = selectedSchoolYear === 'all'
         ? payments
         : payments.filter(p => p.school_year === selectedSchoolYear);
+
+    const paymentsReceivedPerPage = 20;
+    const paymentsReceivedLastPage = Math.max(1, Math.ceil(syFilteredPayments.length / paymentsReceivedPerPage));
+    const safePaymentsReceivedPage = Math.min(paymentsReceivedPage, paymentsReceivedLastPage);
+    const paymentsReceivedStart = (safePaymentsReceivedPage - 1) * paymentsReceivedPerPage;
+    const pagedPaymentsReceived = syFilteredPayments.slice(paymentsReceivedStart, paymentsReceivedStart + paymentsReceivedPerPage);
+
+    const paymentsReceivedPaginationData = {
+        current_page: safePaymentsReceivedPage,
+        last_page: paymentsReceivedLastPage,
+        per_page: paymentsReceivedPerPage,
+        total: syFilteredPayments.length,
+        from: syFilteredPayments.length === 0 ? 0 : paymentsReceivedStart + 1,
+        to: Math.min(paymentsReceivedStart + paymentsReceivedPerPage, syFilteredPayments.length),
+        links: Array.from({ length: paymentsReceivedLastPage }, (_, index) => {
+            const page = index + 1;
+            return {
+                url: `#payments-received-page-${page}`,
+                label: page.toString(),
+                active: page === safePaymentsReceivedPage,
+            };
+        }),
+    };
+
+    const handlePrintPaymentsReceived = () => {
+        if (syFilteredPayments.length === 0) {
+            toast.error('No payment records available to print.');
+            return;
+        }
+
+        const printWindow = window.open('', '_blank', 'width=1100,height=780');
+        if (!printWindow) {
+            toast.error('Unable to open print window. Please allow pop-ups and try again.');
+            return;
+        }
+
+        const escapeHtml = (value: string) => value
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        const showSchoolYearColumn = selectedSchoolYear === 'all';
+        const rows = syFilteredPayments.map((payment) => {
+            const amount = Number(payment.amount || 0);
+            return `
+                <tr>
+                    <td>${escapeHtml(formatDate(payment.payment_date))}<br><span style="color:#6b7280;font-size:11px">${escapeHtml(formatTime(payment.created_at))}</span></td>
+                    <td>${escapeHtml(payment.or_number || '-')}</td>
+                    ${showSchoolYearColumn ? `<td>${escapeHtml(payment.school_year || '-')}</td>` : ''}
+                    <td>${escapeHtml(payment.payment_for || 'General')}</td>
+                    <td>${escapeHtml((payment.payment_mode || 'CASH').toUpperCase())}</td>
+                    <td style="text-align:right">${escapeHtml((amount < 0 ? '-' : '+') + formatCurrency(Math.abs(amount)))}</td>
+                    <td>${escapeHtml(payment.notes || '-')}</td>
+                    <td>${escapeHtml(payment.recorded_by || '-')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const totalPaid = syFilteredPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+        const title = selectedSchoolYear === 'all'
+            ? 'Payments Received - All School Years'
+            : `Payments Received - ${selectedSchoolYear}`;
+
+        printWindow.document.open();
+        printWindow.document.write(`
+            <html>
+                <head>
+                    <title>${escapeHtml(title)}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; color: #111827; }
+                        h2 { margin: 0 0 14px 0; font-size: 20px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th, td { border: 1px solid #d1d5db; padding: 8px; font-size: 12px; vertical-align: top; }
+                        th { background: #f3f4f6; text-align: left; }
+                        .summary { margin-top: 12px; text-align: right; font-size: 14px; font-weight: 700; }
+                    </style>
+                </head>
+                <body>
+                    <h2>${escapeHtml(title)}</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>OR Number</th>
+                                ${showSchoolYearColumn ? '<th>School Year</th>' : ''}
+                                <th>Payment For</th>
+                                <th>Mode</th>
+                                <th style="text-align:right">Amount</th>
+                                <th>Notes</th>
+                                <th>Recorded By</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                    <p class="summary">Total Paid: ${escapeHtml(formatCurrency(totalPaid))}</p>
+                    <script>window.onload = function(){ window.print(); };</script>
+                </body>
+            </html>
+        `);
+        printWindow.document.close();
+    };
 
     const syFilteredAdjustments = selectedSchoolYear === 'all'
         ? balanceAdjustments
@@ -1079,8 +1204,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <Label>OR Number</Label>
                                             <Input
                                                 value={paymentForm.data.or_number}
-                                                onChange={(e) => paymentForm.setData('or_number', e.target.value)}
+                                                onChange={(e) => paymentForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
                                                 placeholder="Official Receipt #"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                             />
                                         </div>
                                     </div>
@@ -1119,7 +1246,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <Label>Reference Number</Label>
                                                 <Input
                                                     value={paymentForm.data.reference_number}
-                                                    onChange={(e) => paymentForm.setData('reference_number', e.target.value)}
+                                                    onChange={(e) => paymentForm.setData('reference_number', e.target.value.toUpperCase())}
                                                     placeholder="Transaction/Reference #"
                                                 />
                                             </div>
@@ -1388,8 +1515,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <Input
                                                         id="or_number"
                                                         value={paymentForm.data.or_number}
-                                                        onChange={(e) => paymentForm.setData('or_number', e.target.value)}
+                                                        onChange={(e) => paymentForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
                                                         placeholder="Official Receipt #"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
                                                         required
                                                     />
                                                 </div>
@@ -1758,6 +1887,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                 onClick={() => {
                                     setSelectedSchoolYear('all');
                                     setSchoolYearPage(1);
+                                    setPaymentsReceivedPage(1);
                                 }}
                                 className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                                     selectedSchoolYear === 'all'
@@ -1774,6 +1904,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                     onClick={() => {
                                         setSelectedSchoolYear(sy);
                                         setSchoolYearPage(1);
+                                        setPaymentsReceivedPage(1);
                                     }}
                                     className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                                         selectedSchoolYear === sy
@@ -1927,17 +2058,31 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                         {/* Payments Received */}
                         <Card>
                             <CardHeader className="pb-3">
-                                <div className="flex items-center gap-2">
-                                    <CreditCard className="h-5 w-5 text-blue-600" />
-                                    <div>
-                                        <CardTitle className="text-base">Payments Received</CardTitle>
-                                        <CardDescription>All payment transactions on record</CardDescription>
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="flex items-center gap-2">
+                                        <CreditCard className="h-5 w-5 text-blue-600" />
+                                        <div>
+                                            <CardTitle className="text-base">Payments Received</CardTitle>
+                                            <CardDescription>All payment transactions on record</CardDescription>
+                                        </div>
                                     </div>
-                                    {syFilteredPayments.length > 0 && (
-                                        <Badge className="ml-auto bg-blue-100 text-blue-700 hover:bg-blue-100">
-                                            {syFilteredPayments.length} record{syFilteredPayments.length !== 1 ? 's' : ''}
-                                        </Badge>
-                                    )}
+                                    <div className="flex flex-col items-end gap-2">
+                                        {syFilteredPayments.length > 0 && (
+                                            <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                                {syFilteredPayments.length} record{syFilteredPayments.length !== 1 ? 's' : ''}
+                                            </Badge>
+                                        )}
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={handlePrintPaymentsReceived}
+                                            disabled={syFilteredPayments.length === 0}
+                                        >
+                                            <Printer className="h-4 w-4 mr-2" />
+                                            Print
+                                        </Button>
+                                    </div>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -1959,7 +2104,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {syFilteredPayments.map((payment) => (
+                                                {pagedPaymentsReceived.map((payment) => (
                                                     <TableRow key={payment.id}>
                                                         <TableCell className="text-sm">
                                                             <div>{formatDate(payment.payment_date)}</div>
@@ -1984,6 +2129,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 ))}
                                             </TableBody>
                                         </Table>
+                                        <Pagination data={paymentsReceivedPaginationData} onPageChange={setPaymentsReceivedPage} />
                                         <div className="flex justify-end pt-3 border-t mt-3">
                                             <div className="text-right">
                                                 <p className="text-xs text-muted-foreground">Total Paid</p>
