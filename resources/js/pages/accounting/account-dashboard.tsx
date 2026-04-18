@@ -54,6 +54,7 @@ interface Transaction {
     date: string;
     time: string;
     type: 'Fee' | 'Document' | 'Drop' | 'Transfer';
+    student_name?: string | null;
     or_number: string;
     mode: string;
     reference: string | null;
@@ -556,6 +557,7 @@ export default function AccountDashboard({
                                 <TableHeader>
                                     <TableRow className="bg-slate-800 hover:bg-slate-800">
                                         <TableHead className="text-white">Date & Time</TableHead>
+                                        <TableHead className="text-white">Student</TableHead>
                                         <TableHead className="text-white">Type</TableHead>
                                         <TableHead className="text-white">OR No.</TableHead>
                                         <TableHead className="text-white">Mode</TableHead>
@@ -567,7 +569,7 @@ export default function AccountDashboard({
                                 <TableBody>
                                     {filteredTransactions.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                                 No transactions found for the selected period.
                                             </TableCell>
                                         </TableRow>
@@ -592,6 +594,7 @@ export default function AccountDashboard({
                                                 <TableCell>
                                                     #{index + 1} - {tx.date} {tx.time}
                                                 </TableCell>
+                                                <TableCell>{tx.student_name || 'N/A'}</TableCell>
                                                 <TableCell>
                                                     <Badge
                                                         variant={tx.type === 'Fee' ? 'default' : 'secondary'}
