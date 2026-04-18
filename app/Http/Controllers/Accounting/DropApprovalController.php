@@ -133,8 +133,17 @@ class DropApprovalController extends Controller
 
         $validated = $request->validate([
             'accounting_remarks' => 'nullable|string|max:1000',
-            'or_number' => 'nullable|string|max:100',
+            'or_number' => ['nullable', 'string', 'max:100', 'regex:/^[0-9]+$/'],
         ]);
+
+        $validated['or_number'] = $this->normalizeNumericOrNumberInput($validated['or_number'] ?? null);
+        if ($validated['or_number'] !== null && $this->isOrNumberInUse($validated['or_number'], [
+            'drop_requests' => $dropRequest->id,
+        ])) {
+            return redirect()->back()->withErrors([
+                'or_number' => 'OR number must be unique across all transactions.',
+            ])->withInput();
+        }
 
         $dropRequest->approveByAccounting(
             Auth::id(),
