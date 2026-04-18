@@ -85,8 +85,8 @@ export default function ExamApprovalIndex({
     const [fpClassification, setFpClassification] = useState('all');
     const [fpDepartment, setFpDepartment] = useState('all');
 
-    const ALL_STATUSES = ['paid', 'partial', 'overdue', 'unpaid'];
-    const [fpStatus, setFpStatus] = useState<string[]>(['paid', 'partial', 'overdue', 'unpaid']);
+    const ALL_STATUSES = ['paid', 'partial', 'unpaid'];
+    const [fpStatus, setFpStatus] = useState<string[]>(['paid', 'partial', 'unpaid']);
     const toggleStatus = (status: string) =>
         setFpStatus(prev => prev.includes(status) ? prev.filter(s => s !== status) : [...prev, status]);
 
