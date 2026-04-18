@@ -160,8 +160,17 @@ class DocumentRequestController extends Controller
     public function markPaid(Request $request, DocumentRequest $documentRequest): RedirectResponse
     {
         $validated = $request->validate([
-            'or_number' => 'required|string|max:50',
+            'or_number' => ['required', 'string', 'max:50', 'regex:/^[0-9]+$/'],
         ]);
+
+        $validated['or_number'] = $this->normalizeNumericOrNumberInput($validated['or_number']);
+        if ($validated['or_number'] !== null && $this->isOrNumberInUse($validated['or_number'], [
+            'document_requests' => $documentRequest->id,
+        ])) {
+            return redirect()->back()->withErrors([
+                'or_number' => 'OR number must be unique across all transactions.',
+            ])->withInput();
+        }
 
         $documentRequest->markAsPaid($validated['or_number']);
 
