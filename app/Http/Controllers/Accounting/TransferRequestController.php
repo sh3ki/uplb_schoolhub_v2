@@ -164,14 +164,24 @@ class TransferRequestController extends Controller
             'accounting_remarks' => 'nullable|string|max:1000',
             'transfer_fee_amount' => 'required|numeric|min:0|max:99999999.99',
             'mark_as_paid' => 'nullable|boolean',
-            'or_number' => 'nullable|string|max:100',
+            'or_number' => ['nullable', 'string', 'max:100', 'regex:/^[0-9]+$/'],
         ]);
+
+        $validated['or_number'] = $this->normalizeNumericOrNumberInput($validated['or_number'] ?? null);
 
         $transferFeeAmount = (float) $validated['transfer_fee_amount'];
         $markAsPaid = (bool) ($validated['mark_as_paid'] ?? true);
 
         if ($markAsPaid && $transferFeeAmount > 0 && empty($validated['or_number'])) {
             return back()->with('error', 'OR number is required when marking transfer fee as paid.');
+        }
+
+        if ($validated['or_number'] !== null && $this->isOrNumberInUse($validated['or_number'], [
+            'transfer_requests' => $transferRequest->id,
+        ])) {
+            return redirect()->back()->withErrors([
+                'or_number' => 'OR number must be unique across all transactions.',
+            ])->withInput();
         }
 
         $transferRequest->approveByAccounting(
