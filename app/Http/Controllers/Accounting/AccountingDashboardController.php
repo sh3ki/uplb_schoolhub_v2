@@ -740,7 +740,11 @@ class AccountingDashboardController extends Controller
         $transactions = [];
         $dailyCollections = [];
 
-        $paymentsQuery  = StudentPayment::with(['recordedBy'])
+        $paymentsQuery  = StudentPayment::with([
+            'recordedBy',
+            'student:id,first_name,last_name,middle_name,suffix,lrn,program,year_level,section,department_id',
+            'student.department:id,name',
+        ])
             ->whereIn('student_id', $studentIds)
             ->whereBetween('payment_date', [$periodStart, $periodEnd]);
 
@@ -839,7 +843,12 @@ class AccountingDashboardController extends Controller
 
         $manualTransferPayments = $manualTransferPaymentsQuery->get();
 
-        $documents = DocumentRequest::with(['accountingApprovedBy:id,name', 'processedBy:id,name'])
+        $documents = DocumentRequest::with([
+                'accountingApprovedBy:id,name',
+                'processedBy:id,name',
+                'student:id,first_name,last_name,middle_name,suffix,lrn,program,year_level,section,department_id',
+                'student.department:id,name',
+            ])
             ->whereIn('student_id', $studentIds)
             ->where('is_paid', true)
             ->where(function ($q) use ($accountId, $periodStart, $periodEnd, $isSuperAccounting, $selectedAccountId) {
@@ -863,7 +872,12 @@ class AccountingDashboardController extends Controller
             ->get();
 
         $dropRequests = DropRequest::query()
-            ->with(['processedBy:id,name', 'accountingApprovedBy:id,name'])
+            ->with([
+                'processedBy:id,name',
+                'accountingApprovedBy:id,name',
+                'student:id,first_name,last_name,middle_name,suffix,lrn,program,year_level,section,department_id',
+                'student.department:id,name',
+            ])
             ->whereIn('student_id', $studentIds);
         $this->applyDropCollectionScope($dropRequests);
 
@@ -1181,6 +1195,11 @@ class AccountingDashboardController extends Controller
                 'reference'    => $p->reference_number,
                 'amount'       => (float) $p->amount,
                 'student_id'   => $p->student_id,
+                'student_name' => $p->student?->full_name,
+                'student_lrn' => $p->student?->lrn,
+                'student_department' => $p->student?->department?->name,
+                'student_year_level' => $p->student?->year_level,
+                'student_section' => $p->student?->section,
                 'processed_by' => $p->recordedBy?->name ?? 'N/A',
                 'sort_at'      => $sortAt,
             ];
@@ -1248,9 +1267,14 @@ class AccountingDashboardController extends Controller
                 'type'         => 'Document',
                 'or_number'    => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
                 'mode'         => strtoupper($doc->payment_type ?? 'CASH'),
-                'reference'    => $doc->document_type,
+                'reference'    => $doc->document_type_label ?? $doc->document_type,
                 'amount'       => (float) $doc->fee,
                 'student_id'   => $doc->student_id,
+                'student_name' => $doc->student?->full_name,
+                'student_lrn' => $doc->student?->lrn,
+                'student_department' => $doc->student?->department?->name,
+                'student_year_level' => $doc->student?->year_level,
+                'student_section' => $doc->student?->section,
                 'processed_by' => $doc->accountingApprovedBy?->name ?? $doc->processedBy?->name ?? 'N/A',
                 'sort_at'      => $docDateTime->timestamp,
             ];
@@ -1267,6 +1291,11 @@ class AccountingDashboardController extends Controller
                 'reference'    => 'Drop Request',
                 'amount'       => (float) $drop->fee_amount,
                 'student_id'   => $drop->student_id,
+                'student_name' => $drop->student?->full_name,
+                'student_lrn' => $drop->student?->lrn,
+                'student_department' => $drop->student?->department?->name,
+                'student_year_level' => $drop->student?->year_level,
+                'student_section' => $drop->student?->section,
                 'processed_by' => $drop->processedBy?->name ?? $drop->accountingApprovedBy?->name ?? 'N/A',
                 'sort_at'      => $dropDateTime->timestamp,
             ];
