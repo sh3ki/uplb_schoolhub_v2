@@ -347,7 +347,12 @@ export default function SuperTransferRequests({ requests, stats, tab, filters }:
                             {approveForm.data.mark_as_paid ? (
                                 <div className="space-y-2">
                                     <Label>OR Number</Label>
-                                    <Input value={approveForm.data.or_number} onChange={(e) => approveForm.setData('or_number', e.target.value)} />
+                                    <Input
+                                        value={approveForm.data.or_number}
+                                        onChange={(e) => approveForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                    />
                                 </div>
                             ) : (
                                 <p className="text-xs text-muted-foreground">
