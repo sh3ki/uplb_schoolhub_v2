@@ -182,6 +182,8 @@ class OnlinePaymentController extends Controller
             'is_transfer_payment' => 'nullable|boolean',
         ]);
 
+        $validated['reference_number'] = $this->normalizeReferenceNumberInput($validated['reference_number']);
+
         $isTransferPayment = (bool) ($validated['is_transfer_payment'] ?? false);
 
         $activeTransferRequest = TransferRequest::query()
