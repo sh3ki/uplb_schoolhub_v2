@@ -846,6 +846,7 @@ class AccountingDashboardController extends Controller
         $documents = DocumentRequest::with([
                 'accountingApprovedBy:id,name',
                 'processedBy:id,name',
+            'documentFeeItem:id,name,category',
                 'student:id,first_name,last_name,middle_name,suffix,lrn,program,year_level,section,department_id',
                 'student.department:id,name',
             ])
@@ -1267,7 +1268,7 @@ class AccountingDashboardController extends Controller
                 'type'         => 'Document',
                 'or_number'    => 'DOC' . str_pad($doc->id, 3, '0', STR_PAD_LEFT),
                 'mode'         => strtoupper($doc->payment_type ?? 'CASH'),
-                'reference'    => $doc->document_type_label ?? $doc->document_type,
+                'reference'    => $this->resolveDocumentReferenceLabel($doc),
                 'amount'       => (float) $doc->fee,
                 'student_id'   => $doc->student_id,
                 'student_name' => $doc->student?->full_name,
@@ -1582,6 +1583,26 @@ class AccountingDashboardController extends Controller
         }
 
         return $resolvedOrNumber !== '' ? $resolvedOrNumber : null;
+    }
+
+    private function resolveDocumentReferenceLabel(DocumentRequest $document): string
+    {
+        $feeItemName = trim((string) ($document->documentFeeItem?->name ?? ''));
+        if ($feeItemName !== '') {
+            return $feeItemName;
+        }
+
+        $label = trim((string) ($document->document_type_label ?? ''));
+        if ($label !== '' && !in_array(strtolower($label), ['document_process', 'document process'], true)) {
+            return $label;
+        }
+
+        $rawType = trim((string) ($document->document_type ?? ''));
+        if ($rawType === '') {
+            return 'Document';
+        }
+
+        return ucwords(str_replace(['_', '-'], ' ', strtolower($rawType)));
     }
 
     /**
