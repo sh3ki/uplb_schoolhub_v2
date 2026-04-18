@@ -494,7 +494,7 @@ export default function OnlinePayment({ feeItems, summary, schoolYears, selected
                                         <Input
                                             id="reference_number"
                                             value={form.data.reference_number}
-                                            onChange={(e) => form.setData('reference_number', e.target.value)}
+                                            onChange={(e) => form.setData('reference_number', e.target.value.toUpperCase())}
                                             placeholder="Enter transaction reference number"
                                             required
                                         />
