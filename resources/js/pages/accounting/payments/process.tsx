@@ -664,8 +664,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                             <Label>OR Number</Label>
                                             <Input
                                                 value={paymentForm.data.or_number}
-                                                onChange={(e) => paymentForm.setData('or_number', e.target.value)}
+                                                onChange={(e) => paymentForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
                                                 placeholder="Official Receipt #"
+                                                inputMode="numeric"
+                                                pattern="[0-9]*"
                                             />
                                         </div>
                                     </div>
@@ -704,7 +706,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                 <Label>Reference Number</Label>
                                                 <Input
                                                     value={paymentForm.data.reference_number}
-                                                    onChange={(e) => paymentForm.setData('reference_number', e.target.value)}
+                                                    onChange={(e) => paymentForm.setData('reference_number', e.target.value.toUpperCase())}
                                                     placeholder="Transaction/Reference #"
                                                 />
                                             </div>
@@ -977,8 +979,10 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
                                                     <Input
                                                         id="or_number"
                                                         value={paymentForm.data.or_number}
-                                                        onChange={(e) => paymentForm.setData('or_number', e.target.value)}
+                                                        onChange={(e) => paymentForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
                                                         placeholder="Official Receipt #"
+                                                        inputMode="numeric"
+                                                        pattern="[0-9]*"
                                                         required
                                                     />
                                                 </div>
