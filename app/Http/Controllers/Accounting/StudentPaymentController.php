@@ -289,7 +289,7 @@ class StudentPaymentController extends Controller
             'student_id' => 'required|exists:students,id',
             'student_fee_id' => 'required|exists:student_fees,id',
             'payment_date' => 'required|date',
-            'or_number' => 'nullable|string|max:255',
+            'or_number' => ['nullable', 'string', 'max:255', 'regex:/^[0-9]+$/'],
             'amount' => 'required|numeric|min:0.01',
             'payment_mode' => 'nullable|in:CASH,GCASH,BANK',
             'reference_number' => 'nullable|string|max:255',
@@ -297,6 +297,15 @@ class StudentPaymentController extends Controller
             'payment_for' => 'nullable|in:registration,tuition,misc,books,other',
             'notes' => 'nullable|string',
         ]);
+
+        $validated['or_number'] = $this->normalizeNumericOrNumberInput($validated['or_number'] ?? null);
+        if ($validated['or_number'] !== null && $this->isOrNumberInUse($validated['or_number'])) {
+            return redirect()->back()->withErrors([
+                'or_number' => 'OR number must be unique across all transactions.',
+            ])->withInput();
+        }
+
+        $validated['reference_number'] = $this->normalizeReferenceNumber($validated['reference_number'] ?? null);
 
         $validated['recorded_by'] = $request->user()->id;
 
@@ -320,11 +329,23 @@ class StudentPaymentController extends Controller
     {
         $validated = $request->validate([
             'payment_date' => 'required|date',
-            'or_number' => 'nullable|string|max:255',
+            'or_number' => ['nullable', 'string', 'max:255', 'regex:/^[0-9]+$/'],
             'amount' => 'required|numeric|min:0.01',
+            'reference_number' => 'nullable|string|max:255',
             'payment_for' => 'nullable|in:registration,tuition,misc,books,other',
             'notes' => 'nullable|string',
         ]);
+
+        $validated['or_number'] = $this->normalizeNumericOrNumberInput($validated['or_number'] ?? null);
+        if ($validated['or_number'] !== null && $this->isOrNumberInUse($validated['or_number'], [
+            'student_payments' => $payment->id,
+        ])) {
+            return redirect()->back()->withErrors([
+                'or_number' => 'OR number must be unique across all transactions.',
+            ])->withInput();
+        }
+
+        $validated['reference_number'] = $this->normalizeReferenceNumber($validated['reference_number'] ?? null);
 
         $payment->update($validated);
 
@@ -2143,7 +2164,8 @@ class StudentPaymentController extends Controller
         }
 
         $routeName = $request->route()?->getName() ?? '';
-        $isSuperAccountingRoute = str_starts_with($routeName, 'super-accounting.');
+        $isSuperAccountingRoute = (string) ($request->user()?->role ?? '') === \App\Models\User::ROLE_SUPER_ACCOUNTING
+            || str_starts_with($routeName, 'super-accounting.');
 
         if ($isSuperAccountingRoute) {
             $validated = $request->validate([
