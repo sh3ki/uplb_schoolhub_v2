@@ -565,7 +565,9 @@ export default function DocumentApprovals({ requests, stats, documentTypes, tab,
                                         id="or_number"
                                         placeholder="Enter OR number..."
                                         value={approveForm.data.or_number}
-                                        onChange={(e) => approveForm.setData('or_number', e.target.value)}
+                                        onChange={(e) => approveForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                     />
                                     <p className="text-xs text-muted-foreground">
                                         Enter the official receipt number if payment was made at the cashier
