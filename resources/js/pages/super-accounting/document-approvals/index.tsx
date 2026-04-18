@@ -86,6 +86,7 @@ interface DocumentRequest {
     accounting_status: 'pending' | 'approved' | 'rejected';
     accounting_remarks: string | null;
     accounting_approved_at: string | null;
+    accounting_approved_by: { name: string } | null;
     status: string;
     expected_completion_date: string | null;
     request_date: string | null;
