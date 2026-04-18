@@ -295,6 +295,7 @@ export default function PaymentProcess({ student, fees, payments, promissoryNote
     const [clearanceLoading, setClearanceLoading] = useState(false);
     const [selectedSchoolYear, setSelectedSchoolYear] = useState<string>('all');
     const [schoolYearPage, setSchoolYearPage] = useState(1);
+    const [paymentsReceivedPage, setPaymentsReceivedPage] = useState(1);
 
     const [amountReceived, setAmountReceived] = useState<string>('');
     const fallbackPaymentOptions = fees.map((fee) => ({
