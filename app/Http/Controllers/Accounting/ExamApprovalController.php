@@ -173,12 +173,12 @@ class ExamApprovalController extends Controller
             })
             ->values();
 
-        $fullyPaidMale   = $allExamStudents->where('gender', 'male')->values();
-        $fullyPaidFemale = $allExamStudents->where('gender', 'female')->values();
-
         $eligibleStudents = $allExamStudents
-            ->filter(fn($student) => $student['payment_status'] !== 'overdue' && $student['payment_status'] !== 'unpaid')
+            ->filter(fn($student) => $student['payment_status'] !== 'overdue')
             ->values();
+
+        $fullyPaidMale   = $eligibleStudents->where('gender', 'male')->values();
+        $fullyPaidFemale = $eligibleStudents->where('gender', 'female')->values();
 
         $schoolYears = StudentFee::distinct()->pluck('school_year')->filter()->sort()->values();
 
