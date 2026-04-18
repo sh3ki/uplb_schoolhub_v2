@@ -574,7 +574,6 @@ export default function PromoteStudents({
                                     <SelectItem value="pending-registrar">Pending Registrar</SelectItem>
                                     <SelectItem value="pending-accounting">Pending Accounting</SelectItem>
                                     <SelectItem value="graduated">Graduated</SelectItem>
-                                    <SelectItem value="dropped">Dropped</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
