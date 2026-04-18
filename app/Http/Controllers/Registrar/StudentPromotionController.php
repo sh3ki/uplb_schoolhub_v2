@@ -37,7 +37,8 @@ class StudentPromotionController extends Controller
 
         // ── Students query — ALL students including archived/inactive ──────────
         $query = Student::withTrashed()
-            ->with(['sectionModel.yearLevel', 'sectionModel.program']);
+            ->with(['sectionModel.yearLevel', 'sectionModel.program'])
+            ->where('enrollment_status', '!=', 'dropped');
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -189,6 +190,17 @@ class StudentPromotionController extends Controller
         $targetDepartmentId = $validated['target_department_id'] ?? null;
         $targetProgram = $validated['target_program'] ?? null;
 
+        $droppedSelectedCount = Student::withTrashed()
+            ->whereIn('id', $studentIds)
+            ->where('enrollment_status', 'dropped')
+            ->count();
+
+        if ($droppedSelectedCount > 0) {
+            return back()->withErrors([
+                'student_ids' => 'Dropped students cannot be promoted. Please deselect dropped records.',
+            ]);
+        }
+
         if (!$targetSectionId) {
             return back()->withErrors(['target_section_id' => 'A target section or TBA is required.']);
         }
@@ -234,7 +246,9 @@ class StudentPromotionController extends Controller
             }
         }
 
-        Student::whereIn('id', $studentIds)->update(array_merge($updateData, [
+        Student::whereIn('id', $studentIds)
+            ->where('enrollment_status', '!=', 'dropped')
+            ->update(array_merge($updateData, [
             'enrollment_status' => 'not-enrolled',
         ]));
 
