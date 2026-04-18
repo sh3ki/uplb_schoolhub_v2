@@ -475,7 +475,9 @@ export default function AccountingDropRequests({ requests, stats, tab, filters }
                                         id="or_number"
                                         placeholder="Official Receipt Number..."
                                         value={approveForm.data.or_number}
-                                        onChange={(e) => approveForm.setData('or_number', e.target.value)}
+                                        onChange={(e) => approveForm.setData('or_number', e.target.value.replace(/\D/g, ''))}
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                     />
                                 </div>
                                 <div className="space-y-2">
