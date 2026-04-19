@@ -573,10 +573,12 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'verified', 'rol
 
         Route::get('materials', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'materials'])->name('materials.index');
         Route::post('materials', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'storeMaterial'])->name('materials.store');
+        Route::get('materials/{material}/download', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'download'])->name('materials.download');
         Route::delete('materials/{material}', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'destroy'])->name('materials.destroy');
 
         Route::get('files', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'files'])->name('files.index');
         Route::post('files', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'storeFile'])->name('files.store');
+        Route::get('files/{material}/download', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'download'])->name('files.download');
         Route::post('files/{material}/send', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'send'])->name('files.send');
         Route::delete('files/{material}', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'destroy'])->name('files.destroy');
 
