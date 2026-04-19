@@ -112,6 +112,7 @@ interface AppSettingsData {
     college_enrollment_open: boolean;
     college_enrollment_start: string | null;
     college_enrollment_end: string | null;
+    elms_enabled: boolean;
     // Landing page
     hero_title: string | null;
     hero_subtitle: string | null;
@@ -156,6 +157,8 @@ export default function AppSettings({ settings, departments }: Props) {
     const [hasK12, setHasK12]          = useState<boolean>(settings.has_k12);
     const [hasCollege, setHasCollege]  = useState<boolean>(settings.has_college);
     const [academicSaving, setAcademicSaving] = useState(false);
+    const [elmsEnabled, setElmsEnabled] = useState<boolean>(settings.elms_enabled ?? true);
+    const [elmsSaving, setElmsSaving] = useState(false);
 
     // Enrollment period state
     const [activeSemester, setActiveSemester] = useState<number>(settings.active_semester || 1);
@@ -192,6 +195,26 @@ export default function AppSettings({ settings, departments }: Props) {
             preserveScroll: true,
             onSuccess: () => { toast.success('Enrollment period settings saved'); setEnrollmentSaving(false); },
             onError:   () => { toast.error('Failed to save enrollment settings'); setEnrollmentSaving(false); },
+        });
+    };
+
+    const handleElmsToggle = (value: boolean) => {
+        setElmsEnabled(value);
+        setElmsSaving(true);
+
+        router.patch('/owner/app-settings/elms', {
+            elms_enabled: value,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('E-LMS setting saved');
+                setElmsSaving(false);
+            },
+            onError: () => {
+                toast.error('Failed to save E-LMS setting');
+                setElmsSaving(false);
+                setElmsEnabled((prev) => !prev);
+            },
         });
     };
 
@@ -556,6 +579,24 @@ export default function AppSettings({ settings, departments }: Props) {
                                         <Switch checked={hasCollege} disabled={academicSaving} onCheckedChange={v => handleAcademicToggle('has_college', v)} />
                                     </div>
                                     {!hasK12 && !hasCollege && <p className="text-sm text-destructive">At least one track must be enabled.</p>}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2"><Layout className="h-5 w-5" /> E-LMS Module Access</CardTitle>
+                                    <CardDescription>Control E-LMS menus and pages for Teacher, Student, and Registrar portals.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="flex items-center justify-between rounded-lg border p-4">
+                                        <div>
+                                            <p className="font-medium">Enable E-LMS Features</p>
+                                            <p className="text-sm text-muted-foreground">
+                                                Includes teacher learning pages, student class files/quizzes access, and registrar E-LMS monitoring pages.
+                                            </p>
+                                        </div>
+                                        <Switch checked={elmsEnabled} disabled={elmsSaving} onCheckedChange={handleElmsToggle} />
+                                    </div>
                                 </CardContent>
                             </Card>
 
