@@ -2,16 +2,13 @@ import { Head } from '@inertiajs/react';
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
 import { UploadCloud } from 'lucide-react';
+import { GradeEntryModal } from '@/components/elms/grade-entry-modal';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { SearchBar } from '@/components/filters/search-bar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
-import { Textarea } from '@/components/ui/textarea';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 
@@ -20,6 +17,10 @@ interface StudentSubjectRow {
     student_id: number;
     subject_id: number;
     grade: number | null;
+    draft_grade?: number | null;
+    draft_breakdown?: Record<string, any> | null;
+    grade_breakdown?: Record<string, any> | null;
+    is_grade_posted?: boolean;
     status: string;
 }
 
@@ -73,12 +74,8 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
     const [subject, setSubject] = useState(filters.subject || 'all');
     const [postOpen, setPostOpen] = useState(false);
     const [activeStudent, setActiveStudent] = useState<Student | null>(null);
-
-    const [postData, setPostData] = useState({
-        student_subject_id: 0,
-        grade: '',
-        notes: '',
-    });
+    const [activeEnrollment, setActiveEnrollment] = useState<StudentSubjectRow | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const navigate = (params: Record<string, string>) => {
         router.get('/teacher/grades', params, { preserveState: true, preserveScroll: true });
@@ -117,20 +114,35 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
         }
 
         setActiveStudent(student);
-        setPostData({
-            student_subject_id: enrollment.id,
-            grade: enrollment.grade !== null ? enrollment.grade.toString() : '',
-            notes: '',
-        });
+        setActiveEnrollment(enrollment);
         setPostOpen(true);
     };
 
-    const submitPost = () => {
-        router.post('/teacher/subject-classes/post-grade', postData, {
+    const submitGrade = (payload: {
+        action: 'save' | 'post';
+        student_subject_id: number;
+        notes: string;
+        breakdown: {
+            written_works: Array<{ title: string; score: number | null }>;
+            performance_tasks: Array<{ title: string; score: number | null }>;
+            examinations: Array<{ title: string; score: number | null }>;
+            weights: {
+                written_works: number;
+                performance_tasks: number;
+                examinations: number;
+            };
+        };
+    }) => {
+        setIsSubmitting(true);
+        router.post('/teacher/subject-classes/post-grade', payload, {
             preserveScroll: true,
             onSuccess: () => {
                 setPostOpen(false);
                 setActiveStudent(null);
+                setActiveEnrollment(null);
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
             },
         });
     };
@@ -184,13 +196,14 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                         <th className="p-3 text-left font-semibold">Year Level</th>
                                         <th className="p-3 text-center font-semibold">Status</th>
                                         <th className="p-3 text-center font-semibold">Grade</th>
+                                        <th className="p-3 text-center font-semibold">Publish</th>
                                         <th className="p-3 text-center font-semibold">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {students.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={7} className="p-8 text-center text-gray-500">
+                                            <td colSpan={8} className="p-8 text-center text-gray-500">
                                                 No students found.
                                             </td>
                                         </tr>
@@ -224,6 +237,13 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                                     {getEnrollment(student)?.grade ?? '-'}
                                                 </td>
                                                 <td className="p-3 text-center">
+                                                    {getEnrollment(student)?.is_grade_posted === false ? (
+                                                        <span className="inline-block rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">Draft</span>
+                                                    ) : (
+                                                        <span className="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-700">Posted</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-center">
                                                     <Button
                                                         size="sm"
                                                         variant="outline"
@@ -231,7 +251,7 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                                         onClick={() => openPostDialog(student)}
                                                     >
                                                         <UploadCloud className="mr-1 h-4 w-4" />
-                                                        Post
+                                                        Open Grade Sheet
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -246,55 +266,18 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                 </Card>
             </div>
 
-            <Dialog open={postOpen} onOpenChange={setPostOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Post Grade</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="rounded-lg border p-3 text-sm">
-                            <p className="font-medium">
-                                {activeStudent ? `${activeStudent.last_name}, ${activeStudent.first_name}` : ''}
-                            </p>
-                            <p className="text-muted-foreground">{activeStudent?.lrn || 'No student number'}</p>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="grade_value">Grade</Label>
-                            <Input
-                                id="grade_value"
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={postData.grade}
-                                onChange={(e) => setPostData((prev) => ({ ...prev, grade: e.target.value }))}
-                                placeholder="0 to 100"
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="grade_notes">Notes</Label>
-                            <Textarea
-                                id="grade_notes"
-                                rows={3}
-                                value={postData.notes}
-                                onChange={(e) => setPostData((prev) => ({ ...prev, notes: e.target.value }))}
-                                placeholder="Optional remarks"
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={() => setPostOpen(false)}>
-                            Cancel
-                        </Button>
-                        <Button type="button" onClick={submitPost}>
-                            Confirm Post
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {activeStudent && activeEnrollment ? (
+                <GradeEntryModal
+                    open={postOpen}
+                    onOpenChange={setPostOpen}
+                    studentName={`${activeStudent.last_name}, ${activeStudent.first_name}`}
+                    studentNumber={activeStudent.lrn}
+                    studentSubjectId={activeEnrollment.id}
+                    initialBreakdown={activeEnrollment.draft_breakdown ?? activeEnrollment.grade_breakdown ?? null}
+                    processing={isSubmitting}
+                    onSubmit={submitGrade}
+                />
+            ) : null}
         </TeacherLayout>
     );
 }
