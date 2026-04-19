@@ -119,8 +119,16 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
     const [status, setStatus] = useState(filters.status || 'all');
     const [deleteQuiz, setDeleteQuiz] = useState<Quiz | null>(null);
     const [createOpen, setCreateOpen] = useState(false);
-    const [createKind, setCreateKind] = useState<'quiz' | 'exam'>('quiz');
+    const [createKind, setCreateKind] = useState<'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment'>('quiz');
     const [createSubjectId, setCreateSubjectId] = useState<string>('');
+    const [createDepartment, setCreateDepartment] = useState('Basic Education');
+    const [createGradeLevel, setCreateGradeLevel] = useState('Grade 7');
+    const [createSection, setCreateSection] = useState('');
+    const [createTitle, setCreateTitle] = useState('');
+    const [createDescription, setCreateDescription] = useState('');
+    const [createDeadline, setCreateDeadline] = useState('');
+    const [createTimeLimit, setCreateTimeLimit] = useState('60');
+    const [createTotalScore, setCreateTotalScore] = useState('5');
 
     const handleFilter = (newFilters: Partial<typeof filters>) => {
         router.get('/teacher/quizzes', {
@@ -175,6 +183,30 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
         query.set('mode', createKind);
         if (createSubjectId) {
             query.set('subject_id', createSubjectId);
+        }
+        if (createDepartment) {
+            query.set('department', createDepartment);
+        }
+        if (createGradeLevel) {
+            query.set('grade_level', createGradeLevel);
+        }
+        if (createSection) {
+            query.set('section', createSection);
+        }
+        if (createTitle) {
+            query.set('title', createTitle);
+        }
+        if (createDescription) {
+            query.set('description', createDescription);
+        }
+        if (createDeadline) {
+            query.set('deadline', createDeadline);
+        }
+        if (createTimeLimit) {
+            query.set('time_limit', createTimeLimit);
+        }
+        if (createTotalScore) {
+            query.set('total_score', createTotalScore);
         }
 
         router.get(`/teacher/quizzes/create?${query.toString()}`);
@@ -474,42 +506,104 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
             </AlertDialog>
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent>
+                <DialogContent className="max-w-3xl">
                     <DialogHeader>
                         <DialogTitle>Create Quizzes & Exams</DialogTitle>
                         <DialogDescription>
-                            Choose the assessment type and subject, then continue to the full builder.
+                            Configure the assessment details before opening the full question builder.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <p className="text-sm font-medium">Assessment Type</p>
-                            <Select value={createKind} onValueChange={(value: 'quiz' | 'exam') => setCreateKind(value)}>
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="quiz">Quiz</SelectItem>
-                                    <SelectItem value="exam">Exam</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+                                {[
+                                    { key: 'quiz', label: 'Quiz' },
+                                    { key: 'exam', label: 'Exam' },
+                                    { key: 'long_test', label: 'Long Test' },
+                                    { key: 'activity', label: 'Activity' },
+                                    { key: 'assignment', label: 'Assignment' },
+                                ].map((item) => (
+                                    <Button
+                                        key={item.key}
+                                        type="button"
+                                        variant={createKind === item.key ? 'default' : 'outline'}
+                                        onClick={() => setCreateKind(item.key as 'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment')}
+                                        className="h-9"
+                                    >
+                                        {item.label}
+                                    </Button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Department</p>
+                                <Input value={createDepartment} onChange={(e) => setCreateDepartment(e.target.value)} placeholder="Department" />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Grade Level</p>
+                                <Select value={createGradeLevel} onValueChange={setCreateGradeLevel}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select grade" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map((grade) => (
+                                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Section</p>
+                                <Input value={createSection} onChange={(e) => setCreateSection(e.target.value)} placeholder="e.g. St. Philomena" />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Subject</p>
+                                <Select value={createSubjectId} onValueChange={setCreateSubjectId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Choose subject" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {subjects.map((subject) => (
+                                            <SelectItem key={subject.id} value={subject.id.toString()}>
+                                                {subject.code} - {subject.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
 
                         <div className="space-y-2">
-                            <p className="text-sm font-medium">Subject (Optional)</p>
-                            <Select value={createSubjectId} onValueChange={setCreateSubjectId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Choose subject" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {subjects.map((subject) => (
-                                        <SelectItem key={subject.id} value={subject.id.toString()}>
-                                            {subject.code} - {subject.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            <p className="text-sm font-medium">Title</p>
+                            <Input value={createTitle} onChange={(e) => setCreateTitle(e.target.value)} placeholder="e.g. Quarter 1 Algebra Quiz" />
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Description / Instructions</p>
+                            <Input value={createDescription} onChange={(e) => setCreateDescription(e.target.value)} placeholder="Provide instructions for students..." />
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Deadline</p>
+                                <Input type="date" value={createDeadline} onChange={(e) => setCreateDeadline(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Time Limit (minutes)</p>
+                                <Input type="number" min={1} value={createTimeLimit} onChange={(e) => setCreateTimeLimit(e.target.value)} />
+                            </div>
+                            <div className="space-y-2">
+                                <p className="text-sm font-medium">Total Score</p>
+                                <Input type="number" min={1} value={createTotalScore} onChange={(e) => setCreateTotalScore(e.target.value)} />
+                            </div>
+                        </div>
+
+                        <div className="rounded-md border p-3 text-xs text-muted-foreground">
+                            Question setup will continue in the full quiz builder page after you click Continue.
                         </div>
                     </div>
 
