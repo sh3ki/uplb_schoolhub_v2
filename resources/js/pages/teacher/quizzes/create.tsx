@@ -50,6 +50,11 @@ interface Subject {
     code: string;
 }
 
+interface ScopeOption {
+    id: number | string;
+    label: string;
+}
+
 interface Answer {
     id?: number;
     answer: string;
@@ -68,9 +73,15 @@ interface Question {
 
 interface Props {
     subjects: Subject[];
+    createScopes: {
+        departments: ScopeOption[];
+        grade_levels: ScopeOption[];
+        sections: ScopeOption[];
+        programs: ScopeOption[];
+    };
 }
 
-export default function QuizCreate({ subjects }: Props) {
+export default function QuizCreate({ subjects, createScopes }: Props) {
     const [questions, setQuestions] = useState<Question[]>([
         {
             type: 'multiple_choice',
@@ -90,7 +101,12 @@ export default function QuizCreate({ subjects }: Props) {
     const { data, setData, post, processing, errors } = useForm({
         title: '',
         description: '',
+        assessment_type: 'quiz',
         subject_id: '',
+        year_level_id: '',
+        section_id: '',
+        program: '',
+        publish_now: true,
         time_limit_minutes: '',
         passing_score: 60,
         max_attempts: 1,
@@ -107,11 +123,21 @@ export default function QuizCreate({ subjects }: Props) {
         const prefDescription = params.get('description');
         const prefSubjectId = params.get('subject_id');
         const prefTimeLimit = params.get('time_limit');
+        const prefMode = params.get('mode');
+        const prefGradeLevel = params.get('grade_level');
+        const prefSection = params.get('section');
+        const prefProgram = params.get('program');
+        const prefDeadline = params.get('deadline');
 
         if (prefTitle) setData('title', prefTitle);
         if (prefDescription) setData('description', prefDescription);
         if (prefSubjectId) setData('subject_id', prefSubjectId);
         if (prefTimeLimit) setData('time_limit_minutes', prefTimeLimit);
+        if (prefMode) setData('assessment_type', prefMode as 'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment');
+        if (prefGradeLevel) setData('year_level_id', prefGradeLevel);
+        if (prefSection) setData('section_id', prefSection);
+        if (prefProgram) setData('program', prefProgram);
+        if (prefDeadline) setData('available_until', prefDeadline);
     }, [setData]);
 
     const addQuestion = () => {
@@ -314,6 +340,79 @@ export default function QuizCreate({ subjects }: Props) {
                                         {errors.subject_id && (
                                             <p className="text-sm text-destructive">{errors.subject_id}</p>
                                         )}
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="assessment_type">Assessment Type</Label>
+                                            <Select value={data.assessment_type} onValueChange={(value) => setData('assessment_type', value as 'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment')}>
+                                                <SelectTrigger id="assessment_type">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="quiz">Quiz</SelectItem>
+                                                    <SelectItem value="exam">Exam</SelectItem>
+                                                    <SelectItem value="long_test">Long Test</SelectItem>
+                                                    <SelectItem value="activity">Activity</SelectItem>
+                                                    <SelectItem value="assignment">Assignment</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="program">Program (optional)</Label>
+                                            <Select value={data.program || 'none'} onValueChange={(value) => setData('program', value === 'none' ? '' : value)}>
+                                                <SelectTrigger id="program">
+                                                    <SelectValue placeholder="Select program" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">All Programs</SelectItem>
+                                                    {createScopes.programs.map((program) => (
+                                                        <SelectItem key={program.id} value={String(program.id)}>{program.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="year_level_id">Grade Level (optional)</Label>
+                                            <Select value={data.year_level_id || 'none'} onValueChange={(value) => setData('year_level_id', value === 'none' ? '' : value)}>
+                                                <SelectTrigger id="year_level_id">
+                                                    <SelectValue placeholder="Select level" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">All Grade Levels</SelectItem>
+                                                    {createScopes.grade_levels.map((grade) => (
+                                                        <SelectItem key={grade.id} value={String(grade.id)}>{grade.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="section_id">Section (optional)</Label>
+                                            <Select value={data.section_id || 'none'} onValueChange={(value) => setData('section_id', value === 'none' ? '' : value)}>
+                                                <SelectTrigger id="section_id">
+                                                    <SelectValue placeholder="Select section" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="none">All Sections</SelectItem>
+                                                    {createScopes.sections.map((section) => (
+                                                        <SelectItem key={section.id} value={String(section.id)}>{section.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between rounded-lg border p-3">
+                                        <div>
+                                            <p className="font-medium">Publish Immediately</p>
+                                            <p className="text-xs text-muted-foreground">Published assessments are visible in student portal after saving.</p>
+                                        </div>
+                                        <Switch checked={data.publish_now} onCheckedChange={(checked) => setData('publish_now', checked)} />
                                     </div>
                                 </CardContent>
                             </Card>
