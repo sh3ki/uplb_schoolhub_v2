@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\AppSetting;
 use App\Models\Department;
+use App\Models\EnrollmentRequest;
 use App\Models\Program;
 use App\Models\Student;
 use App\Models\StudentActionLog;
@@ -20,20 +21,10 @@ use Inertia\Response;
 
 class CollegeEnrollmentController extends Controller
 {
-    /**
-     * Philippine college enrollment constants.
-     * Standard regular load: 18–21 units  
-     * Maximum allowed (without overload approval): 24 units
-     * Minimum (underload): 15 units  
-     */
     private const MAX_UNITS  = 24;
     private const MIN_UNITS  = 15;
     private const IDEAL_UNITS = 21;
 
-    /**
-     * Show the subject enrollment page for college students.
-     * Students can browse available subjects for the active semester and select subjects to enroll in.
-     */
     public function index(): Response|RedirectResponse
     {
         $user    = Auth::user();
@@ -48,13 +39,11 @@ class CollegeEnrollmentController extends Controller
         $currentSchoolYear = $settings->school_year ?? date('Y') . '-' . (date('Y') + 1);
         $activeSemester    = (int) ($settings->active_semester ?? 1);
 
-        // Verify student is enrolled
         if ($student->enrollment_status !== 'enrolled') {
             return redirect()->route('student.enrollment.index')
                 ->with('error', 'You must be officially enrolled to access subject enrollment.');
         }
 
-        // Verify enrollment is open — resolve classification even when department_id is null
         $classification = $student->resolveDepartmentClassification();
         $departmentId   = $student->resolveDepartmentId();
 
@@ -68,17 +57,14 @@ class CollegeEnrollmentController extends Controller
                 ->with('info', 'College enrollment is currently closed.');
         }
 
-        // Resolve student's program
         $program = Program::where('name', $student->program)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->first();
 
-        // Resolve student's year level
         $yearLevel = YearLevel::where('name', $student->year_level)
             ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
             ->first();
 
-        // ── Get available subjects for the active semester ───────────────
         $availableSubjects = $this->getAvailableSubjects(
             $student,
             $activeSemester,
@@ -87,30 +73,92 @@ class CollegeEnrollmentController extends Controller
             $yearLevel
         );
 
-        // ── Get subjects already enrolled this semester ──────────────────
+        // Current semester enrolled subjects
         $enrolledSubjects = StudentSubject::where('student_id', $student->id)
             ->where('school_year', $currentSchoolYear)
             ->where('semester', $activeSemester)
             ->with('subject:id,code,name,units,type,semester,year_level_id')
             ->get()
             ->map(fn ($ss) => [
-                'id'            => $ss->id,
-                'subject_id'    => $ss->subject_id,
-                'code'          => $ss->subject->code ?? '',
-                'name'          => $ss->subject->name ?? '',
-                'units'         => (float) ($ss->subject->units ?? 0),
-                'type'          => $ss->subject->type ?? '',
-                'status'        => $ss->status,
-                'grade'         => $ss->grade,
+                'id'         => $ss->id,
+                'subject_id' => $ss->subject_id,
+                'code'       => $ss->subject->code ?? '',
+                'name'       => $ss->subject->name ?? '',
+                'units'      => (float) ($ss->subject->units ?? 0),
+                'type'       => $ss->subject->type ?? '',
+                'status'     => $ss->status,
+                'grade'      => $ss->grade,
             ]);
 
         $enrolledUnits = $enrolledSubjects->sum('units');
 
-        // ── Get completed subjects (all time) ───────────────────────────
+        // Completed subjects (all time)
         $completedSubjectIds = StudentSubject::where('student_id', $student->id)
             ->where('status', 'completed')
             ->pluck('subject_id')
             ->toArray();
+
+        // All completed subject details for the "Completed Subjects" tab
+        $completedSubjects = StudentSubject::where('student_id', $student->id)
+            ->where('status', 'completed')
+            ->with('subject:id,code,name,units,type,year_level_id,semester')
+            ->get()
+            ->map(fn ($ss) => [
+                'id'          => $ss->id,
+                'subject_id'  => $ss->subject_id,
+                'code'        => $ss->subject->code ?? '',
+                'name'        => $ss->subject->name ?? '',
+                'units'       => (float) ($ss->subject->units ?? 0),
+                'type'        => $ss->subject->type ?? '',
+                'school_year' => $ss->school_year,
+                'semester'    => $ss->semester,
+                'grade'       => $ss->grade,
+            ])
+            ->sortBy('school_year')
+            ->values();
+
+        // Active enrollment request for this semester (if any)
+        $activeRequest = EnrollmentRequest::where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->where('semester', $activeSemester)
+            ->whereNotIn('status', ['rejected_registrar', 'rejected_accounting', 'completed'])
+            ->with('subjects:id,code,name,units,type')
+            ->first();
+
+        $activeRequestData = null;
+        if ($activeRequest) {
+            $activeRequestData = [
+                'id'                  => $activeRequest->id,
+                'status'              => $activeRequest->status,
+                'registrar_notes'     => $activeRequest->registrar_notes,
+                'accounting_notes'    => $activeRequest->accounting_notes,
+                'created_at'          => $activeRequest->created_at,
+                'subjects'            => $activeRequest->subjects->map(fn ($s) => [
+                    'id'           => $s->id,
+                    'code'         => $s->code,
+                    'name'         => $s->name,
+                    'units'        => (float) $s->units,
+                    'type'         => $s->type,
+                    'selling_price' => (float) $s->pivot->selling_price,
+                ])->values(),
+            ];
+        }
+
+        // Rejected requests visible to student
+        $rejectedRequests = EnrollmentRequest::where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->where('semester', $activeSemester)
+            ->whereIn('status', ['rejected_registrar', 'rejected_accounting'])
+            ->with('subjects:id,code,name,units,type')
+            ->latest()
+            ->get()
+            ->map(fn ($er) => [
+                'id'               => $er->id,
+                'status'           => $er->status,
+                'registrar_notes'  => $er->registrar_notes,
+                'accounting_notes' => $er->accounting_notes,
+                'created_at'       => $er->created_at,
+            ]);
 
         $semesterLabels = [1 => '1st Semester', 2 => '2nd Semester', 3 => 'Summer'];
 
@@ -125,21 +173,24 @@ class CollegeEnrollmentController extends Controller
                 'department_id'     => $student->department_id,
                 'enrollment_status' => $student->enrollment_status,
             ],
-            'currentSchoolYear'     => $currentSchoolYear,
-            'activeSemester'        => $activeSemester,
-            'activeSemesterLabel'   => $semesterLabels[$activeSemester] ?? "Semester {$activeSemester}",
-            'availableSubjects'     => $availableSubjects->values(),
-            'enrolledSubjects'      => $enrolledSubjects->values(),
-            'completedSubjectIds'   => $completedSubjectIds,
-            'enrolledUnits'         => (float) $enrolledUnits,
-            'maxUnits'              => self::MAX_UNITS,
-            'minUnits'              => self::MIN_UNITS,
-            'idealUnits'            => self::IDEAL_UNITS,
+            'currentSchoolYear'   => $currentSchoolYear,
+            'activeSemester'      => $activeSemester,
+            'activeSemesterLabel' => $semesterLabels[$activeSemester] ?? "Semester {$activeSemester}",
+            'availableSubjects'   => $availableSubjects->values(),
+            'enrolledSubjects'    => $enrolledSubjects->values(),
+            'completedSubjects'   => $completedSubjects,
+            'completedSubjectIds' => $completedSubjectIds,
+            'enrolledUnits'       => (float) $enrolledUnits,
+            'maxUnits'            => self::MAX_UNITS,
+            'minUnits'            => self::MIN_UNITS,
+            'idealUnits'          => self::IDEAL_UNITS,
+            'activeRequest'       => $activeRequestData,
+            'rejectedRequests'    => $rejectedRequests,
         ]);
     }
 
     /**
-     * Enroll student in selected subjects for the active semester.
+     * Create an enrollment request for the selected subjects.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -154,15 +205,24 @@ class CollegeEnrollmentController extends Controller
         $currentSchoolYear = $settings->school_year ?? date('Y') . '-' . (date('Y') + 1);
         $activeSemester    = (int) ($settings->active_semester ?? 1);
 
-        // Verify student is enrolled
         if ($student->enrollment_status !== 'enrolled') {
             return back()->with('error', 'You must be officially enrolled to enroll in subjects.');
         }
 
-        // Verify enrollment is open — resolve classification even when department_id is null
         $classification = $student->resolveDepartmentClassification();
         if (!$settings->isEnrollmentOpen('College') || $classification !== 'College') {
             return back()->with('error', 'College enrollment is currently closed.');
+        }
+
+        // Block if active request already exists
+        $existing = EnrollmentRequest::where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->where('semester', $activeSemester)
+            ->whereNotIn('status', ['rejected_registrar', 'rejected_accounting', 'completed'])
+            ->exists();
+
+        if ($existing) {
+            return back()->with('error', 'You already have a pending enrollment request for this semester.');
         }
 
         $validated = $request->validate([
@@ -172,92 +232,82 @@ class CollegeEnrollmentController extends Controller
 
         $subjectIds = $validated['subject_ids'];
 
-        // ── Calculate total units ────────────────────────────────────────
-        $newSubjectsUnits = Subject::whereIn('id', $subjectIds)->sum('units');
+        // Validate prerequisites + no duplicates
+        $completedSubjectIds = StudentSubject::where('student_id', $student->id)
+            ->where('status', 'completed')
+            ->pluck('subject_id')
+            ->toArray();
 
-        // Already enrolled units for this semester
-        $existingEnrolledUnits = StudentSubject::where('student_id', $student->id)
+        $currentlyEnrolledIds = StudentSubject::where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->where('semester', $activeSemester)
+            ->pluck('subject_id')
+            ->toArray();
+
+        $subjectsToEnroll = Subject::with('prerequisites:id,code,name')
+            ->where('classification', 'College')
+            ->whereIn('id', $subjectIds)
+            ->get();
+
+        if ($subjectsToEnroll->count() !== count($subjectIds)) {
+            return back()->with('error', 'One or more selected subjects are invalid.');
+        }
+
+        foreach ($subjectsToEnroll as $subject) {
+            if (in_array($subject->id, $currentlyEnrolledIds)) {
+                return back()->with('error', "You are already enrolled in {$subject->name} this semester.");
+            }
+            if (in_array($subject->id, $completedSubjectIds)) {
+                return back()->with('error', "You have already completed {$subject->name}.");
+            }
+
+            $prereqIds   = $subject->prerequisites->pluck('id')->toArray();
+            $unmetPrereqs = array_diff($prereqIds, $completedSubjectIds);
+            if (!empty($unmetPrereqs)) {
+                $unmetNames = Subject::whereIn('id', $unmetPrereqs)->pluck('name')->join(', ');
+                return back()->with('error', "Cannot enroll in {$subject->name}: prerequisites not completed — {$unmetNames}.");
+            }
+        }
+
+        // Unit check
+        $newUnits = $subjectsToEnroll->sum('units');
+        $existingUnits = StudentSubject::where('student_id', $student->id)
             ->where('school_year', $currentSchoolYear)
             ->where('semester', $activeSemester)
             ->where('status', 'enrolled')
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
-        $totalUnits = (float) $existingEnrolledUnits + (float) $newSubjectsUnits;
-
-        if ($totalUnits > self::MAX_UNITS) {
-            return back()->with('error', "Cannot enroll: total units ({$totalUnits}) would exceed the maximum of " . self::MAX_UNITS . " units per semester.");
+        if ((float) $existingUnits + (float) $newUnits > self::MAX_UNITS) {
+            return back()->with('error', "Total units would exceed the maximum of " . self::MAX_UNITS . " per semester.");
         }
 
-        // ── Validate prerequisites ───────────────────────────────────────
-        $completedSubjectIds = StudentSubject::where('student_id', $student->id)
-            ->where('status', 'completed')
-            ->pluck('subject_id')
-            ->toArray();
-
-        $subjectsToEnroll = Subject::with('prerequisites:id,code,name')
-            ->whereIn('id', $subjectIds)
-            ->get();
-
-        foreach ($subjectsToEnroll as $subject) {
-            $prereqIds = $subject->prerequisites->pluck('id')->toArray();
-            if (!empty($prereqIds)) {
-                $unmetPrereqs = array_diff($prereqIds, $completedSubjectIds);
-                if (!empty($unmetPrereqs)) {
-                    $unmetNames = Subject::whereIn('id', $unmetPrereqs)->pluck('name')->join(', ');
-                    return back()->with('error', "Cannot enroll in {$subject->name}: prerequisite(s) not completed — {$unmetNames}.");
-                }
-            }
-
-            // Check if already enrolled or completed this subject in the same school year/semester
-            $existing = StudentSubject::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('school_year', $currentSchoolYear)
-                ->where('semester', $activeSemester)
-                ->first();
-
-            if ($existing) {
-                return back()->with('error', "You are already enrolled in {$subject->name} for this semester.");
-            }
-
-            // Check if already completed
-            $alreadyCompleted = StudentSubject::where('student_id', $student->id)
-                ->where('subject_id', $subject->id)
-                ->where('status', 'completed')
-                ->exists();
-
-            if ($alreadyCompleted) {
-                return back()->with('error', "You have already completed {$subject->name}. No need to retake it.");
-            }
-        }
-
-        // ── Create enrollment records ────────────────────────────────────
         DB::transaction(function () use ($student, $subjectsToEnroll, $currentSchoolYear, $activeSemester, $user) {
-            $enrolledNames = [];
+            $enrollmentRequest = EnrollmentRequest::create([
+                'student_id'  => $student->id,
+                'school_year' => $currentSchoolYear,
+                'semester'    => $activeSemester,
+                'status'      => 'pending_registrar',
+            ]);
 
+            $pivotData = [];
             foreach ($subjectsToEnroll as $subject) {
-                StudentSubject::create([
-                    'student_id'  => $student->id,
-                    'subject_id'  => $subject->id,
-                    'school_year' => $currentSchoolYear,
-                    'semester'    => $activeSemester,
-                    'status'      => 'enrolled',
-                ]);
-
-                $enrolledNames[] = $subject->code . ' - ' . $subject->name;
+                $pivotData[$subject->id] = ['selling_price' => $subject->selling_price ?? 0];
             }
+            $enrollmentRequest->subjects()->attach($pivotData);
 
-            // Log the action
+            $names = $subjectsToEnroll->map(fn ($s) => $s->code . ' - ' . $s->name)->join(', ');
+
             StudentActionLog::create([
                 'student_id'   => $student->id,
                 'performed_by' => $user->id,
-                'action'       => 'Subject Enrollment',
+                'action'       => 'Enrollment Request Submitted',
                 'action_type'  => 'enrollment',
-                'details'      => 'Student enrolled in ' . count($enrolledNames) . ' subject(s) for ' . $currentSchoolYear . " Semester {$activeSemester}: " . implode(', ', $enrolledNames),
+                'details'      => "Student submitted enrollment request for {$subjectsToEnroll->count()} subject(s): {$names}.",
             ]);
         });
 
-        return back()->with('success', 'Successfully enrolled in ' . count($subjectIds) . ' subject(s).');
+        return back()->with('success', 'Enrollment request submitted. Awaiting registrar review.');
     }
 
     /**
@@ -275,12 +325,10 @@ class CollegeEnrollmentController extends Controller
         $settings       = AppSetting::current();
         $activeSemester = (int) ($settings->active_semester ?? 1);
 
-        // Only allow dropping subjects during open enrollment
         if (!$settings->isEnrollmentOpen('College')) {
             return back()->with('error', 'Cannot drop subjects: enrollment period is closed.');
         }
 
-        // Only drop if status is 'enrolled' (not completed/failed)
         if ($enrollment->status !== 'enrolled') {
             return back()->with('error', "Cannot drop this subject: status is '{$enrollment->status}'.");
         }
@@ -300,11 +348,6 @@ class CollegeEnrollmentController extends Controller
         return back()->with('success', "Successfully dropped {$subjectName}.");
     }
 
-    /**
-     * Get available subjects for the student's program/department in the active semester.
-     * Filters out already-completed and already-enrolled subjects.
-     * Annotates each subject with prerequisite status.
-     */
     private function getAvailableSubjects(
         Student $student,
         int $activeSemester,
@@ -312,7 +355,6 @@ class CollegeEnrollmentController extends Controller
         ?Program $program,
         ?YearLevel $yearLevel
     ) {
-        // Build base query: College subjects in the student's department for the active semester
         $query = Subject::with([
                 'prerequisites:id,code,name',
                 'yearLevel:id,name,level_number',
@@ -322,10 +364,9 @@ class CollegeEnrollmentController extends Controller
             ->where('is_active', true)
             ->where(function ($q) use ($activeSemester) {
                 $q->where('semester', $activeSemester)
-                  ->orWhereNull('semester'); // Include subjects with no specific semester
+                  ->orWhereNull('semester');
             });
 
-        // Filter by department (resolve department_id if missing)
         $departmentId = $student->resolveDepartmentId();
         if ($departmentId) {
             $query->where(function ($q) use ($departmentId) {
@@ -334,20 +375,15 @@ class CollegeEnrollmentController extends Controller
             });
         }
 
-        // Optionally filter by program if available
         if ($program) {
             $query->where(function ($q) use ($program) {
-                // Include subjects linked to this program OR subjects with no program restriction
                 $q->whereHas('programs', fn ($pq) => $pq->where('programs.id', $program->id))
                   ->orWhereDoesntHave('programs');
             });
         }
 
-        $subjects = $query->orderBy('year_level_id')
-            ->orderBy('code')
-            ->get();
+        $subjects = $query->orderBy('year_level_id')->orderBy('code')->get();
 
-        // Get IDs of subjects student has already completed or is currently enrolled in
         $completedIds = StudentSubject::where('student_id', $student->id)
             ->where('status', 'completed')
             ->pluck('subject_id')
@@ -359,10 +395,21 @@ class CollegeEnrollmentController extends Controller
             ->pluck('subject_id')
             ->toArray();
 
-        $excludeIds = array_unique(array_merge($completedIds, $currentlyEnrolledIds));
+        // Also exclude subjects in an active pending request
+        $pendingRequestSubjectIds = DB::table('enrollment_request_subjects')
+            ->whereIn('enrollment_request_id',
+                EnrollmentRequest::where('student_id', $student->id)
+                    ->where('school_year', $currentSchoolYear)
+                    ->where('semester', $activeSemester)
+                    ->whereNotIn('status', ['rejected_registrar', 'rejected_accounting', 'completed'])
+                    ->pluck('id')
+            )
+            ->pluck('subject_id')
+            ->toArray();
 
-        // Filter and annotate subjects
-        $available = $subjects->reject(fn ($s) => in_array($s->id, $excludeIds))
+        $excludeIds = array_unique(array_merge($completedIds, $currentlyEnrolledIds, $pendingRequestSubjectIds));
+
+        return $subjects->reject(fn ($s) => in_array($s->id, $excludeIds))
             ->map(function ($subject) use ($completedIds) {
                 $prereqIds        = $subject->prerequisites->pluck('id')->toArray();
                 $unmetPrereqIds   = array_diff($prereqIds, $completedIds);
@@ -377,6 +424,7 @@ class CollegeEnrollmentController extends Controller
                     'type'              => $subject->type,
                     'semester'          => $subject->semester,
                     'hours_per_week'    => $subject->hours_per_week,
+                    'selling_price'     => (float) ($subject->selling_price ?? 0),
                     'year_level_name'   => $subject->yearLevel?->name ?? 'General',
                     'level_number'      => $subject->yearLevel?->level_number ?? 0,
                     'prerequisites'     => $subject->prerequisites->map(fn ($p) => [
@@ -389,7 +437,5 @@ class CollegeEnrollmentController extends Controller
                     'programs'          => $subject->programs->pluck('name')->values(),
                 ];
             });
-
-        return $available;
     }
 }

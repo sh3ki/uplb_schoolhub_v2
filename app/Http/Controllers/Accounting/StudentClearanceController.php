@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Accounting;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Models\EnrollmentRequest;
 use App\Models\FeeItem;
 use App\Models\GrantRecipient;
 use App\Models\EnrollmentClearance;
@@ -192,6 +193,46 @@ class StudentClearanceController extends Controller
         $departments = Department::orderBy('name')->get(['id', 'name', 'code', 'classification']);
         $classifications = Department::distinct()->pluck('classification')->filter()->sort()->values();
 
+        // Enrollment requests pending accounting review
+        $enrollmentRequestSearch = $request->input('er_search', '');
+        $erQuery = EnrollmentRequest::with([
+            'student:id,first_name,last_name,middle_name,lrn,program,year_level,student_photo_url',
+            'subjects:id,code,name,units,type',
+        ])->where('status', 'pending_accounting');
+
+        if ($enrollmentRequestSearch) {
+            $erQuery->whereHas('student', fn ($q) => $q
+                ->where('first_name', 'like', "%{$enrollmentRequestSearch}%")
+                ->orWhere('last_name', 'like', "%{$enrollmentRequestSearch}%")
+                ->orWhere('lrn', 'like', "%{$enrollmentRequestSearch}%")
+            );
+        }
+
+        $enrollmentRequests = $erQuery->latest()->get()->map(fn ($er) => [
+            'id'          => $er->id,
+            'school_year' => $er->school_year,
+            'semester'    => $er->semester,
+            'status'      => $er->status,
+            'created_at'  => $er->created_at,
+            'student'     => [
+                'id'         => $er->student->id,
+                'full_name'  => trim("{$er->student->first_name} {$er->student->last_name}"),
+                'lrn'        => $er->student->lrn,
+                'program'    => $er->student->program,
+                'year_level' => $er->student->year_level,
+                'photo_url'  => $er->student->student_photo_url,
+            ],
+            'subjects'    => $er->subjects->map(fn ($s) => [
+                'id'            => $s->id,
+                'code'          => $s->code,
+                'name'          => $s->name,
+                'units'         => (float) $s->units,
+                'type'          => $s->type,
+                'selling_price' => (float) $s->pivot->selling_price,
+            ])->values(),
+            'total_selling_price' => $er->subjects->sum(fn ($s) => (float) $s->pivot->selling_price),
+        ]);
+
         return Inertia::render($this->viewPrefix() . '/clearance/index', [
             'students' => $students,
             'programs' => $programs,
@@ -203,6 +244,8 @@ class StudentClearanceController extends Controller
                 $request->only(['search', 'program', 'year_level', 'department_id', 'classification']),
                 ['status' => $status]
             ),
+            'enrollmentRequests' => $enrollmentRequests,
+            'erSearch' => $enrollmentRequestSearch,
         ]);
     }
 

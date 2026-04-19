@@ -132,6 +132,17 @@ interface DocumentFeeItem {
     total_revenue?: number;
 }
 
+interface SubjectFee {
+    id: number;
+    code: string;
+    name: string;
+    department: string;
+    program: string;
+    year_level: string;
+    level_number: number;
+    selling_price: number;
+}
+
 interface Props {
     categories: FeeCategory[];
     totals: {
@@ -154,9 +165,10 @@ interface Props {
         count: number;
     }[];
     studentSchoolYears: string[];
+    subjectFees: SubjectFee[];
 }
 
-export default function FeeManagementIndex({ categories, totals, departments, programs, yearLevels, sections, documentFees, documentCategories, tab, studentCounts = [], studentSchoolYears = [] }: Props) {
+export default function FeeManagementIndex({ categories, totals, departments, programs, yearLevels, sections, documentFees, documentCategories, tab, studentCounts = [], studentSchoolYears = [], subjectFees = [] }: Props) {
     const [activeTab, setActiveTab] = useState(tab || 'general');
 
     // Search/filter state for general fees
@@ -676,10 +688,11 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 />
 
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
-                    <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+                    <TabsList className="grid w-full grid-cols-5 max-w-3xl">
                         <TabsTrigger value="general">General Fees</TabsTrigger>
                         <TabsTrigger value="assignments">Assign Fees</TabsTrigger>
                         <TabsTrigger value="documents">Document Fees</TabsTrigger>
+                        <TabsTrigger value="subjects">Subject Fees</TabsTrigger>
                         <TabsTrigger value="projected">
                             <TrendingUp className="mr-1 h-3.5 w-3.5" />Projected
                         </TabsTrigger>
@@ -1116,6 +1129,100 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                     <div className="text-center py-8 text-muted-foreground">
                                         <CheckSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                         <p>Select a classification, department, and grade/year level to assign fees.</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    {/* Subject Fees Tab */}
+                    <TabsContent value="subjects" className="space-y-6 mt-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <FileText className="h-5 w-5" />
+                                    College Subject Fees
+                                </CardTitle>
+                                <CardDescription>
+                                    Grouped by Department &gt; Program &gt; Year Level
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                {subjectFees.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                                        <FileText className="h-12 w-12 mb-4" />
+                                        <p>No college subjects with pricing configured yet.</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        {Object.entries(
+                                            subjectFees.reduce((acc, subject) => {
+                                                const deptKey = subject.department;
+                                                if (!acc[deptKey]) {
+                                                    acc[deptKey] = {};
+                                                }
+                                                const progKey = subject.program;
+                                                if (!acc[deptKey][progKey]) {
+                                                    acc[deptKey][progKey] = {};
+                                                }
+                                                const yearLevelKey = subject.year_level;
+                                                if (!acc[deptKey][progKey][yearLevelKey]) {
+                                                    acc[deptKey][progKey][yearLevelKey] = [];
+                                                }
+                                                acc[deptKey][progKey][yearLevelKey].push(subject);
+                                                return acc;
+                                            }, {} as Record<string, Record<string, Record<string, SubjectFee[]>>>)
+                                        ).map(([department, programsObj]) => (
+                                            <div key={department} className="border rounded-lg p-4">
+                                                <h3 className="font-semibold text-lg mb-4">{department}</h3>
+                                                <div className="space-y-4 ml-4">
+                                                    {Object.entries(programsObj).map(([program, yearLevelsObj]) => (
+                                                        <div key={`${department}-${program}`} className="border-l-2 border-muted pl-4">
+                                                            <h4 className="font-medium text-base mb-3">{program}</h4>
+                                                            <div className="space-y-3">
+                                                                {Object.entries(yearLevelsObj)
+                                                                    .sort((a, b) => {
+                                                                        const levelA = (subjectFees.find(s => s.year_level === a[0])?.level_number ?? 0);
+                                                                        const levelB = (subjectFees.find(s => s.year_level === b[0])?.level_number ?? 0);
+                                                                        return levelA - levelB;
+                                                                    })
+                                                                    .map(([yearLevel, subjects]) => (
+                                                                        <div key={`${department}-${program}-${yearLevel}`}>
+                                                                            <p className="text-sm font-medium text-muted-foreground mb-2">{yearLevel}</p>
+                                                                            <Table className="text-sm">
+                                                                                <TableHeader>
+                                                                                    <TableRow>
+                                                                                        <TableHead>Subject Code</TableHead>
+                                                                                        <TableHead>Subject Name</TableHead>
+                                                                                        <TableHead className="text-right">Selling Price</TableHead>
+                                                                                    </TableRow>
+                                                                                </TableHeader>
+                                                                                <TableBody>
+                                                                                    {subjects
+                                                                                        .sort((a, b) => a.code.localeCompare(b.code))
+                                                                                        .map((subject) => (
+                                                                                            <TableRow key={subject.id}>
+                                                                                                <TableCell className="font-mono text-xs text-muted-foreground">
+                                                                                                    {subject.code}
+                                                                                                </TableCell>
+                                                                                                <TableCell className="font-medium">
+                                                                                                    {subject.name}
+                                                                                                </TableCell>
+                                                                                                <TableCell className="text-right font-semibold text-green-600">
+                                                                                                    {formatCurrency(subject.selling_price)}
+                                                                                                </TableCell>
+                                                                                            </TableRow>
+                                                                                        ))}
+                                                                                </TableBody>
+                                                                            </Table>
+                                                                        </div>
+                                                                    ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
                                 )}
                             </CardContent>

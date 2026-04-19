@@ -17,6 +17,7 @@ use App\Models\Subject;
 use App\Models\StudentSubject;
 use App\Models\AppSetting;
 use App\Models\EnrollmentClearance;
+use App\Models\EnrollmentRequest;
 use App\Models\GrantRecipient;
 use App\Models\DocumentRequest;
 use App\Models\User;
@@ -649,6 +650,8 @@ class StudentController extends Controller
             // College subjects curriculum (only for college departments)
             'collegeSubjects' => $this->getCollegeSubjectData($student),
             'currentSchoolYear' => AppSetting::current()->school_year ?? (date('Y') . '-' . (date('Y') + 1)),
+            // Enrollment requests for this student
+            'enrollmentRequests' => $this->getEnrollmentRequests($student),
         ]);
     }
 
@@ -733,6 +736,36 @@ class StudentController extends Controller
             'completed_units' => (float) $completedUnits,
             'by_year_level'   => $grouped,
         ];
+    }
+
+    private function getEnrollmentRequests(Student $student): array
+    {
+        return EnrollmentRequest::where('student_id', $student->id)
+            ->with('subjects:id,code,name,units,type')
+            ->latest()
+            ->get()
+            ->map(fn ($er) => [
+                'id'                  => $er->id,
+                'school_year'         => $er->school_year,
+                'semester'            => $er->semester,
+                'status'              => $er->status,
+                'registrar_notes'     => $er->registrar_notes,
+                'accounting_notes'    => $er->accounting_notes,
+                'total_amount'        => $er->total_amount,
+                'created_at'          => $er->created_at,
+                'registrar_reviewed_at' => $er->registrar_reviewed_at,
+                'accounting_reviewed_at' => $er->accounting_reviewed_at,
+                'completed_at'        => $er->completed_at,
+                'subjects'            => $er->subjects->map(fn ($s) => [
+                    'id'            => $s->id,
+                    'code'          => $s->code,
+                    'name'          => $s->name,
+                    'units'         => (float) $s->units,
+                    'type'          => $s->type,
+                    'selling_price' => (float) $s->pivot->selling_price,
+                ])->values(),
+            ])
+            ->toArray();
     }
 
     /**
