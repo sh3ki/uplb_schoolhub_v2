@@ -103,7 +103,6 @@ class ClassController extends Controller
         $teachers = User::query()
             ->where('role', 'teacher')
             ->whereNotNull('teacher_id')
-            ->where('is_active', true)
             ->with(['teacher:id,department_id,is_active'])
             ->orderBy('name')
             ->get(['id', 'name', 'teacher_id'])
