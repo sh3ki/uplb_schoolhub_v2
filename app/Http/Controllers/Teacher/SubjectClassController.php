@@ -124,11 +124,16 @@ class SubjectClassController extends Controller
         [$payload, $finalGrade] = $this->buildGradePayload($validated, $enrollment->draft_breakdown ?? []);
 
         if ($action === 'save') {
-            $enrollment->update([
+            $savePayload = [
                 'draft_grade' => $finalGrade,
                 'draft_breakdown' => $payload,
-                'is_grade_posted' => false,
-            ]);
+            ];
+
+            if ($enrollment->grade === null) {
+                $savePayload['is_grade_posted'] = false;
+            }
+
+            $enrollment->update($savePayload);
 
             return back()->with('success', 'Grade draft saved successfully.');
         }
