@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\Department;
 use App\Models\Quiz;
 use App\Models\QuizQuestion;
 use App\Models\QuizAnswer;
+use App\Models\Section;
+use App\Models\StudentSubject;
 use App\Models\Subject;
 use App\Models\QuizAttempt;
+use App\Models\YearLevel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +34,7 @@ class QuizController extends Controller
             ->withCount(['questions', 'attempts']);
 
         // Filter by subject
-        if ($request->filled('subject_id')) {
+        if ($request->filled('subject_id') && $request->subject_id !== 'all') {
             $query->where('subject_id', $request->subject_id);
         }
 
@@ -61,9 +66,12 @@ class QuizController extends Controller
             $q->where('teachers.id', $teacher->id);
         })->get();
 
+        $createScopes = $this->buildCreateScopes($teacher->id);
+
         return Inertia::render('teacher/quizzes/index', [
             'quizzes' => $quizzes,
             'subjects' => $subjects,
+            'createScopes' => $createScopes,
             'filters' => $request->only(['search', 'subject_id', 'status']),
         ]);
     }
@@ -80,8 +88,11 @@ class QuizController extends Controller
             $q->where('teachers.id', $teacher->id);
         })->get();
 
+        $createScopes = $this->buildCreateScopes($teacher->id);
+
         return Inertia::render('teacher/quizzes/create', [
             'subjects' => $subjects,
+            'createScopes' => $createScopes,
         ]);
     }
 
@@ -90,7 +101,12 @@ class QuizController extends Controller
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'assessment_type' => 'required|in:quiz,exam,long_test,activity,assignment',
             'subject_id' => 'required|exists:subjects,id',
+            'year_level_id' => 'nullable|exists:year_levels,id',
+            'section_id' => 'nullable|exists:sections,id',
+            'program' => 'nullable|string|max:255',
+            'publish_now' => 'nullable|boolean',
             'time_limit_minutes' => 'nullable|integer|min:1',
             'passing_score' => 'required|integer|min:0|max:100',
             'max_attempts' => 'required|integer|min:1',
@@ -110,6 +126,31 @@ class QuizController extends Controller
         ]);
 
         $teacher = Auth::user()->teacher;
+        $settings = AppSetting::current();
+        $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $subject = Subject::query()
+            ->where('id', (int) $validated['subject_id'])
+            ->whereHas('teachers', fn ($query) => $query->where('teachers.id', $teacher->id))
+            ->firstOrFail();
+
+        if (!empty($validated['section_id'])) {
+            $sectionId = (int) $validated['section_id'];
+
+            $isAllowedSection = Section::query()
+                ->where('id', $sectionId)
+                ->where(function ($query) use ($teacher, $subject, $currentSchoolYear) {
+                    $query->where('teacher_id', $teacher->id)
+                        ->orWhereHas('students.studentSubjects', function ($studentSubjectQuery) use ($subject, $currentSchoolYear) {
+                            $studentSubjectQuery
+                                ->where('subject_id', $subject->id)
+                                ->where('school_year', $currentSchoolYear);
+                        });
+                })
+                ->exists();
+
+            abort_unless($isAllowedSection, 403, 'You can only target sections assigned to your classes.');
+        }
 
         try {
             DB::beginTransaction();
@@ -118,8 +159,12 @@ class QuizController extends Controller
                 'title' => $validated['title'],
                 'description' => $validated['description'] ?? null,
                 'subject_id' => $validated['subject_id'],
+                'assessment_type' => $validated['assessment_type'],
                 'teacher_id' => $teacher->id,
-                'department_id' => $teacher->department_id,
+                'department_id' => $subject->department_id,
+                'year_level_id' => $validated['year_level_id'] ?? $subject->year_level_id,
+                'section_id' => $validated['section_id'] ?? null,
+                'program' => $validated['program'] ?? null,
                 'time_limit_minutes' => $validated['time_limit_minutes'] ?? null,
                 'passing_score' => $validated['passing_score'],
                 'max_attempts' => $validated['max_attempts'],
@@ -128,7 +173,7 @@ class QuizController extends Controller
                 'show_correct_answers' => $validated['show_correct_answers'] ?? true,
                 'available_from' => $validated['available_from'] ?? null,
                 'available_until' => $validated['available_until'] ?? null,
-                'is_published' => false,
+                'is_published' => $validated['publish_now'] ?? true,
                 'is_active' => true,
             ]);
 
@@ -162,6 +207,81 @@ class QuizController extends Controller
             DB::rollBack();
             return back()->withErrors(['error' => 'Failed to create quiz. Please try again.']);
         }
+    }
+
+    private function buildCreateScopes(int $teacherId): array
+    {
+        $settings = AppSetting::current();
+        $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $assignedSubjects = Subject::query()
+            ->with(['department:id,name', 'yearLevel:id,name'])
+            ->whereHas('teachers', fn ($query) => $query->where('teachers.id', $teacherId))
+            ->get(['id', 'department_id', 'year_level_id']);
+
+        $subjectIds = $assignedSubjects->pluck('id')->values();
+        $departmentIds = $assignedSubjects->pluck('department_id')->filter()->unique()->values();
+        $yearLevelIds = $assignedSubjects->pluck('year_level_id')->filter()->unique()->values();
+
+        $departmentOptions = Department::query()
+            ->whereIn('id', $departmentIds)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Department $department) => [
+                'id' => $department->id,
+                'label' => $department->name,
+            ])
+            ->values();
+
+        $yearLevelOptions = YearLevel::query()
+            ->whereIn('id', $yearLevelIds)
+            ->orderBy('level_number')
+            ->get(['id', 'name'])
+            ->map(fn (YearLevel $yearLevel) => [
+                'id' => $yearLevel->id,
+                'label' => $yearLevel->name,
+            ])
+            ->values();
+
+        $advisorySectionIds = Section::query()
+            ->where('teacher_id', $teacherId)
+            ->where('is_active', true)
+            ->pluck('id');
+
+        $subjectSectionIds = collect();
+        $programOptions = collect();
+
+        if ($subjectIds->isNotEmpty()) {
+            $rows = StudentSubject::query()
+                ->join('students', 'student_subjects.student_id', '=', 'students.id')
+                ->whereIn('student_subjects.subject_id', $subjectIds)
+                ->where('student_subjects.school_year', $currentSchoolYear)
+                ->select(['students.section_id', 'students.program'])
+                ->get();
+
+            $subjectSectionIds = $rows->pluck('section_id')->filter()->unique()->values();
+            $programOptions = $rows->pluck('program')->filter()->unique()->sort()->values();
+        }
+
+        $sectionOptions = Section::query()
+            ->whereIn('id', $advisorySectionIds->merge($subjectSectionIds)->unique()->values())
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (Section $section) => [
+                'id' => $section->id,
+                'label' => $section->name,
+            ])
+            ->values();
+
+        return [
+            'departments' => $departmentOptions,
+            'grade_levels' => $yearLevelOptions,
+            'sections' => $sectionOptions,
+            'programs' => $programOptions->map(fn (string $program) => [
+                'id' => $program,
+                'label' => $program,
+            ])->values(),
+        ];
     }
 
     public function show(Quiz $quiz): Response
