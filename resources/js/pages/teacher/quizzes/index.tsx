@@ -80,6 +80,7 @@ interface Quiz {
     id: number;
     title: string;
     description: string | null;
+    assessment_type: 'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment';
     subject_id: number;
     time_limit_minutes: number | null;
     passing_score: number;
@@ -94,6 +95,11 @@ interface Quiz {
     attempts_count: number;
 }
 
+interface ScopeOption {
+    id: number | string;
+    label: string;
+}
+
 interface Props {
     quizzes: {
         data: Quiz[];
@@ -106,6 +112,12 @@ interface Props {
         links: any[];
     };
     subjects: Subject[];
+    createScopes: {
+        departments: ScopeOption[];
+        grade_levels: ScopeOption[];
+        sections: ScopeOption[];
+        programs: ScopeOption[];
+    };
     filters: {
         search?: string;
         subject_id?: string;
@@ -113,7 +125,7 @@ interface Props {
     };
 }
 
-export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
+export default function QuizzesIndex({ quizzes, subjects, createScopes, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [subjectId, setSubjectId] = useState(filters.subject_id || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
@@ -121,9 +133,10 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
     const [createOpen, setCreateOpen] = useState(false);
     const [createKind, setCreateKind] = useState<'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment'>('quiz');
     const [createSubjectId, setCreateSubjectId] = useState<string>('');
-    const [createDepartment, setCreateDepartment] = useState('Basic Education');
-    const [createGradeLevel, setCreateGradeLevel] = useState('Grade 7');
+    const [createDepartment, setCreateDepartment] = useState<string>('');
+    const [createGradeLevel, setCreateGradeLevel] = useState<string>('');
     const [createSection, setCreateSection] = useState('');
+    const [createProgram, setCreateProgram] = useState('');
     const [createTitle, setCreateTitle] = useState('');
     const [createDescription, setCreateDescription] = useState('');
     const [createDeadline, setCreateDeadline] = useState('');
@@ -192,6 +205,9 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
         }
         if (createSection) {
             query.set('section', createSection);
+        }
+        if (createProgram) {
+            query.set('program', createProgram);
         }
         if (createTitle) {
             query.set('title', createTitle);
@@ -347,6 +363,7 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                                     <TableHead>Questions</TableHead>
                                     <TableHead>Time Limit</TableHead>
                                     <TableHead>Attempts</TableHead>
+                                    <TableHead>Type</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -354,7 +371,7 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                             <TableBody>
                                 {quizzes.data.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={7} className="text-center py-8">
+                                        <TableCell colSpan={8} className="text-center py-8">
                                             <div className="flex flex-col items-center gap-2">
                                                 <FileQuestion className="h-8 w-8 text-muted-foreground" />
                                                 <p className="text-muted-foreground">No quizzes found</p>
@@ -396,6 +413,11 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                                                 )}
                                             </TableCell>
                                             <TableCell>{quiz.attempts_count}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline" className="capitalize">
+                                                    {quiz.assessment_type.replace('_', ' ')}
+                                                </Badge>
+                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-1">
                                                     <Badge variant={quiz.is_published ? 'default' : 'secondary'}>
@@ -506,7 +528,7 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
             </AlertDialog>
 
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-                <DialogContent className="max-w-3xl">
+                <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Create Quizzes & Exams</DialogTitle>
                         <DialogDescription>
@@ -541,24 +563,45 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">Department</p>
-                                <Input value={createDepartment} onChange={(e) => setCreateDepartment(e.target.value)} placeholder="Department" />
+                                <Select value={createDepartment || 'none'} onValueChange={(value) => setCreateDepartment(value === 'none' ? '' : value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select department" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">All Assigned Departments</SelectItem>
+                                        {createScopes.departments.map((department) => (
+                                            <SelectItem key={department.id} value={String(department.id)}>{department.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">Grade Level</p>
-                                <Select value={createGradeLevel} onValueChange={setCreateGradeLevel}>
+                                <Select value={createGradeLevel || 'none'} onValueChange={(value) => setCreateGradeLevel(value === 'none' ? '' : value)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select grade" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'].map((grade) => (
-                                            <SelectItem key={grade} value={grade}>{grade}</SelectItem>
+                                        <SelectItem value="none">All Assigned Grade Levels</SelectItem>
+                                        {createScopes.grade_levels.map((grade) => (
+                                            <SelectItem key={grade.id} value={String(grade.id)}>{grade.label}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">Section</p>
-                                <Input value={createSection} onChange={(e) => setCreateSection(e.target.value)} placeholder="e.g. St. Philomena" />
+                                <Select value={createSection || 'none'} onValueChange={(value) => setCreateSection(value === 'none' ? '' : value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select section" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">All Assigned Sections</SelectItem>
+                                        {createScopes.sections.map((section) => (
+                                            <SelectItem key={section.id} value={String(section.id)}>{section.label}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div className="space-y-2">
                                 <p className="text-sm font-medium">Subject</p>
@@ -571,6 +614,20 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                                             <SelectItem key={subject.id} value={subject.id.toString()}>
                                                 {subject.code} - {subject.name}
                                             </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <p className="text-sm font-medium">Program</p>
+                                <Select value={createProgram || 'none'} onValueChange={(value) => setCreateProgram(value === 'none' ? '' : value)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select program" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">All Assigned Programs</SelectItem>
+                                        {createScopes.programs.map((program) => (
+                                            <SelectItem key={program.id} value={String(program.id)}>{program.label}</SelectItem>
                                         ))}
                                     </SelectContent>
                                 </Select>
