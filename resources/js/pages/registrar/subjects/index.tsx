@@ -77,6 +77,12 @@ interface TeacherSummary {
     specialization: string | null;
 }
 
+interface SectionOption {
+    id: number;
+    name: string;
+    teacher_id: number | null;
+}
+
 interface Props {
     subjects: {
         data: Subject[];
@@ -91,6 +97,7 @@ interface Props {
     departments: Department[];
     programs: Program[];
     yearLevels: YearLevel[];
+    sections: SectionOption[];
     teachers: TeacherSummary[];
     filters: {
         search?: string;
@@ -101,7 +108,7 @@ interface Props {
     };
 }
 
-export default function SubjectsIndex({ subjects, departments, programs, yearLevels, teachers, filters }: Props) {
+export default function SubjectsIndex({ subjects, departments, programs, yearLevels, sections, teachers, filters }: Props) {
     const { props } = usePage();
     const hasK12 = (props.appSettings as any)?.has_k12 !== false;
     const hasCollege = (props.appSettings as any)?.has_college !== false;
@@ -115,6 +122,7 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
     const [teacherDialogOpen, setTeacherDialogOpen] = useState(false);
+    const [registerTeacherOpen, setRegisterTeacherOpen] = useState(false);
     const [subjectForTeacher, setSubjectForTeacher] = useState<Subject | null>(null);
     const [selectedTeacherIds, setSelectedTeacherIds] = useState<number[]>([]);
     const [search, setSearch] = useState(filters.search || '');
@@ -137,6 +145,23 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
         cost_price: '',
         selling_price: '',
         is_active: true,
+    });
+
+    const registerTeacherForm = useForm({
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        address: '',
+        gender: 'female',
+        department_id: '',
+        specialization: '',
+        employment_status: 'full-time',
+        is_active: true,
+        employee_id: '',
+        section_id: '',
+        subject_ids: [] as number[],
     });
 
     const handleSearchChange = (value: string) => {
@@ -297,6 +322,23 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                 toast.success('Changes saved successfully');
                 setTeacherDialogOpen(false);
                 setSubjectForTeacher(null);
+            },
+        });
+    };
+
+    const openRegisterTeacher = () => {
+        registerTeacherForm.reset();
+        registerTeacherForm.setData('subject_ids', subjectForTeacher ? [subjectForTeacher.id] : []);
+        setRegisterTeacherOpen(true);
+    };
+
+    const submitRegisterTeacher = (e: React.FormEvent) => {
+        e.preventDefault();
+        registerTeacherForm.post('/registrar/subjects/register-teacher', {
+            onSuccess: () => {
+                toast.success('Teacher account created successfully');
+                setRegisterTeacherOpen(false);
+                registerTeacherForm.reset();
             },
         });
     };
@@ -862,9 +904,184 @@ export default function SubjectsIndex({ subjects, departments, programs, yearLev
                         )}
                     </div>
                     <DialogFooter>
+                        <Button variant="outline" onClick={openRegisterTeacher}>Register Teacher</Button>
                         <Button variant="outline" onClick={() => setTeacherDialogOpen(false)}>Cancel</Button>
                         <Button onClick={handleAssignTeachers}>Save Assignment</Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={registerTeacherOpen} onOpenChange={setRegisterTeacherOpen}>
+                <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Register Teacher</DialogTitle>
+                    </DialogHeader>
+
+                    <form onSubmit={submitRegisterTeacher} className="space-y-4">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <Label htmlFor="rt_first_name">First Name *</Label>
+                                <Input
+                                    id="rt_first_name"
+                                    value={registerTeacherForm.data.first_name}
+                                    onChange={(e) => registerTeacherForm.setData('first_name', e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_middle_name">Middle Name</Label>
+                                <Input
+                                    id="rt_middle_name"
+                                    value={registerTeacherForm.data.middle_name}
+                                    onChange={(e) => registerTeacherForm.setData('middle_name', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_last_name">Last Name *</Label>
+                                <Input
+                                    id="rt_last_name"
+                                    value={registerTeacherForm.data.last_name}
+                                    onChange={(e) => registerTeacherForm.setData('last_name', e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_employee_id">Employee ID (optional)</Label>
+                                <Input
+                                    id="rt_employee_id"
+                                    value={registerTeacherForm.data.employee_id}
+                                    onChange={(e) => registerTeacherForm.setData('employee_id', e.target.value)}
+                                    placeholder="Auto-generated if blank"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_specialization">Specialization</Label>
+                                <Input
+                                    id="rt_specialization"
+                                    value={registerTeacherForm.data.specialization}
+                                    onChange={(e) => registerTeacherForm.setData('specialization', e.target.value)}
+                                    placeholder="e.g., Mathematics"
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_gender">Gender</Label>
+                                <Select value={registerTeacherForm.data.gender} onValueChange={(value) => registerTeacherForm.setData('gender', value)}>
+                                    <SelectTrigger id="rt_gender">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="female">Female</SelectItem>
+                                        <SelectItem value="male">Male</SelectItem>
+                                        <SelectItem value="other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_phone">Contact Number</Label>
+                                <Input
+                                    id="rt_phone"
+                                    value={registerTeacherForm.data.phone}
+                                    onChange={(e) => registerTeacherForm.setData('phone', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_email">Email *</Label>
+                                <Input
+                                    id="rt_email"
+                                    type="email"
+                                    value={registerTeacherForm.data.email}
+                                    onChange={(e) => registerTeacherForm.setData('email', e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="md:col-span-2">
+                                <Label htmlFor="rt_address">Address</Label>
+                                <Textarea
+                                    id="rt_address"
+                                    value={registerTeacherForm.data.address}
+                                    onChange={(e) => registerTeacherForm.setData('address', e.target.value)}
+                                    placeholder="Street, City, Province"
+                                    rows={2}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_department">Department *</Label>
+                                <Select
+                                    value={registerTeacherForm.data.department_id}
+                                    onValueChange={(value) => registerTeacherForm.setData('department_id', value)}
+                                >
+                                    <SelectTrigger id="rt_department">
+                                        <SelectValue placeholder="Select department" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {departments.map((department) => (
+                                            <SelectItem key={department.id} value={department.id.toString()}>
+                                                {department.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_employment">Employment Type</Label>
+                                <Select
+                                    value={registerTeacherForm.data.employment_status}
+                                    onValueChange={(value) => registerTeacherForm.setData('employment_status', value)}
+                                >
+                                    <SelectTrigger id="rt_employment">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="full-time">Full Time</SelectItem>
+                                        <SelectItem value="part-time">Part Time</SelectItem>
+                                        <SelectItem value="contractual">Contractual</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div>
+                                <Label htmlFor="rt_section">Advisory Section (optional)</Label>
+                                <Select
+                                    value={registerTeacherForm.data.section_id || 'none'}
+                                    onValueChange={(value) => registerTeacherForm.setData('section_id', value === 'none' ? '' : value)}
+                                >
+                                    <SelectTrigger id="rt_section">
+                                        <SelectValue placeholder="Select section" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="none">None</SelectItem>
+                                        {sections
+                                            .filter((sectionOption) => sectionOption.teacher_id === null)
+                                            .map((sectionOption) => (
+                                                <SelectItem key={sectionOption.id} value={sectionOption.id.toString()}>
+                                                    {sectionOption.name}
+                                                </SelectItem>
+                                            ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex items-center justify-between rounded-lg border p-3">
+                                <Label htmlFor="rt_is_active">Status</Label>
+                                <Switch
+                                    id="rt_is_active"
+                                    checked={registerTeacherForm.data.is_active}
+                                    onCheckedChange={(checked) => registerTeacherForm.setData('is_active', checked)}
+                                />
+                            </div>
+                        </div>
+
+                        {subjectForTeacher && (
+                            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                                New teacher will be auto-assigned to subject: <span className="font-medium text-foreground">{subjectForTeacher.code} - {subjectForTeacher.name}</span>
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={() => setRegisterTeacherOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={registerTeacherForm.processing}>
+                                {registerTeacherForm.processing ? 'Creating...' : 'Create Teacher'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
                 </DialogContent>
             </Dialog>
         </RegistrarLayout>
