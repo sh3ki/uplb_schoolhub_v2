@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Student;
 use App\Models\Section;
 use App\Models\Subject;
@@ -165,10 +166,47 @@ class StudentController extends Controller
      */
     public function show(Student $student)
     {
-        $student->load(['department:id,name,classification', 'requirements.requirement']);
+        $currentSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $student->load([
+            'department:id,name,classification',
+            'requirements.requirement.category:id,name',
+            'studentSubjects.subject:id,code,name,units',
+        ]);
+
+        $gradeRows = $student->studentSubjects
+            ->sortBy([
+                ['school_year', 'desc'],
+                ['semester', 'asc'],
+            ])
+            ->values()
+            ->map(fn ($enrollment) => [
+                'id' => $enrollment->id,
+                'subject_code' => $enrollment->subject?->code,
+                'subject_name' => $enrollment->subject?->name,
+                'units' => $enrollment->subject?->units,
+                'semester' => $enrollment->semester,
+                'school_year' => $enrollment->school_year,
+                'status' => $enrollment->status,
+                'grade' => $enrollment->grade,
+                'draft_grade' => $enrollment->draft_grade,
+                'is_grade_posted' => $enrollment->is_grade_posted,
+                'grade_posted_at' => optional($enrollment->grade_posted_at)?->toDateTimeString(),
+            ]);
+
+        $summary = [
+            'total_subjects' => $gradeRows->count(),
+            'posted_subjects' => $gradeRows->where('is_grade_posted', true)->count(),
+            'draft_subjects' => $gradeRows->where('is_grade_posted', false)->count(),
+            'passed_subjects' => $gradeRows->where('status', 'completed')->count(),
+            'failed_subjects' => $gradeRows->where('status', 'failed')->count(),
+        ];
 
         return Inertia::render('teacher/students/show', [
             'student' => $student,
+            'currentSchoolYear' => $currentSchoolYear,
+            'gradeRows' => $gradeRows,
+            'summary' => $summary,
         ]);
     }
 }
