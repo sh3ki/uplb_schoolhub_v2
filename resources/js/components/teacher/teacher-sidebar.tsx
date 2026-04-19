@@ -3,6 +3,8 @@ import {
     BookOpen,
     Calendar,
     ClipboardList,
+    FolderOpen,
+    Files,
     GraduationCap,
     LayoutGrid,
     Megaphone,
@@ -29,6 +31,7 @@ interface AppSettings {
     primary_color?: string;
     sidebar_color?: string;
     sidebar_font_size?: string;
+    elms_enabled?: boolean;
 }
 
 export function TeacherSidebar() {
@@ -37,6 +40,7 @@ export function TeacherSidebar() {
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
     const sidebarFontSize = appSettings?.sidebar_font_size ? `${appSettings.sidebar_font_size}px` : undefined;
+    const elmsEnabled = appSettings?.elms_enabled ?? true;
 
     const mainNavItems: NavItem[] = [
         {
@@ -66,25 +70,56 @@ export function TeacherSidebar() {
             icon: BookOpen,
         },
         {
-            title: 'Quizzes',
-            href: '/teacher/quizzes',
-            icon: FileQuestion,
-        },
-        {
             title: 'Schedules',
             href: '/teacher/schedules',
             icon: Calendar,
-        },
-        {
-            title: 'Grades',
-            href: '/teacher/grades',
-            icon: ClipboardList,
         },
         {
             title: 'Attendance',
             href: '/teacher/attendance',
             icon: Calendar,
         },
+        ...(elmsEnabled ? [
+            {
+                title: 'My Materials',
+                href: '/teacher/materials',
+                icon: FolderOpen,
+            },
+            {
+                title: 'Files',
+                href: '/teacher/files',
+                icon: Files,
+            },
+            {
+                title: 'My Subject Classes',
+                href: '/teacher/subject-classes',
+                icon: Users,
+            },
+            {
+                title: 'Quizzes & Exams',
+                href: '/teacher/quizzes',
+                icon: FileQuestion,
+            },
+            {
+                title: 'Grades',
+                href: '/teacher/grades',
+                icon: ClipboardList,
+            },
+            {
+                title: 'Advisory Functions',
+                icon: GraduationCap,
+                items: [
+                    {
+                        title: 'Advisory Dashboard',
+                        href: '/teacher/advisory/dashboard',
+                    },
+                    {
+                        title: 'Student Profiles',
+                        href: '/teacher/advisory/student-profiles',
+                    },
+                ],
+            },
+        ] : []),
         {
             title: 'My Profile',
             href: '/teacher/profile',
