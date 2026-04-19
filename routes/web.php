@@ -243,6 +243,7 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
         'index', 'store', 'update', 'destroy'
     ]);
     Route::post('subjects/{subject}/assign-teachers', [\App\Http\Controllers\Registrar\RegistrarSubjectController::class, 'assignTeachers'])->name('registrar.subjects.assign-teachers');
+    Route::post('subjects/register-teacher', [\App\Http\Controllers\Registrar\RegistrarSubjectController::class, 'storeTeacher'])->name('registrar.subjects.register-teacher');
 
     // Student Subjects (College curriculum tracking)
     Route::get('students/{student}/subjects', [\App\Http\Controllers\Registrar\StudentSubjectController::class, 'index'])->name('students.subjects.index');
