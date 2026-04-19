@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Department;
 use App\Models\DocumentFeeItem;
 use App\Models\FeeCategory;
+use App\Models\Subject;
 use App\Models\FeeItem;
 use App\Models\FeeItemAssignment;
 use App\Models\GrantRecipient;
@@ -198,6 +199,29 @@ class FeeManagementController extends Controller
             ->orderBy('school_year', 'desc')
             ->pluck('school_year');
 
+        // College subjects grouped for Subject Fees tab
+        $subjectFees = Subject::with([
+            'department:id,name',
+            'programs:id,name,department_id',
+            'yearLevel:id,name,level_number',
+        ])
+        ->where('classification', 'College')
+        ->where('is_active', true)
+        ->orderBy('department_id')
+        ->orderBy('year_level_id')
+        ->orderBy('code')
+        ->get()
+        ->map(fn ($s) => [
+            'id'            => $s->id,
+            'code'          => $s->code,
+            'name'          => $s->name,
+            'department'    => $s->department?->name ?? '—',
+            'program'       => $s->programs->first()?->name ?? '—',
+            'year_level'    => $s->yearLevel?->name ?? '—',
+            'level_number'  => $s->yearLevel?->level_number ?? 0,
+            'selling_price' => (float) ($s->selling_price ?? 0),
+        ]);
+
         return Inertia::render($this->viewPrefix() . '/fee-management/index', [
             'categories' => $categories,
             'totals' => $totals,
@@ -210,6 +234,7 @@ class FeeManagementController extends Controller
             'tab' => $tab,
             'studentCounts' => $studentCounts,
             'studentSchoolYears' => $studentSchoolYears,
+            'subjectFees' => $subjectFees,
         ]);
     }
 
