@@ -1,10 +1,10 @@
 import { Head, router } from '@inertiajs/react';
-import { 
-    ArrowLeft, 
-    Edit, 
-    FileText, 
-    Printer, 
-    Archive, 
+import {
+    ArrowLeft,
+    Edit,
+    FileText,
+    Printer,
+    Archive,
     CheckCircle2,
     Clock,
     AlertCircle,
@@ -22,6 +22,7 @@ import {
     MinusCircle,
     ChevronRight,
     RefreshCcw,
+    ClipboardList,
 } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -161,6 +162,30 @@ interface CollegeSubjects {
     by_year_level: Record<string, SubjectRow[]>;
 }
 
+interface EnrollmentRequestSubject {
+    id: number;
+    code: string;
+    name: string;
+    units: number;
+    type: string;
+    selling_price: number;
+}
+
+interface EnrollmentRequestRow {
+    id: number;
+    school_year: string;
+    semester: number;
+    status: string;
+    registrar_notes: string | null;
+    accounting_notes: string | null;
+    total_amount: number | null;
+    created_at: string;
+    registrar_reviewed_at: string | null;
+    accounting_reviewed_at: string | null;
+    completed_at: string | null;
+    subjects: EnrollmentRequestSubject[];
+}
+
 interface Student {
     id: number;
     first_name: string;
@@ -221,9 +246,10 @@ interface Props {
     enrollmentHistories: EnrollmentHistory[];
     collegeSubjects?: CollegeSubjects | null;
     currentSchoolYear: string;
+    enrollmentRequests?: EnrollmentRequestRow[];
 }
 
-export default function StudentShow({ student, requirementsCompletion, emailVerified, enrollmentClearance, departments, programs, yearLevels, sections, actionLogs = [], enrollmentHistories = [], collegeSubjects, currentSchoolYear }: Props) {
+export default function StudentShow({ student, requirementsCompletion, emailVerified, enrollmentClearance, departments, programs, yearLevels, sections, actionLogs = [], enrollmentHistories = [], collegeSubjects, currentSchoolYear, enrollmentRequests = [] }: Props) {
     const [showEditModal, setShowEditModal] = useState(false);
     const [showEnrollmentHistoryModal, setShowEnrollmentHistoryModal] = useState(false);
     const [showReEnrollDialog, setShowReEnrollDialog] = useState(false);
@@ -263,6 +289,39 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
             return d >= from && d <= to;
         });
     }, [actionLogs, histSyFilter]);
+
+    // Enrollment request actions
+    const [erDisapproveDialog, setErDisapproveDialog] = useState<EnrollmentRequestRow | null>(null);
+    const [erNotes, setErNotes] = useState('');
+    const [erActing, setErActing] = useState(false);
+
+    const handleErApprove = (er: EnrollmentRequestRow) => {
+        setErActing(true);
+        router.post(`/registrar/enrollment-requests/${er.id}/approve`, {}, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Enrollment request approved.'); setErActing(false); },
+            onError: () => { toast.error('Failed to approve.'); setErActing(false); },
+        });
+    };
+
+    const handleErDisapproveSubmit = () => {
+        if (!erDisapproveDialog) return;
+        setErActing(true);
+        router.post(`/registrar/enrollment-requests/${erDisapproveDialog.id}/disapprove`, { notes: erNotes }, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Enrollment request rejected.'); setErDisapproveDialog(null); setErNotes(''); setErActing(false); },
+            onError: () => { toast.error('Failed to reject.'); setErActing(false); },
+        });
+    };
+
+    const handleErComplete = (er: EnrollmentRequestRow) => {
+        setErActing(true);
+        router.post(`/registrar/enrollment-requests/${er.id}/complete`, {}, {
+            preserveScroll: true,
+            onSuccess: () => { toast.success('Enrollment completed!'); setErActing(false); },
+            onError: () => { toast.error('Failed to complete enrollment.'); setErActing(false); },
+        });
+    };
 
     // Notes dialog state
     const [showNotesDialog, setShowNotesDialog] = useState(false);
@@ -612,7 +671,7 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
 
                 {/* Tabs Section */}
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className={`grid w-full ${collegeSubjects ? 'grid-cols-6' : 'grid-cols-5'}`}>
+                    <TabsList className={`grid w-full ${collegeSubjects ? 'grid-cols-7' : 'grid-cols-6'}`}>
                         <TabsTrigger value="requirements">Submitted Requirements</TabsTrigger>
                         <TabsTrigger value="information">Student Information</TabsTrigger>
                         <TabsTrigger value="schedules">Schedules & Grades</TabsTrigger>
@@ -622,6 +681,15 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                                 Subjects
                             </TabsTrigger>
                         )}
+                        <TabsTrigger value="enrollment-requests" className="flex items-center gap-1">
+                            <ClipboardList className="h-3.5 w-3.5" />
+                            Enrollment Requests
+                            {enrollmentRequests.filter(er => er.status === 'pending_registrar' || er.status === 'approved_accounting').length > 0 && (
+                                <span className="ml-1 rounded-full bg-primary text-primary-foreground text-xs px-1.5 py-0.5 leading-none">
+                                    {enrollmentRequests.filter(er => er.status === 'pending_registrar' || er.status === 'approved_accounting').length}
+                                </span>
+                            )}
+                        </TabsTrigger>
                         <TabsTrigger value="history">Transaction History</TabsTrigger>
                         <TabsTrigger value="notes">Notes</TabsTrigger>
                     </TabsList>
@@ -1085,6 +1153,124 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                     </TabsContent>
                     )}
 
+                    {/* Enrollment Requests Tab */}
+                    <TabsContent value="enrollment-requests" className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-semibold">Enrollment Requests</h3>
+                        </div>
+                        {enrollmentRequests.length === 0 ? (
+                            <Card>
+                                <CardContent className="py-12 text-center text-muted-foreground">
+                                    <ClipboardList className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                                    <p>No enrollment requests found.</p>
+                                </CardContent>
+                            </Card>
+                        ) : (
+                            <div className="space-y-4">
+                                {enrollmentRequests.map(er => {
+                                    const semLabel: Record<number, string> = { 1: '1st Semester', 2: '2nd Semester', 3: 'Summer' };
+                                    const statusMap: Record<string, { label: string; className: string }> = {
+                                        pending_registrar:   { label: 'Pending Registrar',   className: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' },
+                                        pending_accounting:  { label: 'Pending Accounting',  className: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' },
+                                        approved_accounting: { label: 'Approved by Accounting', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+                                        rejected_registrar:  { label: 'Rejected by Registrar',  className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+                                        rejected_accounting: { label: 'Rejected by Accounting', className: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' },
+                                        completed:           { label: 'Completed', className: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' },
+                                    };
+                                    const cfg = statusMap[er.status] ?? { label: er.status, className: '' };
+                                    const totalPrice = er.subjects.reduce((s, sub) => s + sub.selling_price, 0);
+                                    const formatPeso = (v: number) => new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
+
+                                    return (
+                                        <Card key={er.id}>
+                                            <CardHeader className="pb-3">
+                                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                                    <div>
+                                                        <CardTitle className="text-base">
+                                                            {er.school_year} — {semLabel[er.semester] ?? `Semester ${er.semester}`}
+                                                        </CardTitle>
+                                                        <CardDescription className="mt-0.5">
+                                                            Submitted {new Date(er.created_at).toLocaleDateString()}
+                                                        </CardDescription>
+                                                    </div>
+                                                    <Badge variant="secondary" className={cfg.className}>{cfg.label}</Badge>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="space-y-3">
+                                                {/* Subjects list */}
+                                                <div className="rounded-md border">
+                                                    <Table>
+                                                        <TableHeader>
+                                                            <TableRow>
+                                                                <TableHead>Code</TableHead>
+                                                                <TableHead>Subject</TableHead>
+                                                                <TableHead className="text-center">Units</TableHead>
+                                                                <TableHead className="text-right">Selling Price</TableHead>
+                                                            </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                            {er.subjects.map(s => (
+                                                                <TableRow key={s.id}>
+                                                                    <TableCell className="font-mono text-sm">{s.code}</TableCell>
+                                                                    <TableCell>{s.name}</TableCell>
+                                                                    <TableCell className="text-center">{s.units}</TableCell>
+                                                                    <TableCell className="text-right">{s.selling_price > 0 ? formatPeso(s.selling_price) : '—'}</TableCell>
+                                                                </TableRow>
+                                                            ))}
+                                                        </TableBody>
+                                                    </Table>
+                                                </div>
+
+                                                {totalPrice > 0 && (
+                                                    <div className="flex justify-end text-sm font-semibold">
+                                                        Total: {formatPeso(totalPrice)}
+                                                    </div>
+                                                )}
+
+                                                {/* Notes */}
+                                                {er.registrar_notes && (
+                                                    <div className="rounded-md bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 text-sm">
+                                                        <span className="font-medium text-red-700 dark:text-red-400">Registrar note: </span>
+                                                        {er.registrar_notes}
+                                                    </div>
+                                                )}
+                                                {er.accounting_notes && (
+                                                    <div className="rounded-md bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 p-3 text-sm">
+                                                        <span className="font-medium text-red-700 dark:text-red-400">Accounting note: </span>
+                                                        {er.accounting_notes}
+                                                    </div>
+                                                )}
+
+                                                {/* Actions */}
+                                                {er.status === 'pending_registrar' && (
+                                                    <div className="flex gap-2 pt-1">
+                                                        <Button size="sm" onClick={() => handleErApprove(er)} disabled={erActing}>
+                                                            <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                                            Approve
+                                                        </Button>
+                                                        <Button size="sm" variant="destructive" onClick={() => { setErDisapproveDialog(er); setErNotes(''); }} disabled={erActing}>
+                                                            <XCircle className="h-3.5 w-3.5 mr-1" />
+                                                            Disapprove
+                                                        </Button>
+                                                    </div>
+                                                )}
+
+                                                {er.status === 'approved_accounting' && (
+                                                    <div className="flex gap-2 pt-1">
+                                                        <Button size="sm" onClick={() => handleErComplete(er)} disabled={erActing}>
+                                                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                                                            Complete Enrollment
+                                                        </Button>
+                                                    </div>
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </TabsContent>
+
                     {/* Transaction History Tab */}
                     <TabsContent value="history" className="space-y-6">
                         <div className="flex items-center justify-between">
@@ -1250,6 +1436,35 @@ export default function StudentShow({ student, requirementsCompletion, emailVeri
                         </Button>
                         <Button onClick={handleAddNote} disabled={addingNote || !newNoteText.trim()}>
                             {addingNote ? 'Saving...' : 'Add Note'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Enrollment Request Disapprove Dialog */}
+            <Dialog open={!!erDisapproveDialog} onOpenChange={(o) => { if (!o) setErDisapproveDialog(null); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Disapprove Enrollment Request</DialogTitle>
+                        <DialogDescription>
+                            Provide a reason that will be visible to the student.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-2">
+                        <Label htmlFor="er-notes">Notes *</Label>
+                        <Textarea
+                            id="er-notes"
+                            value={erNotes}
+                            onChange={(e) => setErNotes(e.target.value)}
+                            placeholder="Enter reason for disapproval..."
+                            rows={3}
+                            className="mt-1"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setErDisapproveDialog(null)}>Cancel</Button>
+                        <Button variant="destructive" onClick={handleErDisapproveSubmit} disabled={erActing || !erNotes.trim()}>
+                            {erActing ? 'Rejecting...' : 'Confirm Rejection'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
