@@ -209,7 +209,11 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                         </tr>
                                     ) : (
                                         students.data.map((student) => (
-                                            <tr key={student.id} className="border-b hover:bg-gray-50">
+                                            <tr
+                                                key={student.id}
+                                                className="cursor-pointer border-b hover:bg-gray-50"
+                                                onClick={() => router.visit(`/teacher/students/${student.id}`)}
+                                            >
                                                 <td className="p-3 font-mono text-sm">{student.lrn}</td>
                                                 <td className="p-3 font-medium">
                                                     <div className="flex items-center gap-2">
@@ -254,7 +258,10 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                                         size="sm"
                                                         variant="outline"
                                                         disabled={!getEnrollment(student)}
-                                                        onClick={() => openPostDialog(student)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            openPostDialog(student);
+                                                        }}
                                                     >
                                                         <UploadCloud className="mr-1 h-4 w-4" />
                                                         Open Grade Sheet
