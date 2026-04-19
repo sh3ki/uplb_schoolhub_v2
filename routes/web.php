@@ -88,7 +88,9 @@ if (!function_exists('registerAnnouncementsRoute')) {
     function registerAnnouncementsRoute(): void {
         Route::get('announcements', [App\Http\Controllers\AnnouncementViewController::class, 'index'])->name('announcements.index');
         Route::post('announcements', [App\Http\Controllers\AnnouncementViewController::class, 'store'])->name('announcements.store');
+        Route::patch('announcements/{announcement}', [App\Http\Controllers\AnnouncementViewController::class, 'update'])->name('announcements.update');
         Route::post('announcements/mark-read', [App\Http\Controllers\AnnouncementViewController::class, 'markRead'])->name('announcements.mark-read');
+        Route::post('announcements/{announcement}/mark-read', [App\Http\Controllers\AnnouncementViewController::class, 'markSingleRead'])->name('announcements.mark-single-read');
     }
 }
 
