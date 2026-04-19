@@ -37,9 +37,9 @@ class GradeController extends Controller
                     'semester'        => $enrollment->semester,
                     'school_year'     => $enrollment->school_year,
                     'year_level'      => $enrollment->subject?->yearLevel?->name ?? 'N/A',
-                    'grade'           => $enrollment->grade,
-                    'status'          => $enrollment->status,
-                    'is_passed'       => $enrollment->status === 'completed',
+                    'grade'           => $enrollment->is_grade_posted ? $enrollment->grade : null,
+                    'status'          => $enrollment->is_grade_posted ? $enrollment->status : 'active',
+                    'is_passed'       => $enrollment->is_grade_posted && $enrollment->status === 'completed',
                 ];
             });
 
