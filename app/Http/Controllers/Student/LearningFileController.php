@@ -7,6 +7,7 @@ use App\Models\AppSetting;
 use App\Models\LearningMaterial;
 use App\Models\StudentSubject;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -51,7 +52,7 @@ class LearningFileController extends Controller
                 'title' => $file->title,
                 'description' => $file->description,
                 'original_filename' => $file->original_filename,
-                'file_url' => route('storage.show', ['path' => $file->file_path]),
+                'file_url' => $this->resolveFileUrl($file->file_path),
                 'teacher_name' => $file->teacher?->full_name ?? 'Teacher',
                 'target_label' => $file->visibility === 'subject'
                     ? (($file->subject?->code ?? 'Subject') . ' - ' . ($file->subject?->name ?? 'Unknown'))
@@ -62,5 +63,16 @@ class LearningFileController extends Controller
         return Inertia::render('student/files/index', [
             'files' => $files,
         ]);
+    }
+
+    private function resolveFileUrl(string $path): string
+    {
+        $normalizedPath = ltrim($path, '/');
+
+        if (Route::has('storage.show')) {
+            return route('storage.show', ['path' => $normalizedPath]);
+        }
+
+        return url('storage/' . $normalizedPath);
     }
 }
