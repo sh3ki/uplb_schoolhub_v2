@@ -264,19 +264,8 @@ class HandleInertiaRequests extends Middleware
         }
 
         return Announcement::query()
-            ->where('is_active', true)
-            ->where(function ($query) {
-                $query->whereNull('published_at')
-                    ->orWhere('published_at', '<=', now());
-            })
-            ->where(function ($query) {
-                $query->whereNull('expires_at')
-                    ->orWhere('expires_at', '>', now());
-            })
-            ->forRole($user->role)
-            ->when($user->announcements_read_at, function ($query) use ($user) {
-                $query->where('created_at', '>', $user->announcements_read_at);
-            })
+            ->visibleToUser($user)
+            ->unreadForUser($user)
             ->count();
     }
 
