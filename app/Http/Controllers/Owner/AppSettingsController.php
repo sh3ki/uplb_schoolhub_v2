@@ -51,6 +51,7 @@ class AppSettingsController extends Controller
                 'college_enrollment_open'   => (bool) $settings->college_enrollment_open,
                 'college_enrollment_start'  => $settings->college_enrollment_start?->format('Y-m-d'),
                 'college_enrollment_end'    => $settings->college_enrollment_end?->format('Y-m-d'),
+                'elms_enabled'              => (bool) ($settings->elms_enabled ?? true),
                 // Landing page
                 'hero_title'                => $settings->hero_title,
                 'hero_subtitle'             => $settings->hero_subtitle,
@@ -152,6 +153,19 @@ class AppSettingsController extends Controller
         $settings->save();
 
         return redirect()->back()->with('success', 'Enrollment period settings updated.');
+    }
+
+    public function updateElmsSetting(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'elms_enabled' => 'required|boolean',
+        ]);
+
+        $settings = AppSetting::current();
+        $settings->elms_enabled = (bool) $request->boolean('elms_enabled');
+        $settings->save();
+
+        return redirect()->back()->with('success', 'E-LMS access setting updated.');
     }
 
     public function update(Request $request): RedirectResponse
