@@ -23,6 +23,7 @@ interface Material {
     description: string | null;
     original_filename: string;
     file_url: string;
+    download_url: string;
     file_size_label: string;
     created_at: string | null;
 }
@@ -210,7 +211,7 @@ export default function TeacherMaterialsPage({ materials, filters }: Props) {
                                         <span className="text-xs text-muted-foreground">{material.created_at ?? 'N/A'}</span>
                                         <div className="flex items-center gap-2">
                                             <Button size="icon" variant="outline" asChild>
-                                                <a href={material.file_url} title="Download / Open">
+                                                <a href={material.download_url} download={material.original_filename} title="Download / Open">
                                                     <Download className="h-4 w-4" />
                                                 </a>
                                             </Button>
