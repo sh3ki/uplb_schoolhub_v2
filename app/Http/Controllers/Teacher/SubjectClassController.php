@@ -18,7 +18,7 @@ class SubjectClassController extends Controller
     public function index(Request $request): Response
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $currentSchoolYear = AppSetting::current()->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
@@ -85,7 +85,7 @@ class SubjectClassController extends Controller
     public function postGrade(Request $request): RedirectResponse
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $validated = $request->validate([
             'student_subject_id' => 'required|integer|exists:student_subjects,id',
