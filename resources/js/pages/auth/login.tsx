@@ -1,5 +1,6 @@
 import { Form, Head, usePage } from '@inertiajs/react';
-import { GraduationCap } from 'lucide-react';
+import { Eye, EyeOff, GraduationCap } from 'lucide-react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import TextLink from '@/components/text-link';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export default function Login({
     const { appSettings } = usePage<{ appSettings?: AppSettings }>().props;
     const logoUrl = appSettings?.logo_url;
     const primaryColor = appSettings?.primary_color || '#2563eb';
+    const [showPassword, setShowPassword] = useState(false);
 
     return (
         <AuthLayout
@@ -96,16 +98,27 @@ export default function Login({
                                         </TextLink>
                                     )}
                                 </div>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    required
-                                    tabIndex={2}
-                                    autoComplete="current-password"
-                                    placeholder="Enter your password"
-                                    className="h-11"
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        required
+                                        tabIndex={2}
+                                        autoComplete="current-password"
+                                        placeholder="Enter your password"
+                                        className="h-11 pr-11"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword((prev) => !prev)}
+                                        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-foreground"
+                                        tabIndex={-1}
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </button>
+                                </div>
                                 <InputError message={errors.password} />
                             </div>
 
