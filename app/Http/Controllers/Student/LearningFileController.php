@@ -26,7 +26,15 @@ class LearningFileController extends Controller
         $subjectIds = StudentSubject::query()
             ->where('student_id', $student->id)
             ->where('school_year', $currentSchoolYear)
+            ->whereIn('status', ['enrolled', 'completed', 'failed'])
             ->pluck('subject_id');
+
+        // Fallback for legacy records that may not have current SY rows in student_subjects.
+        if ($subjectIds->isEmpty()) {
+            $subjectIds = $student->subjectsQuery()->pluck('subjects.id');
+        }
+
+        $subjectIds = $subjectIds->filter()->unique()->values();
 
         $files = LearningMaterial::query()
             ->with(['teacher:id,first_name,last_name,middle_name,suffix', 'subject:id,code,name', 'section:id,name'])
