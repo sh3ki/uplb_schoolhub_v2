@@ -1,5 +1,5 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, BookOpen, Users, Eye } from 'lucide-react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft, BookOpen, Users, Eye, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
@@ -7,7 +7,11 @@ import { SearchBar } from '@/components/filters/search-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
+import { Textarea } from '@/components/ui/textarea';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -37,6 +41,7 @@ interface Subject {
 
 interface Student {
     id: number;
+    student_subject_id: number;
     first_name: string;
     last_name: string;
     middle_name?: string | null;
@@ -46,6 +51,9 @@ interface Student {
     year_level?: string;
     section?: string;
     enrollment_status: string;
+    subject_status: string;
+    grade: number | null;
+    gender?: string | null;
     student_photo_url?: string | null;
     department?: Department | null;
 }
@@ -62,10 +70,13 @@ interface Props {
         to: number;
         links: any[];
     };
+    currentSchoolYear: string;
     sections: string[];
     filters: {
         search?: string;
         section?: string;
+        gender?: string;
+        subject_status?: string;
     };
 }
 
@@ -87,9 +98,19 @@ const getFullName = (student: Student) => {
     return `${student.last_name}, ${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ''}${student.suffix ? ` ${student.suffix}` : ''}`;
 };
 
-export default function SubjectStudents({ subject, students, sections, filters }: Props) {
+export default function SubjectStudents({ subject, students, currentSchoolYear, sections, filters }: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [section, setSection] = useState(filters.section || 'all');
+    const [gender, setGender] = useState(filters.gender || 'all');
+    const [subjectStatus, setSubjectStatus] = useState(filters.subject_status || 'all');
+    const [postOpen, setPostOpen] = useState(false);
+    const [activeStudent, setActiveStudent] = useState<Student | null>(null);
+
+    const postForm = useForm({
+        student_subject_id: 0,
+        grade: '',
+        notes: '',
+    });
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Subjects', href: '/teacher/subjects' },
@@ -108,21 +129,53 @@ export default function SubjectStudents({ subject, students, sections, filters }
 
     const handleSearchChange = (value: string) => {
         setSearch(value);
-        navigate({ search: value, section });
+        navigate({ search: value, section, gender, subject_status: subjectStatus });
     };
 
     const handleSectionChange = (value: string) => {
         setSection(value);
-        navigate({ search, section: value });
+        navigate({ search, section: value, gender, subject_status: subjectStatus });
+    };
+
+    const handleGenderChange = (value: string) => {
+        setGender(value);
+        navigate({ search, section, gender: value, subject_status: subjectStatus });
+    };
+
+    const handleSubjectStatusChange = (value: string) => {
+        setSubjectStatus(value);
+        navigate({ search, section, gender, subject_status: value });
     };
 
     const resetFilters = () => {
         setSearch('');
         setSection('all');
+        setGender('all');
+        setSubjectStatus('all');
         router.get(`/teacher/subjects/${subject.id}/students`);
     };
 
-    const hasActiveFilters = !!(search || section !== 'all');
+    const hasActiveFilters = !!(search || section !== 'all' || gender !== 'all' || subjectStatus !== 'all');
+
+    const openPostDialog = (student: Student) => {
+        setActiveStudent(student);
+        postForm.setData({
+            student_subject_id: student.student_subject_id,
+            grade: student.grade !== null ? student.grade.toString() : '',
+            notes: '',
+        });
+        setPostOpen(true);
+    };
+
+    const submitPost = () => {
+        postForm.post('/teacher/subject-classes/post-grade', {
+            preserveScroll: true,
+            onSuccess: () => {
+                setPostOpen(false);
+                setActiveStudent(null);
+            },
+        });
+    };
 
     return (
         <TeacherLayout breadcrumbs={breadcrumbs}>
@@ -170,6 +223,7 @@ export default function SubjectStudents({ subject, students, sections, filters }
                         <div>
                             <p className="text-sm text-muted-foreground">Total Students</p>
                             <p className="text-2xl font-bold">{students.total}</p>
+                            <p className="text-xs text-muted-foreground">School Year: {currentSchoolYear}</p>
                         </div>
                     </CardContent>
                 </Card>
@@ -193,6 +247,28 @@ export default function SubjectStudents({ subject, students, sections, filters }
                                 options={sections.map(s => ({ value: s, label: s }))}
                                 placeholder="All Sections"
                             />
+                            <FilterDropdown
+                                label="Gender"
+                                value={gender}
+                                onChange={handleGenderChange}
+                                options={[
+                                    { value: 'male', label: 'Male' },
+                                    { value: 'female', label: 'Female' },
+                                ]}
+                                placeholder="All Gender"
+                            />
+                            <FilterDropdown
+                                label="Subject Status"
+                                value={subjectStatus}
+                                onChange={handleSubjectStatusChange}
+                                options={[
+                                    { value: 'enrolled', label: 'Enrolled' },
+                                    { value: 'completed', label: 'Completed' },
+                                    { value: 'failed', label: 'Failed' },
+                                    { value: 'dropped', label: 'Dropped' },
+                                ]}
+                                placeholder="All Status"
+                            />
                         </FilterBar>
 
                         <div className="mt-6 overflow-x-auto">
@@ -203,14 +279,15 @@ export default function SubjectStudents({ subject, students, sections, filters }
                                         <th className="p-3 text-left font-semibold">Student No.</th>
                                         <th className="p-3 text-left font-semibold">Year Level</th>
                                         <th className="p-3 text-left font-semibold">Section</th>
-                                        <th className="p-3 text-center font-semibold">Status</th>
+                                            <th className="p-3 text-center font-semibold">Status</th>
+                                            <th className="p-3 text-center font-semibold">Grade</th>
                                         <th className="p-3 text-center font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {students.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={6} className="p-8 text-center text-gray-500">
+                                                <td colSpan={7} className="p-8 text-center text-gray-500">
                                                 No students found for this subject.
                                             </td>
                                         </tr>
@@ -239,14 +316,25 @@ export default function SubjectStudents({ subject, students, sections, filters }
                                                 <td className="p-3 text-center">
                                                     {getEnrollmentStatusBadge(student.enrollment_status)}
                                                 </td>
+                                                <td className="p-3 text-center font-medium">{student.grade ?? '-'}</td>
                                                 <td className="p-3 text-center">
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost"
-                                                        onClick={() => router.visit(`/teacher/students/${student.id}`)}
-                                                    >
-                                                        <Eye className="h-4 w-4" />
-                                                    </Button>
+                                                    <div className="flex items-center justify-center gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => router.visit(`/teacher/students/${student.id}`)}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => openPostDialog(student)}
+                                                        >
+                                                            <UploadCloud className="mr-1 h-4 w-4" />
+                                                            Post
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -259,6 +347,52 @@ export default function SubjectStudents({ subject, students, sections, filters }
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={postOpen} onOpenChange={setPostOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Post Grade</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="rounded-lg border p-3 text-sm">
+                            <p className="font-medium">
+                                {activeStudent ? `${activeStudent.last_name}, ${activeStudent.first_name}` : ''}
+                            </p>
+                            <p className="text-muted-foreground">{activeStudent?.lrn || 'No student number'}</p>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="post_grade">Grade</Label>
+                            <Input
+                                id="post_grade"
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={postForm.data.grade}
+                                onChange={(e) => postForm.setData('grade', e.target.value)}
+                                placeholder="0 to 100"
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="post_notes">Notes</Label>
+                            <Textarea
+                                id="post_notes"
+                                rows={3}
+                                value={postForm.data.notes}
+                                onChange={(e) => postForm.setData('notes', e.target.value)}
+                                placeholder="Optional note for this grade posting"
+                            />
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPostOpen(false)}>Cancel</Button>
+                        <Button onClick={submitPost} disabled={postForm.processing}>Post Grade</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </TeacherLayout>
     );
 }
