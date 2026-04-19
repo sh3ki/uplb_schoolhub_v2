@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,6 +62,7 @@ class LearningMaterialController extends Controller
                 'description' => $material->description,
                 'original_filename' => $material->original_filename,
                 'file_url' => $this->resolveFileUrl($material->file_path),
+                'download_url' => route('teacher.materials.download', $material),
                 'file_size_label' => $this->humanFileSize($material->file_size),
                 'created_at' => $material->created_at?->format('M d, Y h:i A'),
             ]);
@@ -123,6 +125,7 @@ class LearningMaterialController extends Controller
                 'description' => $file->description,
                 'original_filename' => $file->original_filename,
                 'file_url' => $this->resolveFileUrl($file->file_path),
+                'download_url' => route('teacher.files.download', $file),
                 'target_type' => $file->visibility,
                 'target_label' => $file->visibility === 'subject'
                     ? (($file->subject?->code ?? 'Subject') . ' - ' . ($file->subject?->name ?? 'Unknown'))
@@ -263,6 +266,20 @@ class LearningMaterialController extends Controller
         $material->delete();
 
         return back()->with('success', 'File removed successfully.');
+    }
+
+    public function download(LearningMaterial $material): BinaryFileResponse
+    {
+        $teacher = Auth::user()?->teacher;
+        abort_if(!$teacher, 403);
+
+        abort_unless($material->teacher_id === $teacher->id, 403);
+        abort_unless(Storage::disk('public')->exists($material->file_path), 404);
+
+        return Storage::disk('public')->download(
+            $material->file_path,
+            $material->original_filename
+        );
     }
 
     private function teacherSubjects(int $teacherId)
