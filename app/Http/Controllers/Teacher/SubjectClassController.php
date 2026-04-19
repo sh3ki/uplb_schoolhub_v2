@@ -89,8 +89,23 @@ class SubjectClassController extends Controller
 
         $validated = $request->validate([
             'student_subject_id' => 'required|integer|exists:student_subjects,id',
-            'grade' => 'required|numeric|min:0|max:100',
+            'grade' => 'nullable|numeric|min:0|max:100',
             'notes' => 'nullable|string|max:1000',
+            'action' => 'nullable|in:save,post',
+            'breakdown' => 'nullable|array',
+            'breakdown.written_works' => 'nullable|array',
+            'breakdown.written_works.*.title' => 'nullable|string|max:255',
+            'breakdown.written_works.*.score' => 'nullable|numeric|min:0|max:100',
+            'breakdown.performance_tasks' => 'nullable|array',
+            'breakdown.performance_tasks.*.title' => 'nullable|string|max:255',
+            'breakdown.performance_tasks.*.score' => 'nullable|numeric|min:0|max:100',
+            'breakdown.examinations' => 'nullable|array',
+            'breakdown.examinations.*.title' => 'nullable|string|max:255',
+            'breakdown.examinations.*.score' => 'nullable|numeric|min:0|max:100',
+            'breakdown.weights' => 'nullable|array',
+            'breakdown.weights.written_works' => 'nullable|numeric|min:0|max:100',
+            'breakdown.weights.performance_tasks' => 'nullable|numeric|min:0|max:100',
+            'breakdown.weights.examinations' => 'nullable|numeric|min:0|max:100',
         ]);
 
         $enrollment = StudentSubject::query()
@@ -104,11 +119,28 @@ class SubjectClassController extends Controller
 
         abort_unless($isAssigned, 403);
 
-        $grade = (float) $validated['grade'];
+        $action = $validated['action'] ?? 'post';
+
+        [$payload, $finalGrade] = $this->buildGradePayload($validated, $enrollment->draft_breakdown ?? []);
+
+        if ($action === 'save') {
+            $enrollment->update([
+                'draft_grade' => $finalGrade,
+                'draft_breakdown' => $payload,
+                'is_grade_posted' => false,
+            ]);
+
+            return back()->with('success', 'Grade draft saved successfully.');
+        }
 
         $enrollment->update([
-            'grade' => $grade,
-            'status' => $grade >= 75 ? 'completed' : 'failed',
+            'grade' => $finalGrade,
+            'draft_grade' => $finalGrade,
+            'status' => $finalGrade >= 75 ? 'completed' : 'failed',
+            'grade_breakdown' => $payload,
+            'draft_breakdown' => $payload,
+            'is_grade_posted' => true,
+            'grade_posted_at' => now(),
         ]);
 
         StudentActionLog::log(
@@ -121,13 +153,112 @@ class SubjectClassController extends Controller
                 'subject_id' => $enrollment->subject_id,
                 'subject_code' => $enrollment->subject?->code,
                 'subject_name' => $enrollment->subject?->name,
-                'grade' => $grade,
-                'status' => $grade >= 75 ? 'completed' : 'failed',
+                'grade' => $finalGrade,
+                'status' => $finalGrade >= 75 ? 'completed' : 'failed',
                 'school_year' => $enrollment->school_year,
+                'breakdown' => $payload,
             ],
             performedBy: Auth::id()
         );
 
         return back()->with('success', 'Grade posted successfully.');
+    }
+
+    private function buildGradePayload(array $validated, array $fallback = []): array
+    {
+        if (isset($validated['grade']) && !isset($validated['breakdown'])) {
+            $grade = round((float) $validated['grade'], 2);
+
+            return [[
+                'written_works' => [],
+                'performance_tasks' => [],
+                'examinations' => [],
+                'weights' => [
+                    'written_works' => 30,
+                    'performance_tasks' => 50,
+                    'examinations' => 20,
+                ],
+                'averages' => [
+                    'written_works' => null,
+                    'performance_tasks' => null,
+                    'examinations' => null,
+                ],
+                'final_grade' => $grade,
+            ], $grade];
+        }
+
+        $breakdown = $validated['breakdown'] ?? $fallback;
+
+        $weights = [
+            'written_works' => (float) data_get($breakdown, 'weights.written_works', 30),
+            'performance_tasks' => (float) data_get($breakdown, 'weights.performance_tasks', 50),
+            'examinations' => (float) data_get($breakdown, 'weights.examinations', 20),
+        ];
+
+        $totalWeight = array_sum($weights);
+        if ($totalWeight <= 0) {
+            $weights = ['written_works' => 30, 'performance_tasks' => 50, 'examinations' => 20];
+            $totalWeight = 100;
+        }
+
+        $writtenWorks = collect((array) data_get($breakdown, 'written_works', []))
+            ->map(fn ($row) => [
+                'title' => trim((string) data_get($row, 'title', '')),
+                'score' => data_get($row, 'score') !== null ? (float) data_get($row, 'score') : null,
+            ])
+            ->filter(fn ($row) => $row['title'] !== '' || $row['score'] !== null)
+            ->values();
+
+        $performanceTasks = collect((array) data_get($breakdown, 'performance_tasks', []))
+            ->map(fn ($row) => [
+                'title' => trim((string) data_get($row, 'title', '')),
+                'score' => data_get($row, 'score') !== null ? (float) data_get($row, 'score') : null,
+            ])
+            ->filter(fn ($row) => $row['title'] !== '' || $row['score'] !== null)
+            ->values();
+
+        $examinations = collect((array) data_get($breakdown, 'examinations', []))
+            ->map(fn ($row) => [
+                'title' => trim((string) data_get($row, 'title', '')),
+                'score' => data_get($row, 'score') !== null ? (float) data_get($row, 'score') : null,
+            ])
+            ->filter(fn ($row) => $row['title'] !== '' || $row['score'] !== null)
+            ->values();
+
+        $average = static function ($rows): ?float {
+            $scores = collect($rows)->pluck('score')->filter(fn ($score) => $score !== null)->values();
+            if ($scores->isEmpty()) {
+                return null;
+            }
+
+            return round((float) $scores->avg(), 2);
+        };
+
+        $wwAvg = $average($writtenWorks);
+        $ptAvg = $average($performanceTasks);
+        $examAvg = $average($examinations);
+
+        $wwVal = $wwAvg ?? 0;
+        $ptVal = $ptAvg ?? 0;
+        $examVal = $examAvg ?? 0;
+
+        $finalGrade = round((
+            ($wwVal * $weights['written_works']) +
+            ($ptVal * $weights['performance_tasks']) +
+            ($examVal * $weights['examinations'])
+        ) / $totalWeight, 2);
+
+        return [[
+            'written_works' => $writtenWorks,
+            'performance_tasks' => $performanceTasks,
+            'examinations' => $examinations,
+            'weights' => $weights,
+            'averages' => [
+                'written_works' => $wwAvg,
+                'performance_tasks' => $ptAvg,
+                'examinations' => $examAvg,
+            ],
+            'final_grade' => $finalGrade,
+        ], $finalGrade];
     }
 }
