@@ -512,22 +512,27 @@ Route::prefix('student')->name('student.')->middleware(['auth', 'verified', 'rol
     Route::post('enrollment/subjects', [App\Http\Controllers\Student\CollegeEnrollmentController::class, 'store'])->name('enrollment.subjects.store');
     Route::delete('enrollment/subjects/{enrollment}', [App\Http\Controllers\Student\CollegeEnrollmentController::class, 'drop'])->name('enrollment.subjects.drop');
 
-    // Grades (available to all students to view historical grades)
-    Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
+    // E-LMS pages (owner-toggled)
+    Route::middleware(['elms'])->group(function () {
+        Route::get('grades', [App\Http\Controllers\Student\GradeController::class, 'index'])->name('grades.index');
+        Route::get('files', [App\Http\Controllers\Student\LearningFileController::class, 'index'])->name('files.index');
+    });
     
     // Routes that require enrollment
     Route::middleware(['enrolled'])->group(function () {
         Route::get('subjects', [App\Http\Controllers\Student\SubjectController::class, 'index'])->name('subjects');
         Route::get('schedules', [App\Http\Controllers\Student\ScheduleController::class, 'index'])->name('schedules');
         
-        // Quizzes
-        Route::get('quizzes', [App\Http\Controllers\Student\QuizController::class, 'index'])->name('quizzes.index');
-        Route::get('quizzes/{quiz}', [App\Http\Controllers\Student\QuizController::class, 'show'])->name('quizzes.show');
-        Route::post('quizzes/{quiz}/start', [App\Http\Controllers\Student\QuizController::class, 'start'])->name('quizzes.start');
-        Route::get('quizzes/take/{attempt}', [App\Http\Controllers\Student\QuizController::class, 'take'])->name('quizzes.take');
-        Route::post('quizzes/take/{attempt}/save', [App\Http\Controllers\Student\QuizController::class, 'saveResponse'])->name('quizzes.save-response');
-        Route::post('quizzes/take/{attempt}/submit', [App\Http\Controllers\Student\QuizController::class, 'submit'])->name('quizzes.submit');
-        Route::get('quizzes/result/{attempt}', [App\Http\Controllers\Student\QuizController::class, 'result'])->name('quizzes.result');
+        Route::middleware(['elms'])->group(function () {
+            // Quizzes
+            Route::get('quizzes', [App\Http\Controllers\Student\QuizController::class, 'index'])->name('quizzes.index');
+            Route::get('quizzes/{quiz}', [App\Http\Controllers\Student\QuizController::class, 'show'])->name('quizzes.show');
+            Route::post('quizzes/{quiz}/start', [App\Http\Controllers\Student\QuizController::class, 'start'])->name('quizzes.start');
+            Route::get('quizzes/take/{attempt}', [App\Http\Controllers\Student\QuizController::class, 'take'])->name('quizzes.take');
+            Route::post('quizzes/take/{attempt}/save', [App\Http\Controllers\Student\QuizController::class, 'saveResponse'])->name('quizzes.save-response');
+            Route::post('quizzes/take/{attempt}/submit', [App\Http\Controllers\Student\QuizController::class, 'submit'])->name('quizzes.submit');
+            Route::get('quizzes/result/{attempt}', [App\Http\Controllers\Student\QuizController::class, 'result'])->name('quizzes.result');
+        });
     });
 
     // Chat
@@ -547,8 +552,8 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'verified', 'rol
     Route::get('subjects', [App\Http\Controllers\Teacher\SubjectController::class, 'index'])->name('subjects');
     Route::get('subjects/{subject}/students', [App\Http\Controllers\Teacher\SubjectController::class, 'students'])->name('subjects.students');
     Route::get('schedules', [App\Http\Controllers\Teacher\ScheduleController::class, 'index'])->name('schedules');
-    Route::get('grades', [App\Http\Controllers\Teacher\GradeController::class, 'index'])->name('grades.index');
-    Route::post('grades', [App\Http\Controllers\Teacher\GradeController::class, 'store'])->name('grades.store');
+    Route::get('grades', [App\Http\Controllers\Teacher\GradeController::class, 'index'])->middleware('elms')->name('grades.index');
+    Route::post('grades', [App\Http\Controllers\Teacher\GradeController::class, 'store'])->middleware('elms')->name('grades.store');
     Route::get('attendance', [App\Http\Controllers\Teacher\AttendanceController::class, 'index'])->name('attendance.index');
     Route::post('attendance', [App\Http\Controllers\Teacher\AttendanceController::class, 'store'])->name('attendance.store');
     Route::get('attendance/summary', [App\Http\Controllers\Teacher\AttendanceController::class, 'summary'])->name('attendance.summary');
@@ -559,12 +564,31 @@ Route::prefix('teacher')->name('teacher.')->middleware(['auth', 'verified', 'rol
     Route::post('profile/photo', [App\Http\Controllers\Teacher\ProfileController::class, 'updatePhoto'])->name('profile.photo');
     Route::delete('profile/photo', [App\Http\Controllers\Teacher\ProfileController::class, 'deletePhoto'])->name('profile.photo.delete');
     
-    // Quizzes
-    Route::resource('quizzes', App\Http\Controllers\Teacher\QuizController::class);
-    Route::post('quizzes/{quiz}/toggle-publish', [App\Http\Controllers\Teacher\QuizController::class, 'togglePublish'])->name('quizzes.toggle-publish');
-    Route::post('quizzes/{quiz}/toggle-active', [App\Http\Controllers\Teacher\QuizController::class, 'toggleActive'])->name('quizzes.toggle-active');
-    Route::get('quizzes/{quiz}/results', [App\Http\Controllers\Teacher\QuizController::class, 'results'])->name('quizzes.results');
-    Route::post('quiz-attempts/{attempt}/grade', [App\Http\Controllers\Teacher\QuizController::class, 'gradeAttempt'])->name('quiz-attempts.grade');
+    Route::middleware(['elms'])->group(function () {
+        Route::get('quizzes-exams', fn () => redirect()->route('teacher.quizzes.index'))->name('quizzes-exams');
+
+        Route::get('materials', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'materials'])->name('materials.index');
+        Route::post('materials', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'storeMaterial'])->name('materials.store');
+        Route::delete('materials/{material}', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'destroy'])->name('materials.destroy');
+
+        Route::get('files', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'files'])->name('files.index');
+        Route::post('files', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'storeFile'])->name('files.store');
+        Route::post('files/{material}/send', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'send'])->name('files.send');
+        Route::delete('files/{material}', [App\Http\Controllers\Teacher\LearningMaterialController::class, 'destroy'])->name('files.destroy');
+
+        Route::get('subject-classes', [App\Http\Controllers\Teacher\SubjectClassController::class, 'index'])->name('subject-classes.index');
+        Route::post('subject-classes/post-grade', [App\Http\Controllers\Teacher\SubjectClassController::class, 'postGrade'])->name('subject-classes.post-grade');
+
+        Route::get('advisory/dashboard', [App\Http\Controllers\Teacher\AdvisoryController::class, 'dashboard'])->name('advisory.dashboard');
+        Route::get('advisory/student-profiles', [App\Http\Controllers\Teacher\AdvisoryController::class, 'studentProfiles'])->name('advisory.student-profiles');
+
+        // Quizzes
+        Route::resource('quizzes', App\Http\Controllers\Teacher\QuizController::class);
+        Route::post('quizzes/{quiz}/toggle-publish', [App\Http\Controllers\Teacher\QuizController::class, 'togglePublish'])->name('quizzes.toggle-publish');
+        Route::post('quizzes/{quiz}/toggle-active', [App\Http\Controllers\Teacher\QuizController::class, 'toggleActive'])->name('quizzes.toggle-active');
+        Route::get('quizzes/{quiz}/results', [App\Http\Controllers\Teacher\QuizController::class, 'results'])->name('quizzes.results');
+        Route::post('quiz-attempts/{attempt}/grade', [App\Http\Controllers\Teacher\QuizController::class, 'gradeAttempt'])->name('quiz-attempts.grade');
+    });
 });
 
 // Guidance Counselor Portal Routes
