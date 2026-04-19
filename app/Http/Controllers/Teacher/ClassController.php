@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Student;
 use App\Models\Section;
 use App\Models\Subject;
+use App\Models\StudentSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -16,6 +18,7 @@ class ClassController extends Controller
     {
         $user = Auth::user();
         $teacher = $user->teacher;
+        $currentSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
 
         /**
          * Advisory sections: sections where this teacher is the homeroom/adviser.
@@ -82,12 +85,15 @@ class ClassController extends Controller
                 ->select('id', 'code', 'name', 'type', 'units', 'department_id', 'year_level_id')
                 ->orderBy('code')
                 ->get()
-                ->map(function ($s) {
-                    $studentCount = Student::whereNull('deleted_at')
-                        ->where('enrollment_status', 'enrolled')
-                        ->where('department_id', $s->department_id)
-                        ->when($s->year_level_id, fn ($q) => $q->where('year_level_id', $s->year_level_id))
+                ->map(function ($s) use ($currentSchoolYear) {
+                    $studentCount = StudentSubject::query()
+                        ->where('subject_id', $s->id)
+                        ->where('school_year', $currentSchoolYear)
+                        ->whereHas('student', fn ($query) => $query
+                            ->where('enrollment_status', 'enrolled')
+                            ->whereNull('deleted_at'))
                         ->count();
+
                     return [
                         'id'            => $s->id,
                         'code'          => $s->code,
