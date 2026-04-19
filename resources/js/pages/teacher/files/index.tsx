@@ -23,6 +23,7 @@ interface SentFile {
     description: string | null;
     original_filename: string;
     file_url: string;
+    download_url: string;
     target_type: 'subject' | 'advisory';
     target_label: string;
     file_size_label: string;
@@ -286,7 +287,7 @@ export default function TeacherFilesPage({ sentFiles, draftMaterials, subjects, 
                                         <span className="text-xs text-muted-foreground">{file.sent_at ?? 'N/A'}</span>
                                         <div className="flex items-center gap-2">
                                             <Button size="icon" variant="outline" asChild>
-                                                <a href={file.file_url} title="Open file">
+                                                <a href={file.download_url} download={file.original_filename} title="Download file">
                                                     <Download className="h-4 w-4" />
                                                 </a>
                                             </Button>
