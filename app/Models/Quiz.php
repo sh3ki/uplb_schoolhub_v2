@@ -14,9 +14,13 @@ class Quiz extends Model
     protected $fillable = [
         'title',
         'description',
+        'assessment_type',
         'subject_id',
         'teacher_id',
         'department_id',
+        'year_level_id',
+        'section_id',
+        'program',
         'time_limit_minutes',
         'passing_score',
         'max_attempts',
@@ -52,6 +56,16 @@ class Quiz extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function yearLevel(): BelongsTo
+    {
+        return $this->belongsTo(YearLevel::class);
+    }
+
+    public function section(): BelongsTo
+    {
+        return $this->belongsTo(Section::class);
     }
 
     public function questions(): HasMany
