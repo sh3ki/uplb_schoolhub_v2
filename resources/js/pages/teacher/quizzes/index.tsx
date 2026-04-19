@@ -29,6 +29,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -110,6 +118,9 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
     const [subjectId, setSubjectId] = useState(filters.subject_id || 'all');
     const [status, setStatus] = useState(filters.status || 'all');
     const [deleteQuiz, setDeleteQuiz] = useState<Quiz | null>(null);
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createKind, setCreateKind] = useState<'quiz' | 'exam'>('quiz');
+    const [createSubjectId, setCreateSubjectId] = useState<string>('');
 
     const handleFilter = (newFilters: Partial<typeof filters>) => {
         router.get('/teacher/quizzes', {
@@ -159,6 +170,16 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
         totalAttempts: quizzes.data.reduce((acc, q) => acc + q.attempts_count, 0),
     };
 
+    const handleOpenCreator = () => {
+        const query = new URLSearchParams();
+        query.set('mode', createKind);
+        if (createSubjectId) {
+            query.set('subject_id', createSubjectId);
+        }
+
+        router.get(`/teacher/quizzes/create?${query.toString()}`);
+    };
+
     return (
         <TeacherLayout breadcrumbs={breadcrumbs}>
             <Head title="Quizzes" />
@@ -172,11 +193,9 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                             Create and manage quizzes for your subjects
                         </p>
                     </div>
-                    <Button asChild>
-                        <Link href="/teacher/quizzes/create">
+                    <Button onClick={() => setCreateOpen(true)}>
                             <Plus className="mr-2 h-4 w-4" />
-                            Create Quiz
-                        </Link>
+                            Create Quiz / Exam
                     </Button>
                 </div>
 
@@ -307,11 +326,9 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                                             <div className="flex flex-col items-center gap-2">
                                                 <FileQuestion className="h-8 w-8 text-muted-foreground" />
                                                 <p className="text-muted-foreground">No quizzes found</p>
-                                                <Button asChild size="sm">
-                                                    <Link href="/teacher/quizzes/create">
+                                                <Button size="sm" onClick={() => setCreateOpen(true)}>
                                                         <Plus className="mr-2 h-4 w-4" />
-                                                        Create your first quiz
-                                                    </Link>
+                                                        Create your first quiz/exam
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -455,6 +472,53 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create Quizzes & Exams</DialogTitle>
+                        <DialogDescription>
+                            Choose the assessment type and subject, then continue to the full builder.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Assessment Type</p>
+                            <Select value={createKind} onValueChange={(value: 'quiz' | 'exam') => setCreateKind(value)}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="quiz">Quiz</SelectItem>
+                                    <SelectItem value="exam">Exam</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="space-y-2">
+                            <p className="text-sm font-medium">Subject (Optional)</p>
+                            <Select value={createSubjectId} onValueChange={setCreateSubjectId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Choose subject" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {subjects.map((subject) => (
+                                        <SelectItem key={subject.id} value={subject.id.toString()}>
+                                            {subject.code} - {subject.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+                        <Button onClick={handleOpenCreator}>Continue</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </TeacherLayout>
     );
 }
