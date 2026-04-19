@@ -7,8 +7,8 @@ use App\Models\Student;
 use App\Models\Section;
 use App\Models\Department;
 use App\Models\YearLevel;
-use App\Models\Teacher;
 use App\Models\Subject;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -99,16 +99,21 @@ class ClassController extends Controller
             return $section;
         });
 
-        // Active teachers for teacher assignment dropdown
-        $teachers = Teacher::where('is_active', true)
-            ->select('id', 'first_name', 'last_name', 'suffix', 'department_id')
-            ->orderBy('last_name')
-            ->get()
-            ->map(fn($t) => [
-                'id' => $t->id,
-                'name' => trim("{$t->last_name}, {$t->first_name}" . ($t->suffix ? " {$t->suffix}" : '')),
-                'department_id' => $t->department_id,
-            ]);
+        // Active teacher users for teacher assignment dropdown.
+        $teachers = User::query()
+            ->where('role', 'teacher')
+            ->whereNotNull('teacher_id')
+            ->where('is_active', true)
+            ->with(['teacher:id,department_id,is_active'])
+            ->orderBy('name')
+            ->get(['id', 'name', 'teacher_id'])
+            ->filter(fn (User $user) => $user->teacher && $user->teacher->is_active)
+            ->map(fn (User $user) => [
+                'id' => $user->teacher_id,
+                'name' => $user->name,
+                'department_id' => $user->teacher?->department_id,
+            ])
+            ->values();
 
         // Stats
         $totalStudents = Student::whereNull('deleted_at')->where('enrollment_status', 'enrolled')->count();
