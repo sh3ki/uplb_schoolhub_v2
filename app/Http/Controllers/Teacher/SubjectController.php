@@ -130,6 +130,10 @@ class SubjectController extends Controller
                     'department' => $student?->department,
                     'gender' => $student?->gender,
                     'grade' => $enrollment->grade,
+                    'draft_grade' => $enrollment->draft_grade,
+                    'draft_breakdown' => $enrollment->draft_breakdown,
+                    'grade_breakdown' => $enrollment->grade_breakdown,
+                    'is_grade_posted' => $enrollment->is_grade_posted,
                     'subject_status' => $enrollment->status,
                 ];
             });
