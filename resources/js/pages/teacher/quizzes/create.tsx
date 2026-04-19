@@ -10,7 +10,7 @@ import {
     Save,
     ArrowLeft,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -100,6 +100,23 @@ export default function QuizCreate({ subjects }: Props) {
         available_from: '',
         available_until: '',
     });
+
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const prefTitle = params.get('title');
+        const prefDescription = params.get('description');
+        const prefSubjectId = params.get('subject_id');
+        const prefTimeLimit = params.get('time_limit');
+        const prefTotalScore = params.get('total_score');
+
+        if (prefTitle) setData('title', prefTitle);
+        if (prefDescription) setData('description', prefDescription);
+        if (prefSubjectId) setData('subject_id', prefSubjectId);
+        if (prefTimeLimit) setData('time_limit_minutes', prefTimeLimit);
+        if (prefTotalScore && !Number.isNaN(Number(prefTotalScore))) {
+            setData('passing_score', Math.max(1, Number(prefTotalScore)));
+        }
+    }, [setData]);
 
     const addQuestion = () => {
         setQuestions([
