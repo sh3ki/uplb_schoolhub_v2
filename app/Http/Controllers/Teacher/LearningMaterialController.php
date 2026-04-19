@@ -13,6 +13,7 @@ use App\Models\Subject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -24,9 +25,33 @@ class LearningMaterialController extends Controller
         $teacher = Auth::user()?->teacher;
         abort_if(!$teacher, 403);
 
-        $materials = LearningMaterial::query()
+        $materialsQuery = LearningMaterial::query()
             ->where('teacher_id', $teacher->id)
-            ->where('visibility', 'private')
+            ->where('visibility', 'private');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $materialsQuery->where(function ($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('original_filename', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $materialsQuery->whereDate('created_at', '>=', (string) $request->input('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $materialsQuery->whereDate('created_at', '<=', (string) $request->input('to_date'));
+        }
+
+        if ($request->filled('file_type') && $request->input('file_type') !== 'all') {
+            $ext = strtolower((string) $request->input('file_type'));
+            $materialsQuery->whereRaw('LOWER(original_filename) LIKE ?', ["%.{$ext}"]);
+        }
+
+        $materials = $materialsQuery
             ->latest()
             ->paginate(12)
             ->withQueryString()
@@ -35,13 +60,19 @@ class LearningMaterialController extends Controller
                 'title' => $material->title,
                 'description' => $material->description,
                 'original_filename' => $material->original_filename,
-                'file_url' => route('storage.show', ['path' => $material->file_path]),
+                'file_url' => $this->resolveFileUrl($material->file_path),
                 'file_size_label' => $this->humanFileSize($material->file_size),
                 'created_at' => $material->created_at?->format('M d, Y h:i A'),
             ]);
 
         return Inertia::render('teacher/materials/index', [
             'materials' => $materials,
+            'filters' => [
+                'search' => (string) $request->input('search', ''),
+                'file_type' => (string) $request->input('file_type', 'all'),
+                'from_date' => (string) $request->input('from_date', ''),
+                'to_date' => (string) $request->input('to_date', ''),
+            ],
         ]);
     }
 
@@ -50,10 +81,38 @@ class LearningMaterialController extends Controller
         $teacher = Auth::user()?->teacher;
         abort_if(!$teacher, 403);
 
-        $sentFiles = LearningMaterial::query()
+        $sentFilesQuery = LearningMaterial::query()
             ->with(['subject:id,code,name', 'section:id,name'])
             ->where('teacher_id', $teacher->id)
-            ->where('visibility', '!=', 'private')
+            ->where('visibility', '!=', 'private');
+
+        if ($request->filled('search')) {
+            $search = trim((string) $request->input('search'));
+            $sentFilesQuery->where(function ($query) use ($search) {
+                $query->where('title', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('original_filename', 'like', "%{$search}%");
+            });
+        }
+
+        if ($request->filled('from_date')) {
+            $sentFilesQuery->whereDate('sent_at', '>=', (string) $request->input('from_date'));
+        }
+
+        if ($request->filled('to_date')) {
+            $sentFilesQuery->whereDate('sent_at', '<=', (string) $request->input('to_date'));
+        }
+
+        if ($request->filled('file_type') && $request->input('file_type') !== 'all') {
+            $ext = strtolower((string) $request->input('file_type'));
+            $sentFilesQuery->whereRaw('LOWER(original_filename) LIKE ?', ["%.{$ext}"]);
+        }
+
+        if ($request->filled('target_type') && in_array($request->input('target_type'), ['subject', 'advisory'])) {
+            $sentFilesQuery->where('visibility', (string) $request->input('target_type'));
+        }
+
+        $sentFiles = $sentFilesQuery
             ->latest('sent_at')
             ->latest()
             ->paginate(12)
@@ -63,7 +122,7 @@ class LearningMaterialController extends Controller
                 'title' => $file->title,
                 'description' => $file->description,
                 'original_filename' => $file->original_filename,
-                'file_url' => route('storage.show', ['path' => $file->file_path]),
+                'file_url' => $this->resolveFileUrl($file->file_path),
                 'target_type' => $file->visibility,
                 'target_label' => $file->visibility === 'subject'
                     ? (($file->subject?->code ?? 'Subject') . ' - ' . ($file->subject?->name ?? 'Unknown'))
@@ -90,6 +149,13 @@ class LearningMaterialController extends Controller
             'draftMaterials' => $draftMaterials,
             'subjects' => $this->teacherSubjects($teacher->id),
             'advisorySections' => $this->teacherAdvisorySections($teacher->id),
+            'filters' => [
+                'search' => (string) $request->input('search', ''),
+                'file_type' => (string) $request->input('file_type', 'all'),
+                'target_type' => (string) $request->input('target_type', 'all'),
+                'from_date' => (string) $request->input('from_date', ''),
+                'to_date' => (string) $request->input('to_date', ''),
+            ],
         ]);
     }
 
@@ -132,6 +198,7 @@ class LearningMaterialController extends Controller
             'target_type' => 'required|in:subject,advisory',
             'subject_id' => 'nullable|integer|exists:subjects,id',
             'section_id' => 'nullable|integer|exists:sections,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         [$subjectId, $sectionId] = $this->resolveTargetIds($teacher->id, $validated);
@@ -152,7 +219,7 @@ class LearningMaterialController extends Controller
             'sent_at' => now(),
         ]);
 
-        $this->logFileDelivery($teacher->id, $material);
+        $this->logFileDelivery($teacher->id, $material, $validated['message'] ?? null);
 
         return back()->with('success', 'File uploaded and sent successfully.');
     }
@@ -168,6 +235,7 @@ class LearningMaterialController extends Controller
             'target_type' => 'required|in:subject,advisory',
             'subject_id' => 'nullable|integer|exists:subjects,id',
             'section_id' => 'nullable|integer|exists:sections,id',
+            'message' => 'nullable|string|max:2000',
         ]);
 
         [$subjectId, $sectionId] = $this->resolveTargetIds($teacher->id, $validated);
@@ -179,7 +247,7 @@ class LearningMaterialController extends Controller
             'sent_at' => now(),
         ]);
 
-        $this->logFileDelivery($teacher->id, $material);
+        $this->logFileDelivery($teacher->id, $material, $validated['message'] ?? null);
 
         return back()->with('success', 'Material sent to students.');
     }
@@ -254,7 +322,7 @@ class LearningMaterialController extends Controller
         return [$subjectId, $sectionId];
     }
 
-    private function logFileDelivery(int $teacherId, LearningMaterial $material): void
+    private function logFileDelivery(int $teacherId, LearningMaterial $material, ?string $message = null): void
     {
         $settings = AppSetting::current();
         $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
@@ -283,6 +351,7 @@ class LearningMaterialController extends Controller
                 action: 'file_sent',
                 actionType: 'elms_file',
                 details: 'A class file was shared by your teacher.',
+                notes: $message,
                 changes: [
                     'title' => $material->title,
                     'visibility' => $material->visibility,
@@ -309,5 +378,16 @@ class LearningMaterialController extends Controller
         }
 
         return round($size, 2) . ' ' . $units[$index];
+    }
+
+    private function resolveFileUrl(string $path): string
+    {
+        $normalizedPath = ltrim($path, '/');
+
+        if (Route::has('storage.show')) {
+            return route('storage.show', ['path' => $normalizedPath]);
+        }
+
+        return url('storage/' . $normalizedPath);
     }
 }
