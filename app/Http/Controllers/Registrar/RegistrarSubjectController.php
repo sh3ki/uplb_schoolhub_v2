@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Registrar;
 use App\Http\Controllers\Controller;
 use App\Models\Subject;
 use App\Models\Department;
+use App\Models\Program;
 use App\Models\YearLevel;
 use App\Models\Teacher;
 use Illuminate\Http\Request;
@@ -53,9 +54,14 @@ class RegistrarSubjectController extends Controller
             ->select('id', 'name', 'classification')
             ->get();
 
+        $programs = Program::where('is_active', true)
+            ->select('id', 'name', 'department_id')
+            ->orderBy('name')
+            ->get();
+
         $yearLevels = YearLevel::where('is_active', true)
             ->with('department:id,name')
-            ->select('id', 'name', 'level_number', 'department_id')
+            ->select('id', 'name', 'level_number', 'department_id', 'program_id')
             ->orderBy('department_id')
             ->orderBy('level_number')
             ->get();
@@ -75,6 +81,7 @@ class RegistrarSubjectController extends Controller
         return Inertia::render('registrar/subjects/index', [
             'subjects' => $subjects,
             'departments' => $departments,
+            'programs' => $programs,
             'yearLevels' => $yearLevels,
             'teachers' => $teachers,
             'filters' => $request->only(['search', 'classification', 'department_id', 'type', 'status']),
@@ -95,6 +102,8 @@ class RegistrarSubjectController extends Controller
 
     public function store(Request $request)
     {
+        $isCollege = $request->input('classification') === 'College';
+
         $validated = $request->validate([
             'department_id' => 'required|exists:departments,id',
             'code' => 'required|string|max:50|unique:subjects,code',
@@ -106,6 +115,8 @@ class RegistrarSubjectController extends Controller
             'type' => 'required|in:core,major,elective,general',
             'year_level_id' => 'nullable|exists:year_levels,id',
             'semester' => 'nullable|in:1,2,summer',
+            'cost_price' => $isCollege ? 'nullable|numeric|min:0' : 'prohibited',
+            'selling_price' => $isCollege ? 'nullable|numeric|min:0' : 'prohibited',
             'is_active' => 'boolean',
             'prerequisites' => 'nullable|array',
             'prerequisites.*' => 'exists:subjects,id',
@@ -119,6 +130,12 @@ class RegistrarSubjectController extends Controller
         // Convert empty semester to null
         if (empty($validated['semester'])) {
             $validated['semester'] = null;
+        }
+
+        // Non-college subjects have no pricing
+        if (!$isCollege) {
+            $validated['cost_price'] = null;
+            $validated['selling_price'] = null;
         }
 
         $subject = Subject::create($validated);
@@ -133,6 +150,8 @@ class RegistrarSubjectController extends Controller
 
     public function update(Request $request, Subject $subject)
     {
+        $isCollege = $request->input('classification') === 'College';
+
         $validated = $request->validate([
             'department_id' => 'required|exists:departments,id',
             'code' => 'required|string|max:50|unique:subjects,code,' . $subject->id,
@@ -144,6 +163,8 @@ class RegistrarSubjectController extends Controller
             'type' => 'required|in:core,major,elective,general',
             'year_level_id' => 'nullable|exists:year_levels,id',
             'semester' => 'nullable|in:1,2,summer',
+            'cost_price' => $isCollege ? 'nullable|numeric|min:0' : 'prohibited',
+            'selling_price' => $isCollege ? 'nullable|numeric|min:0' : 'prohibited',
             'is_active' => 'boolean',
             'prerequisites' => 'nullable|array',
             'prerequisites.*' => 'exists:subjects,id',
@@ -157,6 +178,12 @@ class RegistrarSubjectController extends Controller
         // Convert empty semester to null
         if (empty($validated['semester'])) {
             $validated['semester'] = null;
+        }
+
+        // Non-college subjects have no pricing
+        if (!$isCollege) {
+            $validated['cost_price'] = null;
+            $validated['selling_price'] = null;
         }
 
         $subject->update($validated);
