@@ -28,6 +28,7 @@ class AppSetting extends Model
         'college_enrollment_open',
         'college_enrollment_start',
         'college_enrollment_end',
+        'elms_enabled',
         // Landing page
         'hero_title',
         'hero_subtitle',
@@ -63,6 +64,7 @@ class AppSetting extends Model
         'college_enrollment_open'  => 'boolean',
         'college_enrollment_start' => 'date',
         'college_enrollment_end'   => 'date',
+        'elms_enabled'             => 'boolean',
         'features_show'            => 'boolean',
         'hero_images'              => 'array',
         'alumni_items'             => 'array',
@@ -85,6 +87,7 @@ class AppSetting extends Model
             'active_semester'  => 1,
             'has_k12'          => true,
             'has_college'      => true,
+            'elms_enabled'     => true,
         ]);
     }
 
