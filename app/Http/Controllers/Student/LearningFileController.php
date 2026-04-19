@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Http\Controllers\Student;
+
+use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
+use App\Models\LearningMaterial;
+use App\Models\StudentSubject;
+use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class LearningFileController extends Controller
+{
+    public function index(): Response
+    {
+        $student = Auth::user()?->student;
+        abort_unless($student, 403);
+
+        $settings = AppSetting::current();
+        $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $subjectIds = StudentSubject::query()
+            ->where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->pluck('subject_id');
+
+        $files = LearningMaterial::query()
+            ->with(['teacher:id,first_name,last_name,middle_name,suffix', 'subject:id,code,name', 'section:id,name'])
+            ->where(function ($query) use ($subjectIds, $student) {
+                $query->where(function ($subjectScope) use ($subjectIds) {
+                    $subjectScope->where('visibility', 'subject')
+                        ->whereIn('subject_id', $subjectIds);
+                });
+
+                if ($student->section_id) {
+                    $query->orWhere(function ($advisoryScope) use ($student) {
+                        $advisoryScope->where('visibility', 'advisory')
+                            ->where('section_id', $student->section_id);
+                    });
+                }
+            })
+            ->latest('sent_at')
+            ->latest()
+            ->paginate(15)
+            ->withQueryString()
+            ->through(fn (LearningMaterial $file) => [
+                'id' => $file->id,
+                'title' => $file->title,
+                'description' => $file->description,
+                'original_filename' => $file->original_filename,
+                'file_url' => route('storage.show', ['path' => $file->file_path]),
+                'teacher_name' => $file->teacher?->full_name ?? 'Teacher',
+                'target_label' => $file->visibility === 'subject'
+                    ? (($file->subject?->code ?? 'Subject') . ' - ' . ($file->subject?->name ?? 'Unknown'))
+                    : ($file->section?->name ?? 'Advisory Class'),
+                'sent_at' => $file->sent_at?->format('M d, Y h:i A'),
+            ]);
+
+        return Inertia::render('student/files/index', [
+            'files' => $files,
+        ]);
+    }
+}
