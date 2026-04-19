@@ -38,7 +38,7 @@ export default function StudentFilesPage({ files }: Props) {
         <StudentLayout breadcrumbs={breadcrumbs}>
             <Head title="Class Files" />
 
-            <div className="space-y-6">
+            <div className="space-y-6 p-6">
                 <div>
                     <h1 className="text-2xl font-bold">Class Files</h1>
                     <p className="text-sm text-muted-foreground">Files sent by your teachers to your subjects and advisory section.</p>
@@ -62,9 +62,13 @@ export default function StudentFilesPage({ files }: Props) {
                                                 <p className="text-xs text-muted-foreground">{file.original_filename} • {file.sent_at ?? 'N/A'}</p>
                                                 {file.description && <p className="mt-1 text-sm text-muted-foreground">{file.description}</p>}
                                             </div>
-                                            <a href={file.file_url} className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+                                            <a
+                                                href={file.file_url}
+                                                download={file.original_filename}
+                                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-primary hover:bg-primary/10 hover:underline"
+                                            >
                                                 <Download className="h-4 w-4" />
-                                                Open
+                                                Download
                                             </a>
                                         </div>
                                     </div>
