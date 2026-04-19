@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Quiz;
 use App\Models\QuizAttempt;
 use App\Models\QuizResponse;
+use App\Models\StudentSubject;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,20 +21,45 @@ class QuizController extends Controller
     {
         $student = Auth::user()->student;
 
-        // Get quizzes from subjects the student has access to (based on department and year level)
+        $settings = AppSetting::current();
+        $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $subjectIds = StudentSubject::query()
+            ->where('student_id', $student->id)
+            ->where('school_year', $currentSchoolYear)
+            ->pluck('subject_id');
+
+        if ($subjectIds->isEmpty()) {
+            $subjectIds = $student->subjectsQuery()->pluck('subjects.id');
+        }
+
+        $subjectIds = $subjectIds->filter()->unique()->values();
+
         $query = Quiz::with(['subject', 'teacher.user'])
-            ->whereHas('subject', function ($q) use ($student) {
-                $q->where('department_id', $student->department_id)
-                    ->where(function ($yearQuery) use ($student) {
-                        $yearQuery->where('year_level_id', $student->year_level_id)
-                            ->orWhereNull('year_level_id');
-                    });
+            ->whereIn('subject_id', $subjectIds)
+            ->where(function ($q) use ($student) {
+                $q->whereNull('year_level_id');
+                if ($student->year_level_id) {
+                    $q->orWhere('year_level_id', $student->year_level_id);
+                }
+            })
+            ->where(function ($q) use ($student) {
+                $q->whereNull('section_id');
+                if ($student->section_id) {
+                    $q->orWhere('section_id', $student->section_id);
+                }
+            })
+            ->where(function ($q) use ($student) {
+                $q->whereNull('program');
+                if (!empty($student->program)) {
+                    $q->orWhere('program', $student->program);
+                }
             })
             ->available()
             ->withCount('questions');
 
         // Filter by subject
-        if ($request->filled('subject_id')) {
+        if ($request->filled('subject_id') && $request->subject_id !== 'all') {
             $query->where('subject_id', $request->subject_id);
         }
 
