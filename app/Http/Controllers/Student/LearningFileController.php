@@ -15,7 +15,9 @@ class LearningFileController extends Controller
     public function index(): Response
     {
         $student = Auth::user()?->student;
-        abort_unless($student, 403);
+        if (!$student) {
+            abort(403);
+        }
 
         $settings = AppSetting::current();
         $currentSchoolYear = $settings->school_year ?? (date('Y') . '-' . (date('Y') + 1));
