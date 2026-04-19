@@ -107,15 +107,11 @@ export default function QuizCreate({ subjects }: Props) {
         const prefDescription = params.get('description');
         const prefSubjectId = params.get('subject_id');
         const prefTimeLimit = params.get('time_limit');
-        const prefTotalScore = params.get('total_score');
 
         if (prefTitle) setData('title', prefTitle);
         if (prefDescription) setData('description', prefDescription);
         if (prefSubjectId) setData('subject_id', prefSubjectId);
         if (prefTimeLimit) setData('time_limit_minutes', prefTimeLimit);
-        if (prefTotalScore && !Number.isNaN(Number(prefTotalScore))) {
-            setData('passing_score', Math.max(1, Number(prefTotalScore)));
-        }
     }, [setData]);
 
     const addQuestion = () => {
