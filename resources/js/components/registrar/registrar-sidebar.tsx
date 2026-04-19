@@ -51,6 +51,7 @@ interface AppSettings {
     primary_color?: string;
     sidebar_color?: string;
     sidebar_font_size?: string;
+    elms_enabled?: boolean;
 }
 
 export function RegistrarSidebar() {
@@ -59,6 +60,7 @@ export function RegistrarSidebar() {
     const logoUrl = appSettings?.logo_url;
     const sidebarColor = appSettings?.sidebar_color || undefined;
     const sidebarFontSize = appSettings?.sidebar_font_size ? `${appSettings.sidebar_font_size}px` : undefined;
+    const elmsEnabled = appSettings?.elms_enabled ?? true;
 
     const mainNavItems: NavItem[] = [
         {
@@ -150,6 +152,11 @@ export function RegistrarSidebar() {
             href: '/registrar/classes',
             icon: GraduationCap,
         },
+        ...(elmsEnabled ? [{
+            title: 'E-LMS Posted Grades',
+            href: '/registrar/elms/grades',
+            icon: BookText,
+        }] : []),
         {
             title: 'Schedule',
             href: '/registrar/schedule',
