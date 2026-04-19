@@ -98,6 +98,12 @@ export function StudentSidebar() {
             locked: !isEnrolled,
         }] : []),
         ...(elmsEnabled ? [{
+            title: 'Grades',
+            href: '/student/grades',
+            icon: ClipboardList,
+            locked: !isEnrolled,
+        }] : []),
+        ...(elmsEnabled ? [{
             title: 'Quizzes',
             href: '/student/quizzes',
             icon: FileQuestion,
