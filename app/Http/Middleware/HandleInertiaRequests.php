@@ -121,6 +121,7 @@ class HandleInertiaRequests extends Middleware
                 'has_college'               => (bool) $settings->has_college,
                 'k12_enrollment_open'       => (bool) $settings->k12_enrollment_open,
                 'college_enrollment_open'   => (bool) $settings->college_enrollment_open,
+                'elms_enabled'              => (bool) ($settings->elms_enabled ?? true),
                 'active_semester'           => (int) ($settings->active_semester ?? 1),
                 // Landing page fields
                 'hero_title'                => $settings->hero_title,
@@ -161,6 +162,7 @@ class HandleInertiaRequests extends Middleware
                 'has_college'    => true,
                 'k12_enrollment_open'     => false,
                 'college_enrollment_open' => false,
+                'elms_enabled'   => true,
                 'hero_image_urls'=> [],
                 'alumni_items'   => [],
                 'nav_links'      => [],
