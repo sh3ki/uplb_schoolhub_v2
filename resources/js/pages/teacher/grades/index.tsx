@@ -234,7 +234,13 @@ export default function GradesIndex({ students, sections, subjects, currentSchoo
                                                     </span>
                                                 </td>
                                                 <td className="p-3 text-center text-sm font-medium">
-                                                    {getEnrollment(student)?.grade ?? '-'}
+                                                    {(() => {
+                                                        const enrollment = getEnrollment(student);
+                                                        if (!enrollment) return '-';
+                                                        return enrollment.is_grade_posted === false
+                                                            ? (enrollment.draft_grade ?? '-')
+                                                            : (enrollment.grade ?? '-');
+                                                    })()}
                                                 </td>
                                                 <td className="p-3 text-center">
                                                     {getEnrollment(student)?.is_grade_posted === false ? (
