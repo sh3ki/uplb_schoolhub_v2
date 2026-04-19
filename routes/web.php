@@ -248,6 +248,11 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::post('students/{student}/subjects/sync', [\App\Http\Controllers\Registrar\StudentSubjectController::class, 'sync'])->name('students.subjects.sync');
     Route::patch('students/{student}/subjects/{enrollment}', [\App\Http\Controllers\Registrar\StudentSubjectController::class, 'updateStatus'])->name('students.subjects.update-status');
 
+    // Enrollment Requests (registrar review workflow)
+    Route::post('enrollment-requests/{enrollmentRequest}/approve', [\App\Http\Controllers\Registrar\EnrollmentRequestController::class, 'approve'])->name('enrollment-requests.approve');
+    Route::post('enrollment-requests/{enrollmentRequest}/disapprove', [\App\Http\Controllers\Registrar\EnrollmentRequestController::class, 'disapprove'])->name('enrollment-requests.disapprove');
+    Route::post('enrollment-requests/{enrollmentRequest}/complete', [\App\Http\Controllers\Registrar\EnrollmentRequestController::class, 'complete'])->name('enrollment-requests.complete');
+
     Route::get('classes', [App\Http\Controllers\Registrar\ClassController::class, 'index'])->name('classes');
     Route::post('classes/assign', [App\Http\Controllers\Registrar\ClassController::class, 'assignStudents'])->name('classes.assign');
     Route::delete('classes/remove/{student}', [App\Http\Controllers\Registrar\ClassController::class, 'removeStudent'])->name('classes.remove');
@@ -438,6 +443,10 @@ Route::prefix('accounting')->name('accounting.')->middleware(['auth', 'verified'
     Route::get('clearance/{student}', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'show'])->name('clearance.show');
     Route::put('clearance/{student}', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'updateClearance'])->name('clearance.update');
     Route::post('clearance/bulk-clear', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'bulkClear'])->name('clearance.bulk');
+
+    // Enrollment Clearance (subject enrollment approval workflow)
+    Route::post('enrollment-clearance/{enrollmentRequest}/approve', [App\Http\Controllers\Accounting\EnrollmentClearanceController::class, 'approve'])->name('enrollment-clearance.approve');
+    Route::post('enrollment-clearance/{enrollmentRequest}/disapprove', [App\Http\Controllers\Accounting\EnrollmentClearanceController::class, 'disapprove'])->name('enrollment-clearance.disapprove');
     
     // Reports
     Route::get('reports', [App\Http\Controllers\Accounting\ReportsController::class, 'index'])->name('reports');
@@ -708,6 +717,10 @@ Route::prefix('super-accounting')->name('super-accounting.')->middleware(['auth'
 
     // Student Clearance (super-accounting can also toggle accounting clearance)
     Route::put('clearance/{student}', [App\Http\Controllers\Accounting\StudentClearanceController::class, 'updateClearance'])->name('clearance.update');
+
+    // Enrollment Clearance
+    Route::post('enrollment-clearance/{enrollmentRequest}/approve', [App\Http\Controllers\Accounting\EnrollmentClearanceController::class, 'approve'])->name('enrollment-clearance.approve');
+    Route::post('enrollment-clearance/{enrollmentRequest}/disapprove', [App\Http\Controllers\Accounting\EnrollmentClearanceController::class, 'disapprove'])->name('enrollment-clearance.disapprove');
 
     // Exam Approval (shared reference page)
     Route::get('exam-approval', [App\Http\Controllers\Accounting\ExamApprovalController::class, 'index'])->name('exam-approval.index');
