@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mail, Phone, MapPin, School } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, MapPin, School, BookOpen, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,8 +42,31 @@ interface Student {
     requirements?: RequirementRow[];
 }
 
+interface GradeRow {
+    id: number;
+    subject_code?: string | null;
+    subject_name?: string | null;
+    units?: number | null;
+    semester?: number | null;
+    school_year?: string | null;
+    status?: string | null;
+    grade?: number | null;
+    draft_grade?: number | null;
+    is_grade_posted?: boolean;
+    grade_posted_at?: string | null;
+}
+
 interface Props {
     student: Student;
+    currentSchoolYear: string;
+    gradeRows: GradeRow[];
+    summary: {
+        total_subjects: number;
+        posted_subjects: number;
+        draft_subjects: number;
+        passed_subjects: number;
+        failed_subjects: number;
+    };
 }
 
 const enrollmentVariants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
@@ -55,7 +78,7 @@ const enrollmentVariants: Record<string, 'default' | 'secondary' | 'destructive'
     'pending-enrollment': 'outline',
 };
 
-export default function TeacherStudentShow({ student }: Props) {
+export default function TeacherStudentShow({ student, currentSchoolYear, gradeRows, summary }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Students', href: '/teacher/students' },
         { title: `${student.last_name}, ${student.first_name}`, href: `/teacher/students/${student.id}` },
@@ -122,6 +145,93 @@ export default function TeacherStudentShow({ student }: Props) {
                         </CardContent>
                     </Card>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-5">
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-xs text-muted-foreground">Current S.Y.</p>
+                            <p className="text-sm font-semibold">{currentSchoolYear}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-xs text-muted-foreground">Total Subjects</p>
+                            <p className="text-2xl font-bold">{summary.total_subjects}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-xs text-muted-foreground">Posted Grades</p>
+                            <p className="text-2xl font-bold text-green-600">{summary.posted_subjects}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-xs text-muted-foreground">Draft Grades</p>
+                            <p className="text-2xl font-bold text-amber-600">{summary.draft_subjects}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-4">
+                            <p className="text-xs text-muted-foreground">Passed / Failed</p>
+                            <p className="text-sm font-semibold">{summary.passed_subjects} / {summary.failed_subjects}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5" />
+                            Grade Details
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {gradeRows.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">No grade records found.</p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="px-3 py-2 text-left">Code</th>
+                                            <th className="px-3 py-2 text-left">Subject</th>
+                                            <th className="px-3 py-2 text-center">S.Y.</th>
+                                            <th className="px-3 py-2 text-center">Sem</th>
+                                            <th className="px-3 py-2 text-center">Grade</th>
+                                            <th className="px-3 py-2 text-center">State</th>
+                                            <th className="px-3 py-2 text-center">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {gradeRows.map((row) => (
+                                            <tr key={row.id} className="border-b">
+                                                <td className="px-3 py-2 font-mono text-xs">{row.subject_code || '-'}</td>
+                                                <td className="px-3 py-2">
+                                                    <p className="font-medium">{row.subject_name || '-'}</p>
+                                                    <p className="text-xs text-muted-foreground">Units: {row.units ?? '-'}</p>
+                                                </td>
+                                                <td className="px-3 py-2 text-center">{row.school_year || '-'}</td>
+                                                <td className="px-3 py-2 text-center">{row.semester ?? '-'}</td>
+                                                <td className="px-3 py-2 text-center">
+                                                    {row.is_grade_posted ? (row.grade ?? '-') : (row.draft_grade ?? '-')}
+                                                </td>
+                                                <td className="px-3 py-2 text-center">
+                                                    {row.is_grade_posted ? (
+                                                        <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Posted</Badge>
+                                                    ) : (
+                                                        <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Draft</Badge>
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2 text-center capitalize">{row.status || '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 <Card>
                     <CardHeader>
