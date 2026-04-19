@@ -259,6 +259,10 @@ Route::prefix('registrar')->name('registrar.')->middleware(['auth', 'verified', 
     Route::delete('classes/remove/{student}', [App\Http\Controllers\Registrar\ClassController::class, 'removeStudent'])->name('classes.remove');
     Route::post('classes/sections/{section}/assign-teacher', [App\Http\Controllers\Registrar\ClassController::class, 'assignTeacher'])->name('classes.sections.assign-teacher');
 
+    Route::middleware(['elms'])->group(function () {
+        Route::get('elms/grades', [App\Http\Controllers\Registrar\ElmsMonitoringController::class, 'grades'])->name('elms.grades');
+    });
+
     Route::get('reports', [App\Http\Controllers\Registrar\ReportsController::class, 'index'])->name('reports');
 
     // Student Grants Management
