@@ -7,8 +7,13 @@ use App\Models\Subject;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\YearLevel;
+use App\Models\Section;
 use App\Models\Teacher;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class RegistrarSubjectController extends Controller
@@ -66,16 +71,23 @@ class RegistrarSubjectController extends Controller
             ->orderBy('level_number')
             ->get();
 
-        $teachers = Teacher::where('is_active', true)
-            ->with('department:id,name')
-            ->select('id', 'first_name', 'last_name', 'department_id', 'specialization')
-            ->orderBy('last_name')
+        $sections = Section::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'teacher_id']);
+
+        // Show only teachers that have actual login accounts with role=teacher.
+        $teachers = User::query()
+            ->where('role', User::ROLE_TEACHER)
+            ->whereNotNull('teacher_id')
+            ->with(['teacher.department:id,name'])
+            ->orderBy('name')
             ->get()
-            ->map(fn($t) => [
-                'id' => $t->id,
-                'full_name' => trim("{$t->first_name} {$t->last_name}"),
-                'department' => $t->department?->name,
-                'specialization' => $t->specialization,
+            ->map(fn (User $user) => [
+                'id' => $user->teacher?->id,
+                'full_name' => $user->name,
+                'department' => $user->teacher?->department?->name,
+                'specialization' => $user->teacher?->specialization,
             ]);
 
         return Inertia::render('registrar/subjects/index', [
@@ -83,9 +95,93 @@ class RegistrarSubjectController extends Controller
             'departments' => $departments,
             'programs' => $programs,
             'yearLevels' => $yearLevels,
+            'sections' => $sections,
             'teachers' => $teachers,
             'filters' => $request->only(['search', 'classification', 'department_id', 'type', 'status']),
         ]);
+    }
+
+    public function storeTeacher(Request $request)
+    {
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:120',
+            'middle_name' => 'nullable|string|max:120',
+            'last_name' => 'required|string|max:120',
+            'email' => 'required|email|max:255|unique:teachers,email|unique:users,email',
+            'phone' => 'nullable|string|max:30',
+            'address' => 'nullable|string|max:500',
+            'gender' => 'nullable|in:male,female,other',
+            'department_id' => 'required|exists:departments,id',
+            'specialization' => 'nullable|string|max:255',
+            'employment_status' => 'required|in:full-time,part-time,contractual',
+            'is_active' => 'required|boolean',
+            'employee_id' => 'nullable|string|max:50|unique:teachers,employee_id',
+            'section_id' => 'nullable|integer|exists:sections,id',
+            'subject_ids' => 'nullable|array',
+            'subject_ids.*' => 'integer|exists:subjects,id',
+        ]);
+
+        if (!empty($validated['section_id'])) {
+            $sectionHasAdviser = Section::query()
+                ->where('id', (int) $validated['section_id'])
+                ->whereNotNull('teacher_id')
+                ->exists();
+
+            if ($sectionHasAdviser) {
+                return back()->withErrors([
+                    'section_id' => 'The selected section already has an assigned adviser.',
+                ]);
+            }
+        }
+
+        $employeeId = $validated['employee_id'] ?? $this->generateTeacherEmployeeId();
+
+        DB::transaction(function () use ($validated, $employeeId): void {
+            $teacher = Teacher::create([
+                'employee_id' => $employeeId,
+                'first_name' => $validated['first_name'],
+                'middle_name' => $validated['middle_name'] ?? null,
+                'last_name' => $validated['last_name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'gender' => $validated['gender'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'department_id' => (int) $validated['department_id'],
+                'specialization' => $validated['specialization'] ?? null,
+                'employment_status' => $validated['employment_status'],
+                'hire_date' => now(),
+                'is_active' => (bool) $validated['is_active'],
+            ]);
+
+            $fullName = trim(implode(' ', array_filter([
+                $validated['first_name'],
+                $validated['middle_name'] ?? null,
+                $validated['last_name'],
+            ])));
+
+            User::create([
+                'name' => $fullName,
+                'email' => $validated['email'],
+                'username' => $this->generateUniqueUsername($validated['email']),
+                'password' => Hash::make('password'),
+                'role' => User::ROLE_TEACHER,
+                'teacher_id' => $teacher->id,
+                'phone' => $validated['phone'] ?? null,
+                'email_verified_at' => now(),
+            ]);
+
+            if (!empty($validated['subject_ids'])) {
+                $teacher->subjects()->sync($validated['subject_ids']);
+            }
+
+            if (!empty($validated['section_id'])) {
+                Section::query()
+                    ->where('id', (int) $validated['section_id'])
+                    ->update(['teacher_id' => $teacher->id]);
+            }
+        });
+
+        return back()->with('success', 'Teacher account created and assigned successfully.');
     }
 
     public function assignTeachers(Request $request, Subject $subject)
@@ -203,5 +299,29 @@ class RegistrarSubjectController extends Controller
         $subject->delete();
 
         return redirect()->back()->with('success', 'Subject deleted successfully.');
+    }
+
+    private function generateTeacherEmployeeId(): string
+    {
+        do {
+            $candidate = 'T-' . now()->format('Y') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT);
+        } while (Teacher::query()->where('employee_id', $candidate)->exists());
+
+        return $candidate;
+    }
+
+    private function generateUniqueUsername(string $email): string
+    {
+        $base = Str::slug(Str::before($email, '@'), '.');
+        $base = $base !== '' ? $base : 'teacher';
+        $candidate = $base;
+        $index = 1;
+
+        while (User::query()->where('username', $candidate)->exists()) {
+            $index++;
+            $candidate = $base . $index;
+        }
+
+        return $candidate;
     }
 }
