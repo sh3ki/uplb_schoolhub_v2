@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureStudentActive;
 use App\Http\Middleware\EnsureStudentEnrolled;
+use App\Http\Middleware\EnsureElmsEnabled;
 use App\Http\Middleware\EnsureUserHasRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => EnsureUserHasRole::class,
             'enrolled' => EnsureStudentEnrolled::class,
             'student.active' => EnsureStudentActive::class,
+            'elms' => EnsureElmsEnabled::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
