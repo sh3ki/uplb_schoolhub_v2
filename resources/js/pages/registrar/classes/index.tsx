@@ -451,7 +451,7 @@ export default function RegistrarClassesIndex({
                 {/* Two-Panel Layout */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {/* Left Panel - Unassigned Students */}
-                    <Card className="flex flex-col max-h-[calc(100vh-420px)]">
+                    <Card className="flex flex-col max-h-[calc(100vh-255px)]">
                         <CardHeader className="flex-shrink-0 pb-3">
                             <div className="flex items-center justify-between">
                                 <CardTitle className="text-lg flex items-center gap-2">
@@ -570,7 +570,7 @@ export default function RegistrarClassesIndex({
                     </Card>
 
                     {/* Right Panel - Sections with Assigned Students */}
-                    <Card className="flex flex-col max-h-[calc(100vh-420px)]">
+                    <Card className="flex flex-col max-h-[calc(100vh-255px)]">
                         <CardHeader className="flex-shrink-0 pb-3">
                             <CardTitle className="text-lg flex items-center gap-2">
                                 <UserCheck className="h-5 w-5 text-green-500" />
