@@ -326,7 +326,9 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
                                                 <td className="p-3 text-center">
                                                     {getEnrollmentStatusBadge(student.enrollment_status)}
                                                 </td>
-                                                <td className="p-3 text-center font-medium">{student.grade ?? '-'}</td>
+                                                <td className="p-3 text-center font-medium">
+                                                    {student.is_grade_posted === false ? (student.draft_grade ?? '-') : (student.grade ?? '-')}
+                                                </td>
                                                 <td className="p-3 text-center">
                                                     {student.is_grade_posted === false ? (
                                                         <span className="inline-block rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">Draft</span>
