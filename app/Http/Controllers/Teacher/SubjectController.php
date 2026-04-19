@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppSetting;
 use App\Models\Subject;
-use App\Models\Student;
+use App\Models\StudentSubject;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -60,22 +61,29 @@ class SubjectController extends Controller
     {
         $user = Auth::user();
         $teacher = $user->teacher;
-        
-        // Query students in the same year level/department as the subject
-        $query = Student::with(['department:id,name,classification'])
-            ->where('department_id', $subject->department_id)
-            ->orderBy('last_name')
-            ->orderBy('first_name');
-        
-        // If subject has a year level, filter by it
-        if ($subject->year_level_id) {
-            $query->where('year_level_id', $subject->year_level_id);
-        }
+
+        $isAssigned = Subject::query()
+            ->where('id', $subject->id)
+            ->whereHas('teachers', fn ($query) => $query->where('teachers.id', $teacher?->id))
+            ->exists();
+
+        abort_unless($isAssigned, 403, 'You are not assigned to this subject.');
+
+        $currentSchoolYear = AppSetting::current()->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $baseQuery = StudentSubject::query()
+            ->where('subject_id', $subject->id)
+            ->where('school_year', $currentSchoolYear)
+            ->whereHas('student', fn ($query) => $query->where('enrollment_status', 'enrolled'));
+
+        $query = (clone $baseQuery)
+            ->with(['student.department:id,name,classification'])
+            ->latest();
 
         // Search filter
         if ($request->filled('search')) {
             $search = $request->input('search');
-            $query->where(function ($q) use ($search) {
+            $query->whereHas('student', function ($q) use ($search) {
                 $q->where('first_name', 'like', "%{$search}%")
                     ->orWhere('last_name', 'like', "%{$search}%")
                     ->orWhere('middle_name', 'like', "%{$search}%")
@@ -85,26 +93,63 @@ class SubjectController extends Controller
 
         // Section filter
         if ($request->filled('section') && $request->input('section') !== 'all') {
-            $query->where('section', $request->input('section'));
+            $section = (string) $request->input('section');
+            $query->whereHas('student', fn ($q) => $q->where('section', $section));
         }
 
-        $students = $query->paginate(20)->withQueryString();
+        // Gender filter
+        if ($request->filled('gender') && $request->input('gender') !== 'all') {
+            $gender = (string) $request->input('gender');
+            $query->whereHas('student', fn ($q) => $q->where('gender', $gender));
+        }
 
-        // Get sections for filter
-        $sections = Student::where('department_id', $subject->department_id)
-            ->when($subject->year_level_id, fn($q) => $q->where('year_level_id', $subject->year_level_id))
-            ->whereNotNull('section')
-            ->where('section', '!=', '')
-            ->distinct()
-            ->pluck('section')
+        // Subject enrollment status filter
+        if ($request->filled('subject_status') && $request->input('subject_status') !== 'all') {
+            $query->where('status', (string) $request->input('subject_status'));
+        }
+
+        $students = $query
+            ->paginate(20)
+            ->withQueryString()
+            ->through(function (StudentSubject $enrollment) {
+                $student = $enrollment->student;
+
+                return [
+                    'id' => $student?->id,
+                    'student_subject_id' => $enrollment->id,
+                    'first_name' => $student?->first_name,
+                    'last_name' => $student?->last_name,
+                    'middle_name' => $student?->middle_name,
+                    'suffix' => $student?->suffix,
+                    'lrn' => $student?->lrn,
+                    'email' => $student?->email,
+                    'year_level' => $student?->year_level,
+                    'section' => $student?->section,
+                    'enrollment_status' => $student?->enrollment_status,
+                    'student_photo_url' => $student?->student_photo_url,
+                    'department' => $student?->department,
+                    'gender' => $student?->gender,
+                    'grade' => $enrollment->grade,
+                    'subject_status' => $enrollment->status,
+                ];
+            });
+
+        // Get sections for filter from the same subject enrollment pool.
+        $sections = (clone $baseQuery)
+            ->with('student:id,section')
+            ->get()
+            ->pluck('student.section')
+            ->filter(fn ($section) => filled($section))
+            ->unique()
             ->sort()
             ->values();
 
         return Inertia::render('teacher/subjects/students', [
             'subject' => $subject->load(['department', 'yearLevel']),
             'students' => $students,
+            'currentSchoolYear' => $currentSchoolYear,
             'sections' => $sections,
-            'filters' => $request->only(['search', 'section']),
+            'filters' => $request->only(['search', 'section', 'gender', 'subject_status']),
         ]);
     }
 }
