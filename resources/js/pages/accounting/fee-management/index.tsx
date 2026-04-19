@@ -150,6 +150,17 @@ interface AppSettings {
     has_college: boolean;
 }
 
+interface SubjectFeeItem {
+    id: number;
+    code: string;
+    name: string;
+    department: string;
+    program: string;
+    year_level: string;
+    level_number: number;
+    selling_price: number;
+}
+
 interface Props {
     categories: FeeCategory[];
     totals: {
@@ -173,9 +184,10 @@ interface Props {
     }[];
     studentSchoolYears: string[];
     appSettings: AppSettings;
+    subjectFees?: SubjectFeeItem[];
 }
 
-export default function FeeManagementIndex({ categories, totals, departments, programs, yearLevels, sections, documentFees, documentCategories, tab, studentCounts = [], studentSchoolYears = [], appSettings }: Props) {
+export default function FeeManagementIndex({ categories, totals, departments, programs, yearLevels, sections, documentFees, documentCategories, tab, studentCounts = [], studentSchoolYears = [], appSettings, subjectFees = [] }: Props) {
     const [activeTab, setActiveTab] = useState(tab || 'general');
 
     // Search/filter state for general fees
@@ -791,13 +803,14 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                 />
 
                 <Tabs value={activeTab} onValueChange={handleTabChange}>
-                    <TabsList className="grid w-full grid-cols-5 max-w-3xl">
+                    <TabsList className="grid w-full grid-cols-6 max-w-4xl">
                         <TabsTrigger value="general">General Fees</TabsTrigger>
                         <TabsTrigger value="breakdown">
                             <LayoutList className="mr-1 h-3.5 w-3.5" />Breakdown
                         </TabsTrigger>
                         <TabsTrigger value="assignments">Assign Fees</TabsTrigger>
                         <TabsTrigger value="documents">Document Fees</TabsTrigger>
+                        <TabsTrigger value="subject-fees">Subject Fees</TabsTrigger>
                         <TabsTrigger value="projected">
                             <TrendingUp className="mr-1 h-3.5 w-3.5" />Projected
                         </TabsTrigger>
@@ -1731,6 +1744,80 @@ export default function FeeManagementIndex({ categories, totals, departments, pr
                                 </Table>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    {/* ── Subject Fees Tab ──────────────────────────────────── */}
+                    <TabsContent value="subject-fees" className="space-y-6 mt-6">
+                        {subjectFees.length === 0 ? (
+                            <Card>
+                                <CardContent className="py-12 text-center text-muted-foreground">
+                                    No college subjects with pricing found.
+                                </CardContent>
+                            </Card>
+                        ) : (() => {
+                            const byDept = subjectFees.reduce<Record<string, typeof subjectFees>>((acc, s) => {
+                                (acc[s.department] ??= []).push(s);
+                                return acc;
+                            }, {});
+                            return Object.entries(byDept).map(([dept, deptSubjects]) => {
+                                const byProgram = deptSubjects.reduce<Record<string, typeof deptSubjects>>((acc, s) => {
+                                    (acc[s.program] ??= []).push(s);
+                                    return acc;
+                                }, {});
+                                return (
+                                    <Card key={dept}>
+                                        <CardHeader className="pb-3">
+                                            <CardTitle className="text-base">{dept}</CardTitle>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4 pt-0">
+                                            {Object.entries(byProgram).map(([prog, progSubjects]) => {
+                                                const byLevel = progSubjects.reduce<Record<string, typeof progSubjects>>((acc, s) => {
+                                                    (acc[s.year_level] ??= []).push(s);
+                                                    return acc;
+                                                }, {});
+                                                const sortedLevels = Object.entries(byLevel).sort(([, a], [, b]) => a[0].level_number - b[0].level_number);
+                                                return (
+                                                    <div key={prog}>
+                                                        <p className="text-sm font-semibold text-muted-foreground mb-2">{prog}</p>
+                                                        {sortedLevels.map(([level, levelSubjects]) => (
+                                                            <div key={level} className="mb-3">
+                                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1 pl-1">{level}</p>
+                                                                <Table>
+                                                                    <TableHeader>
+                                                                        <TableRow>
+                                                                            <TableHead>Subject Name</TableHead>
+                                                                            <TableHead>Code</TableHead>
+                                                                            <TableHead>Department</TableHead>
+                                                                            <TableHead>Program</TableHead>
+                                                                            <TableHead>Year Level</TableHead>
+                                                                            <TableHead className="text-right">Selling Price</TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {levelSubjects.map(s => (
+                                                                            <TableRow key={s.id}>
+                                                                                <TableCell className="font-medium">{s.name}</TableCell>
+                                                                                <TableCell className="text-sm text-muted-foreground">{s.code}</TableCell>
+                                                                                <TableCell className="text-sm">{s.department}</TableCell>
+                                                                                <TableCell className="text-sm">{s.program}</TableCell>
+                                                                                <TableCell className="text-sm">{s.year_level}</TableCell>
+                                                                                <TableCell className="text-right font-mono text-sm">
+                                                                                    {formatCurrency(s.selling_price.toString())}
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ))}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })}
+                                        </CardContent>
+                                    </Card>
+                                );
+                            });
+                        })()}
                     </TabsContent>
                 </Tabs>
             </div>
