@@ -62,6 +62,7 @@ interface Quiz {
     id: number;
     title: string;
     description: string | null;
+    assessment_type: 'quiz' | 'exam' | 'long_test' | 'activity' | 'assignment';
     subject_id: number;
     time_limit_minutes: number | null;
     passing_score: number;
@@ -143,6 +144,22 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
         inProgress: quizzes.data.filter(q => q.has_in_progress).length,
     };
 
+    const assessmentTypeClasses: Record<Quiz['assessment_type'], string> = {
+        quiz: 'bg-sky-100 text-sky-700',
+        exam: 'bg-red-100 text-red-700',
+        long_test: 'bg-violet-100 text-violet-700',
+        activity: 'bg-emerald-100 text-emerald-700',
+        assignment: 'bg-amber-100 text-amber-700',
+    };
+
+    const assessmentTypeLabels: Record<Quiz['assessment_type'], string> = {
+        quiz: 'Quiz',
+        exam: 'Exam',
+        long_test: 'Long Test',
+        activity: 'Activity',
+        assignment: 'Assignment',
+    };
+
     return (
         <StudentLayout breadcrumbs={breadcrumbs}>
             <Head title="Quizzes" />
@@ -192,6 +209,19 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card>
+                    <CardContent className="p-4">
+                        <p className="mb-3 text-sm font-medium">Assessment Type Legend</p>
+                        <div className="flex flex-wrap gap-2 text-xs">
+                            {(Object.keys(assessmentTypeLabels) as Quiz['assessment_type'][]).map((type) => (
+                                <span key={type} className={`rounded-full px-3 py-1 font-medium ${assessmentTypeClasses[type]}`}>
+                                    {assessmentTypeLabels[type]}
+                                </span>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
 
                 {/* Filters */}
                 <Card>
@@ -268,10 +298,15 @@ export default function QuizzesIndex({ quizzes, subjects, filters }: Props) {
                                 <Card key={quiz.id} className="hover:shadow-md transition-shadow">
                                     <CardHeader className="pb-3">
                                         <div className="flex items-start justify-between">
-                                            <Badge variant="outline">
-                                                <BookOpen className="mr-1 h-3 w-3" />
-                                                {quiz.subject.code}
-                                            </Badge>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="outline">
+                                                    <BookOpen className="mr-1 h-3 w-3" />
+                                                    {quiz.subject.code}
+                                                </Badge>
+                                                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${assessmentTypeClasses[quiz.assessment_type]}`}>
+                                                    {assessmentTypeLabels[quiz.assessment_type]}
+                                                </span>
+                                            </div>
                                             <Badge variant={quizStatus.variant === 'warning' ? 'secondary' : quizStatus.variant}>
                                                 {quizStatus.label}
                                             </Badge>
