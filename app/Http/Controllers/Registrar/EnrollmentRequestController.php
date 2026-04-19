@@ -112,11 +112,33 @@ class EnrollmentRequestController extends Controller
             if ($total > 0) {
                 $studentFee = StudentFee::firstOrCreate(
                     ['student_id' => $student->id, 'school_year' => $enrollmentRequest->school_year],
-                    ['total_amount' => 0, 'total_paid' => 0, 'balance' => 0]
+                    [
+                        'registration_fee' => 0,
+                        'tuition_fee' => 0,
+                        'misc_fee' => 0,
+                        'books_fee' => 0,
+                        'other_fees' => 0,
+                        'total_amount' => 0,
+                        'total_paid' => 0,
+                        'balance' => 0,
+                        'grant_discount' => 0,
+                    ]
                 );
 
-                $studentFee->increment('total_amount', $total);
-                $studentFee->increment('balance', $total);
+                $studentFee->tuition_fee = (float) $studentFee->tuition_fee + $total;
+                $studentFee->total_amount = (float) $studentFee->total_amount + $total;
+                $studentFee->balance = max(
+                    0,
+                    (float) $studentFee->total_amount - (float) $studentFee->total_paid - (float) ($studentFee->grant_discount ?? 0)
+                );
+
+                $studentFee->payment_status = $studentFee->is_overdue
+                    ? 'overdue'
+                    : ($studentFee->balance <= 0
+                        ? 'paid'
+                        : ((float) $studentFee->total_paid > 0 ? 'partial' : 'unpaid'));
+
+                $studentFee->save();
             }
 
             $enrollmentRequest->update([

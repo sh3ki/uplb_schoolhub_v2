@@ -19,6 +19,7 @@ use App\Models\AppSetting;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -1099,6 +1100,8 @@ class StudentPaymentController extends Controller
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
+        $completedEnrollmentSubjectFees = $this->getCompletedEnrollmentSubjectFeesTotal($student, $normalizedSchoolYear);
+
         // Calculate total from fee items.
         // For per-unit items with zero enrolled units, fall back to selling_price to avoid dropping assigned fees to zero.
         $totalAmount = $feeItems->sum(function ($item) use ($enrolledUnits) {
@@ -1109,7 +1112,7 @@ class StudentPaymentController extends Controller
                 return (float) $item->selling_price;
             }
             return (float) $item->selling_price;
-        });
+        }) + $completedEnrollmentSubjectFees;
 
         // Get grant discount — always recalculate from Grant model so stale discount_amount is never used.
         // For the current school year apply ALL active grants regardless of their school_year label
@@ -1128,7 +1131,11 @@ class StudentPaymentController extends Controller
             }
         }
 
-        $categoryTotals = $this->deriveStoredCategoryTotals($feeItems, (float) $enrolledUnits);
+        $categoryTotals = $this->deriveStoredCategoryTotals(
+            $feeItems,
+            (float) $enrolledUnits,
+            $completedEnrollmentSubjectFees
+        );
 
         // Get or create the student_fees record for tracking payments
         $studentFee = StudentFee::where('student_id', $student->id)
@@ -1210,6 +1217,8 @@ class StudentPaymentController extends Controller
                 })->values()->toArray(),
             ];
         })->values()->toArray();
+
+        $itemsByCategory = $this->appendCompletedSubjectFeesCategoryItem($itemsByCategory, $completedEnrollmentSubjectFees);
 
         return [
             'id' => $studentFeeId,
@@ -1476,7 +1485,9 @@ class StudentPaymentController extends Controller
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
-        return $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) use ($enrolledUnits) {
+        $completedEnrollmentSubjectFees = $this->getCompletedEnrollmentSubjectFeesTotal($student, $schoolYear);
+
+        $categories = $feeItems->groupBy('fee_category_id')->map(function ($items, $categoryId) use ($enrolledUnits) {
             $category = $items->first()->category;
 
             return [
@@ -1501,6 +1512,49 @@ class StudentPaymentController extends Controller
                 })->values()->toArray(),
             ];
         })->values()->toArray();
+
+        return $this->appendCompletedSubjectFeesCategoryItem($categories, $completedEnrollmentSubjectFees);
+    }
+
+    /**
+     * Ensure completed enrollment subject fees are visible in fee breakdown categories.
+     */
+    private function appendCompletedSubjectFeesCategoryItem(array $categories, float $completedEnrollmentSubjectFees): array
+    {
+        if ($completedEnrollmentSubjectFees <= 0) {
+            return $categories;
+        }
+
+        foreach ($categories as &$category) {
+            if (str_contains(strtolower((string) ($category['category_name'] ?? '')), 'tuition')) {
+                $category['items'][] = [
+                    'id' => 'completed-enrollment-subject-fees',
+                    'name' => 'Completed Enrollment Subject Fees',
+                    'amount' => $completedEnrollmentSubjectFees,
+                    'is_per_unit' => false,
+                    'unit_price' => 0,
+                    'enrolled_units' => 0,
+                ];
+
+                return $categories;
+            }
+        }
+        unset($category);
+
+        $categories[] = [
+            'category_id' => 'tuition-subject-fees',
+            'category_name' => 'Tuition Fee',
+            'items' => [[
+                'id' => 'completed-enrollment-subject-fees',
+                'name' => 'Completed Enrollment Subject Fees',
+                'amount' => $completedEnrollmentSubjectFees,
+                'is_per_unit' => false,
+                'unit_price' => 0,
+                'enrolled_units' => 0,
+            ]],
+        ];
+
+        return $categories;
     }
 
     /**
@@ -1576,9 +1630,22 @@ class StudentPaymentController extends Controller
     }
 
     /**
+     * Sum completed enrollment-request subject fees for a student and school year.
+     */
+    private function getCompletedEnrollmentSubjectFeesTotal(Student $student, string $schoolYear): float
+    {
+        return (float) DB::table('enrollment_request_subjects as ers')
+            ->join('enrollment_requests as er', 'er.id', '=', 'ers.enrollment_request_id')
+            ->where('er.student_id', $student->id)
+            ->whereRaw('TRIM(er.school_year) = ?', [$schoolYear])
+            ->where('er.status', 'completed')
+            ->sum('ers.selling_price');
+    }
+
+    /**
      * Derive student_fees category columns from applicable fee items.
      */
-    private function deriveStoredCategoryTotals($feeItems, float $enrolledUnits): array
+    private function deriveStoredCategoryTotals($feeItems, float $enrolledUnits, float $completedEnrollmentSubjectFees): array
     {
         $totals = [
             'registration_fee' => 0.0,
@@ -1611,6 +1678,11 @@ class StudentPaymentController extends Controller
             } else {
                 $totals['other_fees'] += $amount;
             }
+        }
+
+        // Subject enrollment charges belong under tuition.
+        if ($completedEnrollmentSubjectFees > 0) {
+            $totals['tuition_fee'] += $completedEnrollmentSubjectFees;
         }
 
         return $totals;

@@ -14,6 +14,7 @@ use App\Models\OnlineTransaction;
 use App\Models\YearLevel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -412,6 +413,14 @@ class StudentAccountController extends Controller
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
+        $completedEnrollmentSubjectFees = $this->getCompletedEnrollmentSubjectFeesTotal($student, $normalizedSchoolYear);
+
+        $categoryTotals = $this->deriveStoredCategoryTotals(
+            $feeItems,
+            (float) $enrolledUnits,
+            $completedEnrollmentSubjectFees
+        );
+
         $totalAmount = (float) $feeItems->sum(function ($item) use ($enrolledUnits) {
             if ($item->is_per_unit) {
                 if ((float) $enrolledUnits > 0) {
@@ -420,7 +429,7 @@ class StudentAccountController extends Controller
                 return (float) $item->selling_price;
             }
             return (float) $item->selling_price;
-        });
+        }) + $completedEnrollmentSubjectFees;
 
         // Get grant discount — recalculate from Grant model to fix stale discount_amount=0 records.
         // For the current school year apply ALL active grants (fixes year-label mismatch).
@@ -453,6 +462,11 @@ class StudentAccountController extends Controller
             $studentFee = StudentFee::create([
                 'student_id' => $student->id,
                 'school_year' => $schoolYear,
+                'registration_fee' => $categoryTotals['registration_fee'],
+                'tuition_fee' => $categoryTotals['tuition_fee'],
+                'misc_fee' => $categoryTotals['misc_fee'],
+                'books_fee' => $categoryTotals['books_fee'],
+                'other_fees' => $categoryTotals['other_fees'],
                 'total_amount' => $totalAmount,
                 'grant_discount' => $grantDiscount,
                 'total_paid' => $totalPaid,
@@ -471,7 +485,17 @@ class StudentAccountController extends Controller
             $freshBalance  = max(0, $freshTotal - $freshDiscount - $totalPaid);
             if ((float) $studentFee->total_amount !== $freshTotal
                 || (float) $studentFee->grant_discount !== $freshDiscount
-                || (float) $studentFee->balance !== $freshBalance) {
+                || (float) $studentFee->balance !== $freshBalance
+                || (float) $studentFee->registration_fee !== (float) $categoryTotals['registration_fee']
+                || (float) $studentFee->tuition_fee !== (float) $categoryTotals['tuition_fee']
+                || (float) $studentFee->misc_fee !== (float) $categoryTotals['misc_fee']
+                || (float) $studentFee->books_fee !== (float) $categoryTotals['books_fee']
+                || (float) $studentFee->other_fees !== (float) $categoryTotals['other_fees']) {
+                $studentFee->registration_fee = $categoryTotals['registration_fee'];
+                $studentFee->tuition_fee      = $categoryTotals['tuition_fee'];
+                $studentFee->misc_fee         = $categoryTotals['misc_fee'];
+                $studentFee->books_fee        = $categoryTotals['books_fee'];
+                $studentFee->other_fees       = $categoryTotals['other_fees'];
                 $studentFee->total_amount   = $freshTotal;
                 $studentFee->total_paid     = $totalPaid;
                 $studentFee->grant_discount = $freshDiscount;
@@ -514,6 +538,65 @@ class StudentAccountController extends Controller
             'payment_status' => $paymentStatus,
             'payments_count' => $paymentsCount,
         ];
+    }
+
+    /**
+     * Sum completed enrollment-request subject fees for a student and school year.
+     */
+    private function getCompletedEnrollmentSubjectFeesTotal(Student $student, string $schoolYear): float
+    {
+        return (float) DB::table('enrollment_request_subjects as ers')
+            ->join('enrollment_requests as er', 'er.id', '=', 'ers.enrollment_request_id')
+            ->where('er.student_id', $student->id)
+            ->whereRaw('TRIM(er.school_year) = ?', [$schoolYear])
+            ->where('er.status', 'completed')
+            ->sum('ers.selling_price');
+    }
+
+    /**
+     * Derive category-column totals from matched fee items plus completed subject fees.
+     */
+    private function deriveStoredCategoryTotals($feeItems, float $enrolledUnits, float $completedEnrollmentSubjectFees): array
+    {
+        $totals = [
+            'registration_fee' => 0.0,
+            'tuition_fee' => 0.0,
+            'misc_fee' => 0.0,
+            'books_fee' => 0.0,
+            'other_fees' => 0.0,
+        ];
+
+        foreach ($feeItems as $item) {
+            $amount = (float) $item->selling_price;
+            if ($item->is_per_unit) {
+                $amount = $enrolledUnits > 0
+                    ? (float) $item->unit_price * $enrolledUnits
+                    : (float) $item->selling_price;
+            }
+
+            $categoryName = strtolower((string) optional($item->category)->name);
+            $itemName = strtolower((string) $item->name);
+            $haystack = trim($categoryName . ' ' . $itemName);
+
+            if (str_contains($haystack, 'registr')) {
+                $totals['registration_fee'] += $amount;
+            } elseif (str_contains($haystack, 'tuition')) {
+                $totals['tuition_fee'] += $amount;
+            } elseif (str_contains($haystack, 'misc')) {
+                $totals['misc_fee'] += $amount;
+            } elseif (str_contains($haystack, 'book')) {
+                $totals['books_fee'] += $amount;
+            } else {
+                $totals['other_fees'] += $amount;
+            }
+        }
+
+        // Subject enrollment charges are tuition-related and should appear in that bucket.
+        if ($completedEnrollmentSubjectFees > 0) {
+            $totals['tuition_fee'] += $completedEnrollmentSubjectFees;
+        }
+
+        return $totals;
     }
 
     private function resolveFeeTemplateYear(Student $student, string $targetYear): ?string
