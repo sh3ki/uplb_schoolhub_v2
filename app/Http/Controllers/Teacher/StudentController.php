@@ -166,7 +166,14 @@ class StudentController extends Controller
      */
     public function show(Student $student)
     {
+        $teacher = Auth::user()?->teacher;
         $currentSchoolYear = AppSetting::current()?->school_year ?? (date('Y') . '-' . (date('Y') + 1));
+
+        $teachingSubjectIds = Subject::query()
+            ->whereHas('teachers', fn ($query) => $query->where('teachers.id', $teacher?->id))
+            ->pluck('subjects.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
 
         $student->load([
             'department:id,name,classification',
@@ -182,6 +189,7 @@ class StudentController extends Controller
             ->values()
             ->map(fn ($enrollment) => [
                 'id' => $enrollment->id,
+                'subject_id' => $enrollment->subject_id,
                 'subject_code' => $enrollment->subject?->code,
                 'subject_name' => $enrollment->subject?->name,
                 'units' => $enrollment->subject?->units,
@@ -190,8 +198,11 @@ class StudentController extends Controller
                 'status' => $enrollment->status,
                 'grade' => $enrollment->grade,
                 'draft_grade' => $enrollment->draft_grade,
+                'draft_breakdown' => $enrollment->draft_breakdown,
+                'grade_breakdown' => $enrollment->grade_breakdown,
                 'is_grade_posted' => $enrollment->is_grade_posted,
                 'grade_posted_at' => optional($enrollment->grade_posted_at)?->toDateTimeString(),
+                'can_edit' => in_array((int) $enrollment->subject_id, $teachingSubjectIds, true),
             ]);
 
         $summary = [
