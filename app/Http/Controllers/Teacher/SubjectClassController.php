@@ -133,6 +133,12 @@ class SubjectClassController extends Controller
             return back()->with('success', 'Grade draft saved successfully.');
         }
 
+        if ($finalGrade === null) {
+            return back()->withErrors([
+                'breakdown' => 'Please add at least one valid score before posting.',
+            ]);
+        }
+
         $enrollment->update([
             'grade' => $finalGrade,
             'draft_grade' => $finalGrade,
@@ -242,11 +248,15 @@ class SubjectClassController extends Controller
         $ptVal = $ptAvg ?? 0;
         $examVal = $examAvg ?? 0;
 
-        $finalGrade = round((
-            ($wwVal * $weights['written_works']) +
-            ($ptVal * $weights['performance_tasks']) +
-            ($examVal * $weights['examinations'])
-        ) / $totalWeight, 2);
+        $hasAnyScore = $wwAvg !== null || $ptAvg !== null || $examAvg !== null;
+
+        $finalGrade = $hasAnyScore
+            ? round((
+                ($wwVal * $weights['written_works']) +
+                ($ptVal * $weights['performance_tasks']) +
+                ($examVal * $weights['examinations'])
+            ) / $totalWeight, 2)
+            : null;
 
         return [[
             'written_works' => $writtenWorks,
