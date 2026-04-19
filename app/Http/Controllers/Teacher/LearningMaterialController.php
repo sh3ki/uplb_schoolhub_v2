@@ -274,12 +274,10 @@ class LearningMaterialController extends Controller
         abort_if(!$teacher, 403);
 
         abort_unless($material->teacher_id === $teacher->id, 403);
-        abort_unless(Storage::disk('public')->exists($material->file_path), 404);
+        $absolutePath = storage_path('app/public/' . ltrim($material->file_path, '/'));
+        abort_unless(file_exists($absolutePath), 404);
 
-        return Storage::disk('public')->download(
-            $material->file_path,
-            $material->original_filename
-        );
+        return response()->download($absolutePath, $material->original_filename);
     }
 
     private function teacherSubjects(int $teacherId)
