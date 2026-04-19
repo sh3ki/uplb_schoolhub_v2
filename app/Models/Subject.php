@@ -23,11 +23,15 @@ class Subject extends Model
         'type',
         'year_level_id',
         'semester',
+        'cost_price',
+        'selling_price',
         'is_active',
     ];
 
     protected $casts = [
         'units' => 'decimal:1',
+        'cost_price' => 'decimal:2',
+        'selling_price' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 
