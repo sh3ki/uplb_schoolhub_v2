@@ -272,9 +272,9 @@ class CollegeEnrollmentController extends Controller
         // Unit check
         $newUnits = $subjectsToEnroll->sum('units');
         $existingUnits = StudentSubject::where('student_id', $student->id)
-            ->where('school_year', $currentSchoolYear)
-            ->where('semester', $activeSemester)
-            ->where('status', 'enrolled')
+            ->where('student_subjects.school_year', $currentSchoolYear)
+            ->where('student_subjects.semester', $activeSemester)
+            ->where('student_subjects.status', 'enrolled')
             ->join('subjects', 'subjects.id', '=', 'student_subjects.subject_id')
             ->sum('subjects.units');
 
