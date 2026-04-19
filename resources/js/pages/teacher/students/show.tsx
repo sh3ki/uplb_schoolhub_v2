@@ -1,5 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mail, Phone, MapPin, School, BookOpen } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, Mail, Phone, MapPin, School, BookOpen, PencilLine } from 'lucide-react';
+import { useState } from 'react';
+import { GradeEntryModal } from '@/components/elms/grade-entry-modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,6 +46,7 @@ interface Student {
 
 interface GradeRow {
     id: number;
+    subject_id?: number | null;
     subject_code?: string | null;
     subject_name?: string | null;
     units?: number | null;
@@ -52,8 +55,11 @@ interface GradeRow {
     status?: string | null;
     grade?: number | null;
     draft_grade?: number | null;
+    draft_breakdown?: Record<string, any> | null;
+    grade_breakdown?: Record<string, any> | null;
     is_grade_posted?: boolean;
     grade_posted_at?: string | null;
+    can_edit?: boolean;
 }
 
 interface Props {
@@ -79,12 +85,44 @@ const enrollmentVariants: Record<string, 'default' | 'secondary' | 'destructive'
 };
 
 export default function TeacherStudentShow({ student, currentSchoolYear, gradeRows, summary }: Props) {
+    const [activeGradeRow, setActiveGradeRow] = useState<GradeRow | null>(null);
+    const [gradeModalOpen, setGradeModalOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Students', href: '/teacher/students' },
         { title: `${student.last_name}, ${student.first_name}`, href: `/teacher/students/${student.id}` },
     ];
 
     const fullName = `${student.first_name}${student.middle_name ? ` ${student.middle_name}` : ''} ${student.last_name}${student.suffix ? ` ${student.suffix}` : ''}`;
+
+    const submitGrade = (payload: {
+        action: 'save' | 'post';
+        student_subject_id: number;
+        notes: string;
+        breakdown: {
+            written_works: Array<{ title: string; score: number | null }>;
+            performance_tasks: Array<{ title: string; score: number | null }>;
+            examinations: Array<{ title: string; score: number | null }>;
+            weights: {
+                written_works: number;
+                performance_tasks: number;
+                examinations: number;
+            };
+        };
+    }) => {
+        setIsSubmitting(true);
+        router.post('/teacher/subject-classes/post-grade', payload, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setGradeModalOpen(false);
+                setActiveGradeRow(null);
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
+            },
+        });
+    };
 
     return (
         <TeacherLayout breadcrumbs={breadcrumbs}>
@@ -201,6 +239,7 @@ export default function TeacherStudentShow({ student, currentSchoolYear, gradeRo
                                             <th className="px-3 py-2 text-center">Grade</th>
                                             <th className="px-3 py-2 text-center">State</th>
                                             <th className="px-3 py-2 text-center">Status</th>
+                                            <th className="px-3 py-2 text-center">Action</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -224,6 +263,24 @@ export default function TeacherStudentShow({ student, currentSchoolYear, gradeRo
                                                     )}
                                                 </td>
                                                 <td className="px-3 py-2 text-center capitalize">{row.status || '-'}</td>
+                                                <td className="px-3 py-2 text-center">
+                                                    {row.can_edit ? (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                setActiveGradeRow(row);
+                                                                setGradeModalOpen(true);
+                                                            }}
+                                                        >
+                                                            <PencilLine className="mr-1 h-4 w-4" />
+                                                            Edit
+                                                        </Button>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">Not assigned</span>
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -268,6 +325,19 @@ export default function TeacherStudentShow({ student, currentSchoolYear, gradeRo
                     </CardContent>
                 </Card>
             </div>
+
+            {activeGradeRow ? (
+                <GradeEntryModal
+                    open={gradeModalOpen}
+                    onOpenChange={setGradeModalOpen}
+                    studentName={fullName}
+                    studentNumber={student.lrn}
+                    studentSubjectId={activeGradeRow.id}
+                    initialBreakdown={activeGradeRow.draft_breakdown ?? activeGradeRow.grade_breakdown ?? null}
+                    processing={isSubmitting}
+                    onSubmit={submitGrade}
+                />
+            ) : null}
         </TeacherLayout>
     );
 }
