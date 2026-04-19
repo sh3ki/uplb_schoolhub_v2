@@ -32,11 +32,18 @@ interface Department {
     classification: 'K-12' | 'College';
 }
 
+interface Program {
+    id: number;
+    name: string;
+    department_id: number;
+}
+
 interface YearLevel {
     id: number;
     name: string;
     level_number: number;
     department_id: number;
+    program_id: number | null;
     department: {
         id: number;
         name: string;
@@ -55,6 +62,8 @@ interface Subject {
     type: 'core' | 'major' | 'elective' | 'general';
     year_level_id: number | null;
     semester: '1' | '2' | 'summer' | null;
+    cost_price: number | null;
+    selling_price: number | null;
     is_active: boolean;
     department: Department;
     year_level: YearLevel | null;
@@ -80,6 +89,7 @@ interface Props {
         links: any[];
     };
     departments: Department[];
+    programs: Program[];
     yearLevels: YearLevel[];
     teachers: TeacherSummary[];
     filters: {
@@ -91,7 +101,7 @@ interface Props {
     };
 }
 
-export default function SubjectsIndex({ subjects, departments, yearLevels, teachers, filters }: Props) {
+export default function SubjectsIndex({ subjects, departments, programs, yearLevels, teachers, filters }: Props) {
     const { props } = usePage();
     const hasK12 = (props.appSettings as any)?.has_k12 !== false;
     const hasCollege = (props.appSettings as any)?.has_college !== false;
@@ -124,6 +134,8 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
         type: 'core' as 'core' | 'major' | 'elective' | 'general',
         year_level_id: '',
         semester: 'none',
+        cost_price: '',
+        selling_price: '',
         is_active: true,
     });
 
@@ -216,6 +228,8 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
             type: subject.type,
             year_level_id: subject.year_level_id?.toString() || '',
             semester: subject.semester || 'none',
+            cost_price: subject.cost_price?.toString() || '',
+            selling_price: subject.selling_price?.toString() || '',
             is_active: subject.is_active,
         });
         setIsModalOpen(true);
@@ -223,9 +237,9 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const isCollege = form.data.classification === 'College';
 
-        // Prepare clean data for submission
-        const submitData = {
+        const submitData: Record<string, any> = {
             code: form.data.code,
             name: form.data.name,
             description: form.data.description,
@@ -238,6 +252,11 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
             semester: form.data.semester === 'none' ? '' : form.data.semester,
             is_active: form.data.is_active,
         };
+
+        if (isCollege) {
+            submitData.cost_price = form.data.cost_price || null;
+            submitData.selling_price = form.data.selling_price || null;
+        }
 
         if (editingSubject) {
             router.put(`/registrar/subjects/${editingSubject.id}`, submitData, {
@@ -315,9 +334,15 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
         ? departments.filter((d) => d.classification === form.data.classification)
         : departments;
 
+    const filteredPrograms = form.data.department_id
+        ? programs.filter((p) => p.department_id === parseInt(form.data.department_id))
+        : [];
+
     const filteredYearLevels = form.data.department_id
         ? yearLevels.filter((yl) => yl.department_id === parseInt(form.data.department_id))
         : [];
+
+    const isCollegeForm = form.data.classification === 'College';
 
     return (
         <RegistrarLayout breadcrumbs={breadcrumbs}>
@@ -562,6 +587,10 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
                                             form.setData('classification', value);
                                             form.setData('department_id', '');
                                             form.setData('year_level_id', '');
+                                            if (value !== 'College') {
+                                                form.setData('cost_price', '');
+                                                form.setData('selling_price', '');
+                                            }
                                         }}
                                     >
                                         <SelectTrigger>
@@ -645,6 +674,67 @@ export default function SubjectsIndex({ subjects, departments, yearLevels, teach
                                     </Select>
                                 </div>
                             </div>
+
+                            {/* College-only: Program + Pricing */}
+                            {isCollegeForm && (
+                                <>
+                                    <div>
+                                        <Label htmlFor="program">Program (Optional)</Label>
+                                        <Select
+                                            value=""
+                                            onValueChange={() => {}}
+                                            disabled={filteredPrograms.length === 0}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder={filteredPrograms.length === 0 ? 'Select department first' : 'Select program'} />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {filteredPrograms.map((p) => (
+                                                    <SelectItem key={p.id} value={p.id.toString()}>
+                                                        {p.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Program assignment is managed via subject assignments.
+                                        </p>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <Label htmlFor="cost_price">Cost Price</Label>
+                                            <Input
+                                                id="cost_price"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={form.data.cost_price}
+                                                onChange={(e) => form.setData('cost_price', e.target.value)}
+                                                placeholder="0.00"
+                                            />
+                                            {form.errors.cost_price && (
+                                                <p className="mt-1 text-sm text-destructive">{form.errors.cost_price}</p>
+                                            )}
+                                        </div>
+                                        <div>
+                                            <Label htmlFor="selling_price">Selling Price</Label>
+                                            <Input
+                                                id="selling_price"
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={form.data.selling_price}
+                                                onChange={(e) => form.setData('selling_price', e.target.value)}
+                                                placeholder="0.00"
+                                            />
+                                            {form.errors.selling_price && (
+                                                <p className="mt-1 text-sm text-destructive">{form.errors.selling_price}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
 
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
