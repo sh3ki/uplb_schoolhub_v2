@@ -22,7 +22,7 @@ class LearningMaterialController extends Controller
     public function materials(Request $request): Response
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $materials = LearningMaterial::query()
             ->where('teacher_id', $teacher->id)
@@ -48,7 +48,7 @@ class LearningMaterialController extends Controller
     public function files(Request $request): Response
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $sentFiles = LearningMaterial::query()
             ->with(['subject:id,code,name', 'section:id,name'])
@@ -96,7 +96,7 @@ class LearningMaterialController extends Controller
     public function storeMaterial(Request $request): RedirectResponse
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -123,7 +123,7 @@ class LearningMaterialController extends Controller
     public function storeFile(Request $request): RedirectResponse
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -160,7 +160,7 @@ class LearningMaterialController extends Controller
     public function send(Request $request, LearningMaterial $material): RedirectResponse
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         abort_unless($material->teacher_id === $teacher->id, 403);
 
@@ -187,7 +187,7 @@ class LearningMaterialController extends Controller
     public function destroy(LearningMaterial $material): RedirectResponse
     {
         $teacher = Auth::user()?->teacher;
-        abort_unless($teacher, 403);
+        abort_if(!$teacher, 403);
 
         abort_unless($material->teacher_id === $teacher->id, 403);
 
