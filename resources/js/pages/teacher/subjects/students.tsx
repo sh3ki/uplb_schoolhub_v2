@@ -1,17 +1,14 @@
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, BookOpen, Users, Eye, UploadCloud } from 'lucide-react';
 import { useState } from 'react';
+import { GradeEntryModal } from '@/components/elms/grade-entry-modal';
 import { FilterBar } from '@/components/filters/filter-bar';
 import { FilterDropdown } from '@/components/filters/filter-dropdown';
 import { SearchBar } from '@/components/filters/search-bar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Pagination } from '@/components/ui/pagination';
-import { Textarea } from '@/components/ui/textarea';
 import { StudentPhoto } from '@/components/ui/student-photo';
 import TeacherLayout from '@/layouts/teacher/teacher-layout';
 import type { BreadcrumbItem } from '@/types';
@@ -53,6 +50,10 @@ interface Student {
     enrollment_status: string;
     subject_status: string;
     grade: number | null;
+    draft_grade?: number | null;
+    draft_breakdown?: Record<string, any> | null;
+    grade_breakdown?: Record<string, any> | null;
+    is_grade_posted?: boolean;
     gender?: string | null;
     student_photo_url?: string | null;
     department?: Department | null;
@@ -105,12 +106,7 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
     const [subjectStatus, setSubjectStatus] = useState(filters.subject_status || 'all');
     const [postOpen, setPostOpen] = useState(false);
     const [activeStudent, setActiveStudent] = useState<Student | null>(null);
-
-    const postForm = useForm({
-        student_subject_id: 0,
-        grade: '',
-        notes: '',
-    });
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Subjects', href: '/teacher/subjects' },
@@ -159,20 +155,33 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
 
     const openPostDialog = (student: Student) => {
         setActiveStudent(student);
-        postForm.setData({
-            student_subject_id: student.student_subject_id,
-            grade: student.grade !== null ? student.grade.toString() : '',
-            notes: '',
-        });
         setPostOpen(true);
     };
 
-    const submitPost = () => {
-        postForm.post('/teacher/subject-classes/post-grade', {
+    const submitGrade = (payload: {
+        action: 'save' | 'post';
+        student_subject_id: number;
+        notes: string;
+        breakdown: {
+            written_works: Array<{ title: string; score: number | null }>;
+            performance_tasks: Array<{ title: string; score: number | null }>;
+            examinations: Array<{ title: string; score: number | null }>;
+            weights: {
+                written_works: number;
+                performance_tasks: number;
+                examinations: number;
+            };
+        };
+    }) => {
+        setIsSubmitting(true);
+        router.post('/teacher/subject-classes/post-grade', payload, {
             preserveScroll: true,
             onSuccess: () => {
                 setPostOpen(false);
                 setActiveStudent(null);
+            },
+            onFinish: () => {
+                setIsSubmitting(false);
             },
         });
     };
@@ -281,13 +290,14 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
                                         <th className="p-3 text-left font-semibold">Section</th>
                                             <th className="p-3 text-center font-semibold">Status</th>
                                             <th className="p-3 text-center font-semibold">Grade</th>
+                                            <th className="p-3 text-center font-semibold">Publish</th>
                                         <th className="p-3 text-center font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {students.data.length === 0 ? (
                                         <tr>
-                                                <td colSpan={7} className="p-8 text-center text-gray-500">
+                                                <td colSpan={8} className="p-8 text-center text-gray-500">
                                                 No students found for this subject.
                                             </td>
                                         </tr>
@@ -318,6 +328,13 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
                                                 </td>
                                                 <td className="p-3 text-center font-medium">{student.grade ?? '-'}</td>
                                                 <td className="p-3 text-center">
+                                                    {student.is_grade_posted === false ? (
+                                                        <span className="inline-block rounded bg-amber-100 px-2 py-1 text-xs text-amber-700">Draft</span>
+                                                    ) : (
+                                                        <span className="inline-block rounded bg-green-100 px-2 py-1 text-xs text-green-700">Posted</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-3 text-center">
                                                     <div className="flex items-center justify-center gap-1">
                                                         <Button
                                                             size="sm"
@@ -332,7 +349,7 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
                                                             onClick={() => openPostDialog(student)}
                                                         >
                                                             <UploadCloud className="mr-1 h-4 w-4" />
-                                                            Post
+                                                            Open Grade Sheet
                                                         </Button>
                                                     </div>
                                                 </td>
@@ -348,51 +365,18 @@ export default function SubjectStudents({ subject, students, currentSchoolYear, 
                 </Card>
             </div>
 
-            <Dialog open={postOpen} onOpenChange={setPostOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Post Grade</DialogTitle>
-                    </DialogHeader>
-
-                    <div className="space-y-4">
-                        <div className="rounded-lg border p-3 text-sm">
-                            <p className="font-medium">
-                                {activeStudent ? `${activeStudent.last_name}, ${activeStudent.first_name}` : ''}
-                            </p>
-                            <p className="text-muted-foreground">{activeStudent?.lrn || 'No student number'}</p>
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="post_grade">Grade</Label>
-                            <Input
-                                id="post_grade"
-                                type="number"
-                                min={0}
-                                max={100}
-                                value={postForm.data.grade}
-                                onChange={(e) => postForm.setData('grade', e.target.value)}
-                                placeholder="0 to 100"
-                            />
-                        </div>
-
-                        <div className="grid gap-2">
-                            <Label htmlFor="post_notes">Notes</Label>
-                            <Textarea
-                                id="post_notes"
-                                rows={3}
-                                value={postForm.data.notes}
-                                onChange={(e) => postForm.setData('notes', e.target.value)}
-                                placeholder="Optional note for this grade posting"
-                            />
-                        </div>
-                    </div>
-
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setPostOpen(false)}>Cancel</Button>
-                        <Button onClick={submitPost} disabled={postForm.processing}>Post Grade</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            {activeStudent ? (
+                <GradeEntryModal
+                    open={postOpen}
+                    onOpenChange={setPostOpen}
+                    studentName={getFullName(activeStudent)}
+                    studentNumber={activeStudent.lrn}
+                    studentSubjectId={activeStudent.student_subject_id}
+                    initialBreakdown={activeStudent.draft_breakdown ?? activeStudent.grade_breakdown ?? null}
+                    processing={isSubmitting}
+                    onSubmit={submitGrade}
+                />
+            ) : null}
         </TeacherLayout>
     );
 }
